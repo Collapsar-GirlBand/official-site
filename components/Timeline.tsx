@@ -80,7 +80,7 @@ const Timeline: React.FC = () => {
         >
           {/* UPDATED: Added mr-[-0.5em] to compensate for the trailing letter-spacing space */}
           <h2 className="text-4xl md:text-6xl font-light tracking-[0.5em] mr-[-0.5em] text-white mix-blend-screen z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-            星图轨迹
+            往期演出
           </h2>
           <div className="h-8 md:h-12 w-px bg-gradient-to-b from-white to-transparent mx-auto mt-4 md:mt-6 opacity-50" />
           <p className="text-[10px] md:text-xs font-mono text-gray-400 mt-2 tracking-[0.4em] uppercase">
