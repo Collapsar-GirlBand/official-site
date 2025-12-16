@@ -88,7 +88,7 @@ const Hero: React.FC = () => {
       opacity: 1,
       filter: "brightness(1) blur(0px)",
       transition: { 
-        duration: 0.1,
+        duration: 0,
         ease: "circOut" 
       }
     },
@@ -98,7 +98,7 @@ const Hero: React.FC = () => {
       opacity: 0,
       filter: "brightness(5) blur(2px)",
       transition: { 
-        duration: 0.1,
+        duration: 0,
         ease: "circIn" 
       }
     }
