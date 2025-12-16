@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { SOCIAL_LINKS, SITE_CONFIG } from '../constants';
 
@@ -109,10 +109,8 @@ const TechInputWrapper: React.FC<TechInputWrapperProps> = ({
             className="absolute left-6 pointer-events-none font-light z-20 origin-top-left"
             initial={false}
             animate={{
-              // UPDATED: Responsive top position matching padding (Mobile p-3 = 0.75rem, Desktop p-6 = 1.5rem)
               top: isFocused || value ? '-2.5rem' : (isMobile ? '0.75rem' : '1.5rem'),
               x: isFocused || value ? -24 : 0,
-              // UPDATED: Responsive font size matching input text (Mobile text-base, Desktop text-2xl)
               fontSize: isFocused || value ? '0.65rem' : (isMobile ? '1rem' : '1.5rem'),
               color: isFocused ? '#ffffff' : (value ? '#6b7280' : '#4b5563'),
               letterSpacing: isFocused || value ? '0.2em' : 'normal'
@@ -168,11 +166,9 @@ const CollapsarNav: React.FC = () => {
     };
   }, []);
 
-  // --- MOBILE RENDER (Dropdown / Full Screen Menu) ---
   if (isSmallScreen) {
     return (
       <>
-         {/* Mobile Trigger Button (THEMED: Orbiting Star) */}
          <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ 
@@ -185,17 +181,14 @@ const CollapsarNav: React.FC = () => {
             aria-label="Toggle Menu"
          >
              <div className="relative flex items-center justify-center w-8 h-8">
-                 {/* Rotating Orbit Ring */}
                  <motion.div 
                     className="absolute inset-[-4px] rounded-full border border-dashed border-white/50"
                     animate={{ rotate: 360, opacity: mobileMenuOpen ? 0.2 : 0.8 }}
                     transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
                  />
-                 
-                 {/* Center Star (Turns into X on click) */}
                  <motion.div
                     animate={{ 
-                        rotate: mobileMenuOpen ? 45 : 0, // 4-point star at 45deg looks like X
+                        rotate: mobileMenuOpen ? 45 : 0,
                         scale: mobileMenuOpen ? 1.2 : 1
                     }}
                     transition={{ duration: 0.4, ease: "backOut" }}
@@ -205,18 +198,15 @@ const CollapsarNav: React.FC = () => {
              </div>
          </motion.button>
 
-         {/* Mobile Full Screen Menu Overlay */}
          <AnimatePresence>
            {mobileMenuOpen && (
              <motion.div
-               // UPDATED: Changed from clip-path to transform Y slide for smooth dropdown
                initial={{ y: "-100%" }}
                animate={{ y: "0%" }}
                exit={{ y: "-100%", transition: { duration: 0.5, ease: "easeInOut" } }}
-               transition={{ duration: 0.7, ease: [0.19, 1, 0.22, 1] }} // Smooth "Expo" easing
+               transition={{ duration: 0.7, ease: [0.19, 1, 0.22, 1] }} 
                className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center overflow-hidden"
              >
-                 {/* Background Rotating Element */}
                  <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[120vw] border border-white/10 rounded-full animate-[spin_60s_linear_infinite]" />
                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] h-[100vw] border border-dashed border-white/10 rounded-full animate-[spin_40s_linear_infinite_reverse]" />
@@ -224,11 +214,9 @@ const CollapsarNav: React.FC = () => {
 
                  <nav className="flex flex-col items-center gap-10 relative z-10 w-full px-8">
                      <div className="w-px h-16 bg-gradient-to-b from-transparent to-white/30" />
-                     
                      <div className="text-[10px] font-mono tracking-[0.4em] text-gray-500 uppercase">
                          /// Navigation_System
                      </div>
-                     
                      <div className="flex flex-col items-center gap-6 w-full">
                        {SOCIAL_LINKS.map((link, i) => (
                            <motion.a
@@ -238,8 +226,7 @@ const CollapsarNav: React.FC = () => {
                              rel="noreferrer"
                              initial={{ opacity: 0, y: 20 }}
                              animate={{ opacity: 1, y: 0 }}
-                             transition={{ delay: 0.4 + i * 0.1, duration: 0.5 }} // Increased delay slightly to sync with slide
-                             // UPDATED: Added 'justify-center' and 'mr-[-0.2em]' to text span to perfectly center. Removed arrow icon.
+                             transition={{ delay: 0.4 + i * 0.1, duration: 0.5 }}
                              className="text-3xl font-light text-white uppercase flex items-center justify-center group w-full"
                              onClick={() => setMobileMenuOpen(false)}
                            >
@@ -247,7 +234,6 @@ const CollapsarNav: React.FC = () => {
                            </motion.a>
                        ))}
                      </div>
-
                      <div className="w-px h-16 bg-gradient-to-b from-white/30 to-transparent" />
                  </nav>
                  
@@ -266,16 +252,12 @@ const CollapsarNav: React.FC = () => {
     );
   }
 
-  // --- DESKTOP RENDER (Original Side Nav) ---
   return (
     <motion.div
       className="fixed right-0 top-1/2 -translate-y-1/2 z-50 pointer-events-auto"
-      // Determine state: hidden (offscreen), peek (edge visible), expanded (full content)
       animate={isScrolled ? (isHovered ? "expanded" : "peek") : "hidden"}
       initial="hidden"
-      style={{ 
-        transformOrigin: 'right center' 
-      }}
+      style={{ transformOrigin: 'right center' }}
       variants={{
         hidden: { x: "120%", opacity: 0 },
         peek: { x: "65%", opacity: 1 }, 
@@ -285,10 +267,7 @@ const CollapsarNav: React.FC = () => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* The Collapsar Container */}
       <div className="relative w-[320px] h-[320px] flex items-center justify-center">
-         
-         {/* 1. Rotating Text Ring - INCREASED OPACITY */}
          <div className="absolute inset-0 animate-[spin_20s_linear_infinite] opacity-80 pointer-events-none">
             <svg viewBox="0 0 320 320" className="w-full h-full drop-shadow-[0_0_2px_rgba(255,255,255,0.5)]">
               <defs>
@@ -301,23 +280,11 @@ const CollapsarNav: React.FC = () => {
               </text>
             </svg>
          </div>
-
-         {/* 2. Outer Dashed Ring */}
          <div className="absolute inset-8 rounded-full border border-white/20 border-dashed animate-[spin_30s_linear_infinite_reverse] pointer-events-none" />
-
-         {/* 3. Inner Solid Ring */}
          <div className="absolute inset-12 rounded-full border border-white/10 pointer-events-none" />
-
-         {/* 4. The Core (Black Hole) */}
          <div className="absolute inset-14 rounded-full bg-black shadow-[0_0_30px_rgba(255,255,255,0.02)] overflow-hidden border border-white/5 transition-all duration-500 group">
-             
-             {/* Rim Light */}
              <div className="absolute inset-0 rounded-full shadow-[inset_4px_0_12px_rgba(255,255,255,0.05)] pointer-events-none" />
-
-             {/* Content Area */}
              <div className="absolute inset-0 flex flex-col justify-center items-center text-center z-10 p-8">
-                
-                {/* Visual Guide (Beacon) - CHANGED TO ARROW */}
                 {!isHovered && (
                   <motion.div 
                      initial={{ opacity: 0 }}
@@ -325,20 +292,15 @@ const CollapsarNav: React.FC = () => {
                      exit={{ opacity: 0 }}
                      className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1"
                   >
-                     {/* Animated Arrow */}
                      <motion.div
                         animate={{ x: [-2, 2, -2], opacity: [0.6, 1, 0.6] }}
                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                      >
                         <ArrowIcon className="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]" />
                      </motion.div>
-                     
-                     {/* Trailing decorative line */}
                      <div className="w-8 h-px bg-gradient-to-l from-white/30 to-transparent" />
                   </motion.div>
                 )}
-
-                {/* Expanded State Content */}
                 <motion.div 
                    animate={{ opacity: isHovered ? 1 : 0, scale: isHovered ? 1 : 0.95 }}
                    transition={{ duration: 0.3 }}
@@ -374,71 +336,43 @@ const CollapsarNav: React.FC = () => {
 const Contact: React.FC = () => {
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
-  // Honeypot state for spam prevention
   const [honey, setHoney] = useState('');
+  // 'isSending' determines if the loading animation is active. 
+  // With native submission, the page will reload shortly after this is set to true.
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [focusedField, setFocusedField] = useState<'message' | 'email' | null>(null);
+  const [nextUrl, setNextUrl] = useState('');
+  
+  const sectionRef = useRef<HTMLElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // SPAM CHECK: If honeypot is filled, silent return (pretend success)
-    if (honey) {
-        setIsSent(true); 
-        return;
-    }
+  // LOGIC REPLACEMENT: Check for 'success=true' query parameter on mount.
+  // This simulates the single-page "Success State" even though a page reload/redirect occurred.
+  useEffect(() => {
+    // 1. Calculate the Redirect URL (Current Page + ?success=true)
+    // We explicitly remove existing query params to avoid stacking (?success=true&success=true...)
+    const baseUrl = window.location.href.split('?')[0];
+    setNextUrl(`${baseUrl}?success=true`);
 
-    setIsSending(true);
-    
-    try {
-        if (SITE_CONFIG.FORM_ENDPOINT && SITE_CONFIG.FORM_ENDPOINT.includes("http")) {
-            // FIX: Use FormData for reliable submission
-            const formData = new FormData();
-            formData.append("email", email);
-            formData.append("message", message);
-            // Internal FormSubmit Configs
-            formData.append("_subject", `COLLAPSAR: New Signal from ${email}`);
-            formData.append("_template", "table");
-            formData.append("_captcha", "false"); // Disable captcha for smoother UI
-            formData.append("_honey", honey); 
-
-            const response = await fetch(SITE_CONFIG.FORM_ENDPOINT, {
-                method: "POST",
-                body: formData, // Send FormData object directly
-                headers: { 
-                    // IMPORTANT: Do NOT set Content-Type header when using FormData.
-                    // The browser will automatically set it to multipart/form-data with the correct boundary.
-                    "Accept": "application/json" 
-                }
-            });
-            
-            if (!response.ok) {
-                // If response is not ok, throw error
-                throw new Error("Transmission Rejected by Event Horizon");
-            }
-        } else {
-            // Simulation Mode (if no endpoint configured)
-            await new Promise(resolve => setTimeout(resolve, 4000)); 
-        }
-
-        setIsSending(false);
+    // 2. Check if we have just returned from a successful submission
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
         setIsSent(true);
-        setMessage('');
-        setEmail('');
-    } catch (error) {
-        console.error(error);
-        setIsSending(false);
-        alert("Transmission Failed. Connection Interference Detected. (Please try again later)");
+        // Optional: Scroll to the contact section so the user sees the success message immediately
+        if (sectionRef.current) {
+            sectionRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
     }
-  };
+  }, []);
 
   const handleReset = () => {
     setIsSent(false);
+    // Remove the ?success=true from URL without reloading, so a refresh doesn't trigger success again immediately
+    const baseUrl = window.location.href.split('?')[0];
+    window.history.replaceState({}, '', baseUrl);
   };
 
-  // Define variants to separate scroll entrance animation from state changes
   const titleVariants: Variants = {
     hidden: { 
       letterSpacing: "0em", 
@@ -446,11 +380,10 @@ const Contact: React.FC = () => {
       marginRight: "0em",
     },
     visible: { 
-      letterSpacing: "0.5em", // CHANGED: 0.8em -> 0.5em to match Timeline and prevent mobile overflow with text-5xl
+      letterSpacing: "0.5em",
       opacity: 1, 
-      marginRight: "-0.5em", // Compensate for the letter spacing
+      marginRight: "-0.5em",
       textShadow: "none",
-      // Using a custom bezier for a very smooth "elegant" expansion
       transition: { duration: 2, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }
     },
     sent: {
@@ -463,9 +396,7 @@ const Contact: React.FC = () => {
   };
 
   return (
-    // Use min-h-screen to prevent vertical clipping on desktop when content exceeds viewport height.
-    // UPDATED: Significantly increased py-2 to py-20 on mobile to fix "too short spacing between sections".
-    <section className="min-h-screen py-20 md:py-32 px-4 md:px-6 relative z-10 overflow-hidden flex flex-col items-center justify-center">
+    <section ref={sectionRef} id="contact-section" className="min-h-screen py-20 md:py-32 px-4 md:px-6 relative z-10 overflow-hidden flex flex-col items-center justify-center">
       
       {/* Background Rotating Rings */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vw] h-[150vw] pointer-events-none -z-10 opacity-10">
@@ -485,7 +416,6 @@ const Contact: React.FC = () => {
       </div>
 
       {/* --- TITLE SECTION --- */}
-      {/* UPDATED: Increased mb-2 to mb-8 on mobile to prevent overlapping with the form/subtitle */}
       <div className="mb-8 md:mb-16 flex flex-col items-center relative z-20">
          <motion.div 
             initial={{ opacity: 0 }}
@@ -497,18 +427,14 @@ const Contact: React.FC = () => {
             <motion.h2 
                variants={titleVariants}
                initial="hidden"
-               // If isSent is true, we force the "sent" state. 
-               // If false, we allow whileInView to trigger "visible".
                whileInView={isSent ? "sent" : "visible"}
                animate={isSent ? "sent" : undefined}
                viewport={{ once: true }}
-               // UPDATED: Restored to text-4xl md:text-6xl to match Timeline size
                className="font-light text-white mix-blend-screen z-10 whitespace-nowrap text-4xl md:text-6xl drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
             >
                {isSent ? "此讯息已抵达事件视界" : "于此共鸣"}
             </motion.h2>
 
-            {/* Conditionally render decoration lines only if NOT sent */}
             <AnimatePresence>
                 {!isSent && (
                    <motion.div
@@ -516,7 +442,6 @@ const Contact: React.FC = () => {
                      exit={{ opacity: 0 }}
                      className="flex flex-col items-center"
                    >
-                      {/* Reduced height on mobile */}
                       <motion.div 
                          initial={{ scaleY: 0 }}
                          whileInView={{ scaleY: 1 }}
@@ -540,17 +465,30 @@ const Contact: React.FC = () => {
 
       <AnimatePresence mode="wait">
         {!isSent ? (
+          // IMPORTANT: Native HTML Form for Robust Submission
           <motion.form 
             key="contact-form"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
-            onSubmit={handleSubmit} 
-            // UPDATED: Increased vertical spacing (space-y-12) on mobile to prevent floating labels from overlapping previous fields
+            
+            // KEY CHANGE 1: Native Form Attributes
+            action={SITE_CONFIG.FORM_ENDPOINT}
+            method="POST"
+            target="_self"
+            onSubmit={() => setIsSending(true)} // Trigger animation right before browser takes over
+            
             className="w-full max-w-2xl space-y-12 relative mb-2 md:mb-20"
           >
-            {/* HONEYPOT FIELD (Anti-Spam) - Visually Hidden */}
+            {/* KEY CHANGE 2: Hidden Configuration Inputs for FormSubmit */}
+            {/* Redirects back to this page with ?success=true after email is processed */}
+            <input type="hidden" name="_next" value={nextUrl} />
+            <input type="hidden" name="_captcha" value="false" />
+            <input type="hidden" name="_template" value="table" />
+            <input type="hidden" name="_subject" value={`COLLAPSAR: New Signal from ${email}`} />
+            
+            {/* HONEYPOT FIELD (Anti-Spam) */}
             <input 
                 type="text" 
                 name="_honey" 
@@ -575,7 +513,6 @@ const Contact: React.FC = () => {
                                <StarFlare size={8} className="text-white fill-white" />
                            </div>
                        )}
-                       {/* REMOVED: Extra decorative line to prevent visual artifacts */}
                     </div>
                     <span className="font-mono text-[9px] md:text-[10px] text-gray-600 tracking-widest">
                        SIZE: {new Blob([message]).size} BYTES
@@ -585,13 +522,13 @@ const Contact: React.FC = () => {
             >
               <textarea
                 required
-                // On mobile, force a compact height (h-20 or h-24) to fit screen
+                // KEY CHANGE 3: 'name' attribute is mandatory for native submission
+                name="message" 
                 rows={4} 
                 value={message}
                 onFocus={() => setFocusedField('message')}
                 onBlur={() => setFocusedField(null)}
                 onChange={(e) => setMessage(e.target.value)}
-                // UPDATED: Added pl-6 to align text with the absolute positioned label (left-6)
                 className="relative block w-full bg-transparent p-3 pl-6 md:p-6 text-base md:text-2xl font-light text-white/90 placeholder-transparent focus:outline-none resize-none z-10 font-sans tracking-wide leading-relaxed custom-scrollbar h-20 md:h-auto"
                 placeholder="内容"
                 id="message"
@@ -616,11 +553,12 @@ const Contact: React.FC = () => {
               <input
                 type="email"
                 required
+                // KEY CHANGE 3: 'name' attribute is mandatory for native submission
+                name="email"
                 value={email}
                 onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField(null)}
                 onChange={(e) => setEmail(e.target.value)}
-                // UPDATED: Added pl-6 to align text with the absolute positioned label (left-6)
                 className="relative block w-full bg-transparent p-3 pl-6 md:p-6 text-base md:text-2xl font-light text-white/90 placeholder-transparent focus:outline-none z-10 font-sans tracking-wide"
                 placeholder="Email"
                 id="email"
@@ -635,8 +573,6 @@ const Contact: React.FC = () => {
                   disabled={isSending}
                   onMouseEnter={() => setIsHovered(true)}
                   onMouseLeave={() => setIsHovered(false)}
-                  // INCREASED MOBILE SIZE: w-40 h-40 (160px).
-                  // MASSIVELY INCREASED DESKTOP SIZE: md:w-64 md:h-64 (256px).
                   className="relative w-40 h-40 md:w-64 md:h-64 flex items-center justify-center outline-none bg-transparent group"
                 >
                   {/* Ambient Ring */}
@@ -653,7 +589,7 @@ const Contact: React.FC = () => {
                     </svg>
                   </div>
 
-                  {/* Rotating Rings - Responsive Sizes for w-40/w-64 */}
+                  {/* Rotating Rings */}
                   <motion.div
                     className="absolute w-36 h-36 md:w-56 md:h-56 rounded-full border border-white/20 border-dashed"
                     animate={{ rotate: isSending ? 360 : (isHovered ? 90 : 0) }}
@@ -665,7 +601,7 @@ const Contact: React.FC = () => {
                     transition={{ duration: isSending ? 4 : 8, ease: "linear", repeat: isSending ? Infinity : 0 }}
                   />
                   
-                  {/* Core Button - Responsive Sizes for w-40/w-64 */}
+                  {/* Core Button */}
                   <motion.div
                     className="relative z-10 w-20 h-20 md:w-32 md:h-32 rounded-full bg-black border border-white/50 flex items-center justify-center overflow-hidden transition-all duration-500"
                     whileHover={{ scale: 1.05, borderColor: "rgba(255,255,255,1)", boxShadow: "0 0 30px rgba(255,255,255,0.2)" }}
