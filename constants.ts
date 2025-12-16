@@ -14,7 +14,7 @@ export const SITE_CONFIG = {
   // 2. 表单提交接口 (Form Endpoint)
   // 如果使用 FormSubmit.co，通常格式为: "https://formsubmit.co/YOUR_EMAIL"
   // 如果留空 ("")，网页将演示发送动画但不会实际发送邮件。
-  FORM_ENDPOINT: "https://formsubmit.co/7dbc2c6249cbac2c031a80e0d816d3fc", 
+  FORM_ENDPOINT: "https://formsubmit.co/m17314970772@163.com", 
 };
 
 // 3. 社交媒体链接 (Social Media Links)
