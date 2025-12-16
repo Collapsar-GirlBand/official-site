@@ -34,9 +34,9 @@ const Hero: React.FC = () => {
         timer = setTimeout(() => {
            if (!isMounted) return;
            runLoop();
-        }, 3000);
+        }, 2000);
         
-      }, 4000);
+      }, 500);
     };
 
     runLoop();
@@ -88,7 +88,7 @@ const Hero: React.FC = () => {
       opacity: 1,
       filter: "brightness(1) blur(0px)",
       transition: { 
-        duration: 0.4,
+        duration: 0.1,
         ease: "circOut" 
       }
     },
@@ -98,7 +98,7 @@ const Hero: React.FC = () => {
       opacity: 0,
       filter: "brightness(5) blur(2px)",
       transition: { 
-        duration: 0.3,
+        duration: 0.1,
         ease: "circIn" 
       }
     }
