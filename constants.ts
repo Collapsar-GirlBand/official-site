@@ -8,12 +8,13 @@ import { Gig, SocialLink } from './types';
  */
 
 export const SITE_CONFIG = {
-  // 1. 联系邮箱 (Contact Email)
-  CONTACT_EMAIL: "",
+  // 1. 联系邮箱 (显示在网页上的文本)
+  CONTACT_EMAIL: "m17314970772@163.com",
   
-  // 2. 表单提交接口 (Form Endpoint)
-  // 如果使用 FormSubmit.co，通常格式为: "https://formsubmit.co/YOUR_EMAIL"
-  // 如果留空 ("")，网页将演示发送动画但不会实际发送邮件。
+  // 2. 表单提交接口 (Form Endpoint) - 关键配置！
+  // 必须修改！将下方的 URL 替换为 "https://formsubmit.co/你的真实接收邮箱"
+  // 例如: "https://formsubmit.co/my-band-email@gmail.com"
+  // 部署后，请务必亲自发送第一条测试消息，然后去该邮箱点击【Activate】激活链接，否则无法收到后续邮件。
   FORM_ENDPOINT: "https://formsubmit.co/m17314970772@163.com", 
 };
 
