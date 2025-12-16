@@ -64,11 +64,11 @@ const Hero: React.FC = () => {
   const SignalLostContent = () => (
     <div className="flex flex-col items-center justify-center py-2">
        <h2 className="text-4xl md:text-6xl font-mono text-white tracking-widest uppercase">
-           SIGNAL LOST
+           演出取消
        </h2>
        <div className="mt-4 flex flex-col items-center">
          <span className="font-mono text-[10px] md:text-xs text-white/70 tracking-[0.5em] uppercase">
-             Connection_Interrupted
+             SIGNAL LOST
          </span>
        </div>
     </div>
