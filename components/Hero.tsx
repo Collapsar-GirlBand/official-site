@@ -76,6 +76,13 @@ const Hero: React.FC = () => {
     </div>
   );
 
+  const handleScrollClick = () => {
+    window.scrollTo({
+      top: window.innerHeight,
+      behavior: 'smooth'
+    });
+  };
+
   return (
     <section ref={ref} className="min-h-screen flex flex-col justify-center items-center px-6 relative overflow-hidden perspective-1000 py-20">
       
@@ -158,13 +165,23 @@ const Hero: React.FC = () => {
 
       </motion.div>
       
-      {/* Scroll indicator */}
+      {/* Scroll indicator (Minimalist: Just the Floating Arrow) */}
       <motion.div 
-        animate={{ y: [0, 10, 0], opacity: [0.2, 0.5, 0.2] }}
-        transition={{ duration: 2, repeat: Infinity }}
-        className="absolute bottom-10 text-white/30 text-xs tracking-[0.5em] uppercase hidden md:block"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2.8, duration: 1.5, ease: "easeOut" }}
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 cursor-pointer group mix-blend-screen p-4"
+        onClick={handleScrollClick}
       >
-        Scroll to Observe
+        <motion.div
+            className="text-white/50 group-hover:text-white transition-colors duration-500"
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        >
+             <svg width="24" height="14" viewBox="0 0 20 12" fill="none" className="drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]">
+                 <path d="M1 1L10 10L19 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+             </svg>
+        </motion.div>
       </motion.div>
     </section>
   );
