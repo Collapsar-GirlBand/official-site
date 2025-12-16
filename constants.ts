@@ -9,12 +9,12 @@ import { Gig, SocialLink } from './types';
 
 export const SITE_CONFIG = {
   // 1. 联系邮箱 (Contact Email)
-  CONTACT_EMAIL: "3788499930@qq.com",
+  CONTACT_EMAIL: "",
   
   // 2. 表单提交接口 (Form Endpoint)
   // 如果使用 FormSubmit.co，通常格式为: "https://formsubmit.co/YOUR_EMAIL"
   // 如果留空 ("")，网页将演示发送动画但不会实际发送邮件。
-  FORM_ENDPOINT: "https://formsubmit.co/3788499930@qq.com", 
+  FORM_ENDPOINT: "https://formsubmit.co/7dbc2c6249cbac2c031a80e0d816d3fc", 
 };
 
 // 3. 社交媒体链接 (Social Media Links)
