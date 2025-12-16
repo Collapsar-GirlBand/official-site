@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { SOCIAL_LINKS, SITE_CONFIG } from '../constants';
 
 // 4-Point Star (Diffraction Spike) Component
@@ -374,6 +374,8 @@ const CollapsarNav: React.FC = () => {
 const Contact: React.FC = () => {
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
+  // Honeypot state for spam prevention
+  const [honey, setHoney] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -381,32 +383,44 @@ const Contact: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // SPAM CHECK: If honeypot is filled, silent return (pretend success)
+    if (honey) {
+        setIsSent(true); 
+        return;
+    }
+
     setIsSending(true);
     
     try {
         if (SITE_CONFIG.FORM_ENDPOINT && SITE_CONFIG.FORM_ENDPOINT.includes("http")) {
-            // Real Submission using Fetch to avoid redirect
+            // FIX: Use FormData for reliable submission
+            const formData = new FormData();
+            formData.append("email", email);
+            formData.append("message", message);
+            // Internal FormSubmit Configs
+            formData.append("_subject", `COLLAPSAR: New Signal from ${email}`);
+            formData.append("_template", "table");
+            formData.append("_captcha", "false"); // Disable captcha for smoother UI
+            formData.append("_honey", honey); 
+
             const response = await fetch(SITE_CONFIG.FORM_ENDPOINT, {
                 method: "POST",
+                body: formData, // Send FormData object directly
                 headers: { 
-                    "Content-Type": "application/json",
+                    // IMPORTANT: Do NOT set Content-Type header when using FormData.
+                    // The browser will automatically set it to multipart/form-data with the correct boundary.
                     "Accept": "application/json" 
-                },
-                body: JSON.stringify({
-                    email: email,
-                    message: message,
-                    _subject: "COLLAPSAR: New Signal Received",
-                    _template: "table",
-                    _captcha: "false"
-                })
+                }
             });
             
             if (!response.ok) {
+                // If response is not ok, throw error
                 throw new Error("Transmission Rejected by Event Horizon");
             }
         } else {
             // Simulation Mode (if no endpoint configured)
-            await new Promise(resolve => setTimeout(resolve, 4000)); // Increased wait to enjoy animation
+            await new Promise(resolve => setTimeout(resolve, 4000)); 
         }
 
         setIsSending(false);
@@ -416,7 +430,7 @@ const Contact: React.FC = () => {
     } catch (error) {
         console.error(error);
         setIsSending(false);
-        alert("Transmission Failed. Connection Interference Detected.");
+        alert("Transmission Failed. Connection Interference Detected. (Please try again later)");
     }
   };
 
@@ -425,7 +439,7 @@ const Contact: React.FC = () => {
   };
 
   // Define variants to separate scroll entrance animation from state changes
-  const titleVariants = {
+  const titleVariants: Variants = {
     hidden: { 
       letterSpacing: "0em", 
       opacity: 0, 
@@ -437,7 +451,7 @@ const Contact: React.FC = () => {
       marginRight: "-0.5em", // Compensate for the letter spacing
       textShadow: "none",
       // Using a custom bezier for a very smooth "elegant" expansion
-      transition: { duration: 2, ease: [0.16, 1, 0.3, 1] }
+      transition: { duration: 2, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }
     },
     sent: {
       letterSpacing: "-0.15em",
@@ -536,6 +550,17 @@ const Contact: React.FC = () => {
             // UPDATED: Increased vertical spacing (space-y-12) on mobile to prevent floating labels from overlapping previous fields
             className="w-full max-w-2xl space-y-12 relative mb-2 md:mb-20"
           >
+            {/* HONEYPOT FIELD (Anti-Spam) - Visually Hidden */}
+            <input 
+                type="text" 
+                name="_honey" 
+                style={{ display: 'none' }} 
+                value={honey}
+                onChange={(e) => setHoney(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+            />
+
             {/* Holographic Textarea */}
             <TechInputWrapper 
               id="message" 
