@@ -48,7 +48,7 @@ export const PAST_GIGS: Gig[] = [
     id: 4,
     date: '2025.10.26',
     location: '苏州',
-    venue: '尹珊湖大剧院',
+    venue: '尹山湖大剧院',
     url: '', // 填入超链接
   },
   {
