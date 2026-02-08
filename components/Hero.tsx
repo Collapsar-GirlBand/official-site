@@ -70,7 +70,7 @@ const Hero: React.FC = () => {
        </h2>
        <div className="mt-4 flex flex-col items-center z-10">
          <span className="font-mono text-[10px] md:text-xs text-white/60 tracking-[0.8em] uppercase border-t border-b border-white/20 py-1">
-             预计2.4 00:00上线
+             预计2.11 00:00上线
          </span>
        </div>
     </div>
