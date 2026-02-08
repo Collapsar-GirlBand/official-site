@@ -66,11 +66,11 @@ const Hero: React.FC = () => {
        <div className="absolute inset-0 bg-red-500/10 blur-[40px] rounded-full opacity-0 animate-[pulse_2s_infinite]" />
        
        <h2 className="text-4xl md:text-6xl font-mono text-white tracking-widest uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] z-10 mix-blend-overlay">
-           演出取消
+           不好意思小游戏跳票了
        </h2>
        <div className="mt-4 flex flex-col items-center z-10">
          <span className="font-mono text-[10px] md:text-xs text-white/60 tracking-[0.8em] uppercase border-t border-b border-white/20 py-1">
-             SIGNAL_LOST
+             预计2.4 00:00上线
          </span>
        </div>
     </div>
