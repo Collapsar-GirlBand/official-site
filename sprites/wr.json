@@ -1,0 +1,116 @@
+{
+  "frames": {
+    "wr_speak_base.webp": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 920,
+        "h": 1896
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 505,
+        "y": 292,
+        "w": 920,
+        "h": 1896
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "wr_speak_face.webp": {
+      "frame": {
+        "x": 760,
+        "y": 110,
+        "w": 375,
+        "h": 237
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 612,
+        "y": 416,
+        "w": 375,
+        "h": 237
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "wr_serious_face.webp": {
+      "frame": {
+        "x": 760,
+        "y": 424,
+        "w": 375,
+        "h": 237
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 612,
+        "y": 416,
+        "w": 375,
+        "h": 237
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "wr_sad_face.webp": {
+      "frame": {
+        "x": 760,
+        "y": 1104,
+        "w": 375,
+        "h": 237
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 612,
+        "y": 416,
+        "w": 375,
+        "h": 237
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "wr_happy_face.webp": {
+      "frame": {
+        "x": 760,
+        "y": 766,
+        "w": 375,
+        "h": 237
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 612,
+        "y": 416,
+        "w": 375,
+        "h": 237
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    }
+  },
+  "meta": {
+    "app": "Smart Sprite Studio",
+    "version": "1.0",
+    "image": "sprites.webp",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1135,
+      "h": 1896
+    },
+    "scale": 1,
+    "smartUpdate": "$TexturePacker:SmartUpdate:..."
+  }
+}
