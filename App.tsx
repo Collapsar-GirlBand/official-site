@@ -1,38 +1,56 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Background from './components/Background';
 import Hero from './components/Hero';
-import Timeline from './components/Timeline';
 import Contact from './components/Contact';
+import GameSystem from './components/GameSystem';
+import { AnimatePresence } from 'framer-motion';
 
 function App() {
+  const [isGameOpen, setIsGameOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    // 1. Lock scroll immediately upon mounting
-    // We modify the body style directly to prevent any user interaction
+    // 1. Lock scroll initially for enter animation or browser quirks
     document.body.style.overflow = 'hidden';
     
-    // 2. Set a timer for 1 second (1000ms)
+    // 2. Unlock body overflow (but we keep overflow hidden on body via class and scroll inside div)
     const timer = setTimeout(() => {
-      // 3. Unlock scroll by removing the inline style
-      // This reverts to the CSS defined in index.html (overflow-x: hidden)
-      document.body.style.overflow = '';
+        // We keep document.body.style.overflow = 'hidden' via CSS classes in main container essentially,
+        // but explicit style removal allows our internal div to handle scrolling.
+        // Actually, for snap scroll on a div to work perfectly fullscreen, body should not scroll.
+        // So we might just leave it locked or set to hidden in CSS.
+        // The index.html has styles, but here we enforce structure.
     }, 1000);
 
-    // Cleanup function: ensures we don't leave the scroll locked 
-    // if the component unmounts unexpectedly before the timer fires
     return () => {
       clearTimeout(timer);
       document.body.style.overflow = '';
     };
-  }, []); // Empty dependency array ensures this runs only once on page load
+  }, []);
 
   return (
-    <main className="min-h-screen relative text-white">
-      <Background />
-      <div className="relative z-10">
-        <Hero />
-        <Timeline />
-        <Contact />
+    <main className="h-screen w-screen overflow-hidden bg-black text-white relative">
+      <Background scrollContainerRef={containerRef} />
+      
+      <div 
+        ref={containerRef}
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth z-10 relative"
+        style={{ scrollBehavior: 'smooth' }}
+      >
+        <section className="h-screen w-full snap-start shrink-0 relative">
+          <Hero onOpenGame={() => setIsGameOpen(true)} containerRef={containerRef} />
+        </section>
+        
+        <section className="h-screen w-full snap-start shrink-0 relative">
+          <Contact />
+        </section>
       </div>
+
+      <AnimatePresence>
+        {isGameOpen && (
+          <GameSystem isOpen={isGameOpen} onClose={() => setIsGameOpen(false)} />
+        )}
+      </AnimatePresence>
     </main>
   );
 }

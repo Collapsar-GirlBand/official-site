@@ -1,11 +1,17 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, Variants } from 'framer-motion';
-import { UPCOMING_GIG } from '../constants';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { UI_TEXT } from '../content/ui';
 
-const Hero: React.FC = () => {
+interface HeroProps {
+  onOpenGame: () => void;
+  containerRef: React.RefObject<HTMLElement>;
+}
+
+const Hero: React.FC<HeroProps> = ({ onOpenGame, containerRef }) => {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
+    container: containerRef,
     offset: ["start start", "end start"]
   });
 
@@ -15,27 +21,27 @@ const Hero: React.FC = () => {
 
   // State: Interference Active (true) or Stable (false)
   const [isInterference, setIsInterference] = useState(false);
-
+  
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     let isMounted = true;
 
     const runLoop = () => {
-      // 1. Stable State (Show Gig Info) - Duration: 3.5s
+      // 1. Stable State - Duration: 4s
       setIsInterference(false);
       
       timer = setTimeout(() => {
         if (!isMounted) return;
         
-        // 2. Interference State (Show Signal Lost) - Duration: 1.5s
+        // 2. Interference State - Duration: 2s
         setIsInterference(true);
         
         timer = setTimeout(() => {
            if (!isMounted) return;
            runLoop();
-        }, 1500);
+        }, 2000);
         
-      }, 3500);
+      }, 4000);
     };
 
     runLoop();
@@ -47,44 +53,59 @@ const Hero: React.FC = () => {
   }, []);
 
   // Visual Components
-  const GigInfoContent = () => (
-    <div className="flex flex-col items-center space-y-3">
-        <p className="text-3xl md:text-5xl tracking-[0.2em] uppercase font-light whitespace-nowrap text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
-            {UPCOMING_GIG.date}
-        </p>
-        <div className="flex items-center justify-center gap-4 text-lg md:text-2xl font-light tracking-widest whitespace-nowrap text-white/80">
-            <span>{UPCOMING_GIG.location}</span>
-            <span className="text-[10px] opacity-50">///</span>
-            <span>{UPCOMING_GIG.venue}</span>
-        </div>
-    </div>
-  );
+  const GigInfoContent = () => {
+    return (
+      <div className="flex flex-col items-center space-y-4">
+          {/* Swapped Styles: English Description First (Top) - Now LARGER (Main Title Style) */}
+          {/* Layout Logic: 
+              Desktop: Single Line 
+              Mobile: A GIRL BAND \n FROM YANGTZE DELTA (Kept together)
+          */}
+          <h2 className="text-lg md:text-3xl font-light tracking-[0.15em] text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] uppercase text-center leading-relaxed md:leading-normal">
+              <span className="block md:inline whitespace-nowrap">A GIRL BAND</span>
+              <span className="block md:inline md:ml-3 whitespace-nowrap">
+                 FROM YANGTZE DELTA
+              </span>
+          </h2>
+          
+          <div className="w-12 h-px bg-white/30" />
+          
+          {/* Swapped Styles: Chinese Subtitle Second (Bottom) - Now SMALLER (Remark Style) */}
+          <div className="flex items-center justify-center text-xs md:text-sm font-mono tracking-[0.2em] whitespace-nowrap text-white/60">
+              {UI_TEXT.HERO.SUBTITLE}
+          </div>
+      </div>
+    );
+  };
 
   const SignalLostContent = () => (
-    <div className="flex flex-col items-center justify-center py-2 relative">
-       {/* Background Red Glow for emphasis during interference */}
-       <div className="absolute inset-0 bg-red-500/10 blur-[40px] rounded-full opacity-0 animate-[pulse_2s_infinite]" />
+    <div className="flex flex-col items-center justify-center py-2 relative group-hover:scale-105 transition-transform duration-300">
+       {/* Background Glow */}
+       <div className="absolute inset-0 bg-white/10 blur-[30px] rounded-full opacity-0 animate-[pulse_1s_infinite]" />
        
-       <h2 className="text-4xl md:text-6xl font-mono text-white tracking-widest uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] z-10 mix-blend-overlay">
-           不好意思小游戏跳票了
+       <h2 className="text-3xl md:text-5xl font-bold text-white tracking-[0.3em] uppercase drop-shadow-[0_0_20px_rgba(255,255,255,1)] z-10 mix-blend-overlay">
+           {UI_TEXT.HERO.ACTION_MAIN}
        </h2>
        <div className="mt-4 flex flex-col items-center z-10">
-         <span className="font-mono text-[10px] md:text-xs text-white/60 tracking-[0.8em] uppercase border-t border-b border-white/20 py-1">
-             预计2.11 00:00上线
+         <span className="font-mono text-[10px] md:text-xs text-white tracking-[0.5em] uppercase border-t border-b border-white/50 py-1 bg-black/50 px-2">
+             {UI_TEXT.HERO.ACTION_SUB}
          </span>
        </div>
     </div>
   );
 
   const handleScrollClick = () => {
-    window.scrollTo({
-      top: window.innerHeight,
-      behavior: 'smooth'
-    });
+    if (containerRef.current) {
+        const height = containerRef.current.clientHeight;
+        containerRef.current.scrollTo({
+            top: height,
+            behavior: 'smooth'
+        });
+    }
   };
 
   return (
-    <section ref={ref} className="min-h-screen flex flex-col justify-center items-center px-6 relative overflow-hidden perspective-1000 py-20">
+    <section ref={ref} className="h-full w-full flex flex-col justify-center items-center px-6 relative overflow-hidden perspective-1000">
       
       {/* The Black Hole / Singularity Visual */}
       
@@ -114,15 +135,28 @@ const Hero: React.FC = () => {
         style={{ y: textY, opacity }}
         className="flex flex-col items-center z-10 space-y-8 md:space-y-16 mix-blend-difference"
       >
-        {/* Band Name */}
-        <motion.h1 
-          initial={{ opacity: 0, scale: 0.9, letterSpacing: "0em" }}
-          animate={{ opacity: 1, scale: 1, letterSpacing: "-0.05em" }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
-          className="text-[12vw] leading-none font-light text-white select-none mix-blend-difference"
-        >
-          COLLAPSAR
-        </motion.h1>
+        {/* Band Name Group */}
+        <div className="flex flex-col items-center">
+            <motion.h1 
+              initial={{ opacity: 0, scale: 0.9, letterSpacing: "0em" }}
+              animate={{ opacity: 1, scale: 1, letterSpacing: "-0.05em" }}
+              transition={{ duration: 1.5, ease: "easeOut" }}
+              className="text-[12vw] leading-none font-light text-white select-none mix-blend-difference"
+            >
+              {UI_TEXT.HERO.BAND_NAME}
+            </motion.h1>
+            
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, delay: 0.8, ease: "easeOut" }}
+                className="mt-2 md:mt-4"
+            >
+                 <span className="text-lg md:text-2xl font-light tracking-[1.5em] text-white/80 pl-[1.5em] mix-blend-difference">
+                    {UI_TEXT.HERO.BAND_CN_NAME}
+                 </span>
+            </motion.div>
+        </div>
 
         {/* Divider */}
         <motion.div 
@@ -132,10 +166,15 @@ const Hero: React.FC = () => {
           className="w-px bg-white/50 h-16 md:h-32 origin-top"
         />
 
-        {/* Superposition Info Display */}
-        <div className="relative h-40 md:h-48 w-full max-w-4xl flex items-center justify-center">
+        {/* Superposition Info Display (Clickable) */}
+        <motion.div 
+            className="relative h-40 md:h-48 w-full max-w-4xl flex items-center justify-center cursor-pointer group"
+            onClick={onOpenGame}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+        >
             
-            {/* Layer 1: The Reality (Gig Info) - Becomes blurrier background when interference hits */}
+            {/* Layer 1: Default/Stable (Click to Observe) -> SignalLostContent */}
             <motion.div
                 className="absolute inset-0 flex items-center justify-center"
                 animate={{ 
@@ -143,25 +182,25 @@ const Hero: React.FC = () => {
                     opacity: isInterference ? 0.3 : 1,
                     scale: isInterference ? 0.95 : 1
                 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
             >
-                <GigInfoContent />
+                <SignalLostContent />
             </motion.div>
 
-            {/* Layer 2: The Interference (Signal Lost) - Focuses in from the void */}
+            {/* Layer 2: Interference/Glitch (Band Info) -> GigInfoContent */}
             <motion.div
-                className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                className="absolute inset-0 flex items-center justify-center"
                 animate={{ 
                     filter: isInterference ? "blur(0px)" : "blur(20px)",
                     opacity: isInterference ? 1 : 0,
                     scale: isInterference ? 1 : 1.2
                 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
             >
-                <SignalLostContent />
+                <GigInfoContent />
             </motion.div>
 
-        </div>
+        </motion.div>
 
       </motion.div>
       

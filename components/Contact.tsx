@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { SOCIAL_LINKS, SITE_CONFIG } from '../constants';
+import { SOCIAL_LINKS, SITE_CONFIG } from '../content/data';
+import { UI_TEXT } from '../content/ui';
 
 // 4-Point Star (Diffraction Spike) Component
 const StarFlare: React.FC<{ size?: number, className?: string }> = ({ size = 20, className = "" }) => (
@@ -106,12 +107,21 @@ const TechInputWrapper: React.FC<TechInputWrapperProps> = ({
           {/* Floating Label */}
           <motion.label 
             htmlFor={id} 
-            className="absolute left-6 pointer-events-none font-light z-20 origin-top-left"
+            className="absolute left-4 md:left-6 pointer-events-none font-light z-20 origin-top-left"
             initial={false}
             animate={{
-              top: isFocused || value ? '-2.5rem' : (isMobile ? '0.75rem' : '1.5rem'),
-              x: isFocused || value ? -24 : 0,
-              fontSize: isFocused || value ? '0.65rem' : (isMobile ? '1rem' : '1.5rem'),
+              // Position adjustment
+              top: isFocused || value 
+                ? (isMobile ? '-1.5rem' : '-2rem') 
+                : (isMobile ? '0.5rem' : '1rem'), // Adjusted for tighter padding
+              
+              x: 0,
+              
+              // Font Size adjustment: Reduced sizes
+              fontSize: isFocused || value 
+                ? (isMobile ? '0.65rem' : '0.75rem') // Focused state
+                : (isMobile ? '0.875rem' : '1.25rem'), // Unfocused state
+              
               color: isFocused ? '#ffffff' : (value ? '#6b7280' : '#4b5563'),
               letterSpacing: isFocused || value ? '0.2em' : 'normal'
             }}
@@ -139,14 +149,18 @@ const CollapsarNav: React.FC = () => {
   useEffect(() => {
     const handleScroll = () => {
        const threshold = window.innerHeight * 0.8;
-       if (window.scrollY > threshold) {
-         setIsScrolled(true);
-       } else {
-         setIsScrolled(false);
-       }
+       // With snap scrolling, this might trigger immediately on page 2
+       // Using an element or context based trigger is better, but this simple check still works if container is window.
+       // Note: In the new App structure, scroll listener is on the container, not window. 
+       // This component should ideally check parent container scroll, but for simplicity we'll assume it's always visible on the second page.
+       // However, since we are moving to snap scrolling, the nav might not be needed as much for vertical navigation, but useful for social links.
+       // We'll leave it as 'visible' or rework logic.
+       // Actually, 'CollapsarNav' is absolutely positioned fixed. 
+       // We can just rely on user interaction or make it always accessible.
+       // For now, let's keep it simple: always available or logic needs update if scroll tracking is lost.
+       // Since Contact page is the second page, let's just show it.
     };
     
-    // Check for mobile or small screens to adjust scale/position
     const handleResize = () => {
       if (window.innerWidth < 768) {
         setIsSmallScreen(true);
@@ -155,13 +169,9 @@ const CollapsarNav: React.FC = () => {
       }
     };
 
-    handleScroll();
     handleResize();
-    
-    window.addEventListener('scroll', handleScroll);
     window.addEventListener('resize', handleResize);
     return () => {
-      window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
     };
   }, []);
@@ -172,9 +182,9 @@ const CollapsarNav: React.FC = () => {
          <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ 
-                opacity: isScrolled ? 1 : 0,
-                scale: isScrolled ? 1 : 0.8,
-                pointerEvents: isScrolled ? 'auto' : 'none'
+                opacity: 1, // Always visible on mobile for simplicity in new layout
+                scale: 1,
+                pointerEvents: 'auto'
             }}
             className="fixed top-6 right-6 z-50 p-4 mix-blend-difference text-white outline-none flex items-center justify-center"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -215,7 +225,7 @@ const CollapsarNav: React.FC = () => {
                  <nav className="flex flex-col items-center gap-10 relative z-10 w-full px-8">
                      <div className="w-px h-16 bg-gradient-to-b from-transparent to-white/30" />
                      <div className="text-[10px] font-mono tracking-[0.4em] text-gray-500 uppercase">
-                         /// Navigation_System
+                         {UI_TEXT.CONTACT.NAV_SYSTEM_LABEL}
                      </div>
                      <div className="flex flex-col items-center gap-6 w-full">
                        {SOCIAL_LINKS.map((link, i) => (
@@ -243,7 +253,7 @@ const CollapsarNav: React.FC = () => {
                     transition={{ delay: 0.8 }}
                     className="absolute bottom-12 text-[9px] font-mono text-gray-700 tracking-widest uppercase"
                  >
-                     Collapsar // Mobile_Interface
+                     {UI_TEXT.CONTACT.MOBILE_INTERFACE_LABEL}
                  </motion.div>
              </motion.div>
            )}
@@ -254,9 +264,10 @@ const CollapsarNav: React.FC = () => {
 
   return (
     <motion.div
-      className="fixed right-0 top-1/2 -translate-y-1/2 z-50 pointer-events-auto"
-      animate={isScrolled ? (isHovered ? "expanded" : "peek") : "hidden"}
-      initial="hidden"
+      className="fixed right-0 top-1/2 -translate-x-1/2 z-50 pointer-events-auto"
+      // Change logic: Always show 'peek' or 'expanded' if we are on desktop
+      animate={isHovered ? "expanded" : "peek"}
+      initial="peek"
       style={{ transformOrigin: 'right center' }}
       variants={{
         hidden: { x: "120%", opacity: 0 },
@@ -275,7 +286,7 @@ const CollapsarNav: React.FC = () => {
               </defs>
               <text fontSize="8" letterSpacing="3">
                 <textPath href="#navTextPath" startOffset="0%" className="fill-white font-mono uppercase font-bold">
-                   /// COLLAPSAR SYSTEM /// LINK ESTABLISHED /// COLLAPSAR SYSTEM /// WAITING FOR INPUT ///
+                   {UI_TEXT.CONTACT.NAV_RING_TEXT}
                 </textPath>
               </text>
             </svg>
@@ -337,8 +348,6 @@ const Contact: React.FC = () => {
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
   const [honey, setHoney] = useState('');
-  // 'isSending' determines if the loading animation is active. 
-  // With native submission, the page will reload shortly after this is set to true.
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -347,19 +356,13 @@ const Contact: React.FC = () => {
   
   const sectionRef = useRef<HTMLElement>(null);
 
-  // LOGIC REPLACEMENT: Check for 'success=true' query parameter on mount.
-  // This simulates the single-page "Success State" even though a page reload/redirect occurred.
   useEffect(() => {
-    // 1. Calculate the Redirect URL (Current Page + ?success=true)
-    // We explicitly remove existing query params to avoid stacking (?success=true&success=true...)
     const baseUrl = window.location.href.split('?')[0];
     setNextUrl(`${baseUrl}?success=true`);
 
-    // 2. Check if we have just returned from a successful submission
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
         setIsSent(true);
-        // Optional: Scroll to the contact section so the user sees the success message immediately
         if (sectionRef.current) {
             sectionRef.current.scrollIntoView({ behavior: 'smooth' });
         }
@@ -368,7 +371,6 @@ const Contact: React.FC = () => {
 
   const handleReset = () => {
     setIsSent(false);
-    // Remove the ?success=true from URL without reloading, so a refresh doesn't trigger success again immediately
     const baseUrl = window.location.href.split('?')[0];
     window.history.replaceState({}, '', baseUrl);
   };
@@ -396,7 +398,7 @@ const Contact: React.FC = () => {
   };
 
   return (
-    <section ref={sectionRef} id="contact-section" className="min-h-screen py-20 md:py-32 px-4 md:px-6 relative z-10 overflow-hidden flex flex-col items-center justify-center">
+    <section ref={sectionRef} id="contact-section" className="h-full w-full relative z-10 overflow-hidden flex flex-col items-center justify-start pt-[15vh] md:pt-[20vh]">
       
       {/* Background Rotating Rings */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vw] h-[150vw] pointer-events-none -z-10 opacity-10">
@@ -416,7 +418,7 @@ const Contact: React.FC = () => {
       </div>
 
       {/* --- TITLE SECTION --- */}
-      <div className="mb-8 md:mb-16 flex flex-col items-center relative z-20">
+      <div className="mb-6 flex flex-col items-center relative z-20 shrink-0">
          <motion.div 
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -432,7 +434,7 @@ const Contact: React.FC = () => {
                viewport={{ once: true }}
                className="font-light text-white mix-blend-screen z-10 whitespace-nowrap text-4xl md:text-6xl drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
             >
-               {isSent ? "此讯息已抵达事件视界" : "于此共鸣"}
+               {isSent ? UI_TEXT.CONTACT.TITLE_SENT : UI_TEXT.CONTACT.TITLE_DEFAULT}
             </motion.h2>
 
             <AnimatePresence>
@@ -446,16 +448,16 @@ const Contact: React.FC = () => {
                          initial={{ scaleY: 0 }}
                          whileInView={{ scaleY: 1 }}
                          transition={{ delay: 0.5, duration: 1.5 }}
-                         className="w-px h-6 md:h-12 bg-gradient-to-b from-transparent via-white/50 to-transparent mx-auto mt-2 md:mt-6" 
+                         className="w-px h-6 bg-gradient-to-b from-transparent via-white/50 to-transparent mx-auto mt-2" 
                       />
 
                       <motion.p 
                          initial={{ opacity: 0, y: 10 }}
                          whileInView={{ opacity: 0.5, y: 0 }}
                          transition={{ duration: 1 }}
-                         className="text-[10px] md:text-xs font-mono text-gray-400 mt-2 md:mt-4 tracking-[0.4em] uppercase"
+                         className="text-[10px] md:text-xs font-mono text-gray-400 mt-2 tracking-[0.4em] uppercase"
                       >
-                         Resonance_Frequency_Locked
+                         {UI_TEXT.CONTACT.SUBTITLE_DEFAULT}
                       </motion.p>
                    </motion.div>
                 )}
@@ -465,30 +467,23 @@ const Contact: React.FC = () => {
 
       <AnimatePresence mode="wait">
         {!isSent ? (
-          // IMPORTANT: Native HTML Form for Robust Submission
           <motion.form 
             key="contact-form"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
-            
-            // KEY CHANGE 1: Native Form Attributes
             action={SITE_CONFIG.FORM_ENDPOINT}
             method="POST"
             target="_self"
-            onSubmit={() => setIsSending(true)} // Trigger animation right before browser takes over
-            
-            className="w-full max-w-2xl space-y-12 relative mb-2 md:mb-20"
+            onSubmit={() => setIsSending(true)}
+            className="w-full max-w-2xl space-y-5 md:space-y-8 relative mb-2 flex flex-col justify-center shrink-0 px-6 md:px-0"
           >
-            {/* KEY CHANGE 2: Hidden Configuration Inputs for FormSubmit */}
-            {/* Redirects back to this page with ?success=true after email is processed */}
             <input type="hidden" name="_next" value={nextUrl} />
             <input type="hidden" name="_captcha" value="false" />
             <input type="hidden" name="_template" value="table" />
-            <input type="hidden" name="_subject" value={`COLLAPSAR: New Signal from ${email}`} />
+            <input type="hidden" name="_subject" value={`${UI_TEXT.CONTACT.SUBJECT_TEMPLATE}${email}`} />
             
-            {/* HONEYPOT FIELD (Anti-Spam) */}
             <input 
                 type="text" 
                 name="_honey" 
@@ -499,10 +494,9 @@ const Contact: React.FC = () => {
                 autoComplete="off"
             />
 
-            {/* Holographic Textarea */}
             <TechInputWrapper 
               id="message" 
-              label="想传达什么呢？" 
+              label={UI_TEXT.CONTACT.INPUT_MESSAGE_LABEL}
               value={message} 
               isFocused={focusedField === 'message'}
               footerInfo={
@@ -515,37 +509,35 @@ const Contact: React.FC = () => {
                        )}
                     </div>
                     <span className="font-mono text-[9px] md:text-[10px] text-gray-600 tracking-widest">
-                       SIZE: {new Blob([message]).size} BYTES
+                       SIZE: {new Blob([message]).size}{UI_TEXT.CONTACT.INPUT_MESSAGE_SIZE_SUFFIX}
                     </span>
                  </>
               }
             >
               <textarea
                 required
-                // KEY CHANGE 3: 'name' attribute is mandatory for native submission
                 name="message" 
-                rows={4} 
+                rows={2} 
                 value={message}
                 onFocus={() => setFocusedField('message')}
                 onBlur={() => setFocusedField(null)}
                 onChange={(e) => setMessage(e.target.value)}
-                className="relative block w-full bg-transparent p-3 pl-6 md:p-6 text-base md:text-2xl font-light text-white/90 placeholder-transparent focus:outline-none resize-none z-10 font-sans tracking-wide leading-relaxed custom-scrollbar h-20 md:h-auto"
+                className="relative block w-full bg-transparent p-2 pl-4 md:p-4 md:pl-6 text-base md:text-xl font-light text-white/90 placeholder-transparent focus:outline-none resize-none z-10 font-sans tracking-wide leading-relaxed custom-scrollbar"
                 placeholder="内容"
                 id="message"
                 style={{ scrollbarWidth: 'none' }} 
               />
             </TechInputWrapper>
 
-            {/* Holographic Email Input */}
             <TechInputWrapper 
               id="email" 
-              label="联系方式" 
+              label={UI_TEXT.CONTACT.INPUT_EMAIL_LABEL}
               value={email} 
               isFocused={focusedField === 'email'}
               footerInfo={
                 <div className="w-full flex justify-end">
                    <span className="font-mono text-[9px] md:text-[10px] text-gray-600 tracking-widest">
-                      {email ? 'ID_DETECTED' : 'NO_ID'}
+                      {email ? UI_TEXT.CONTACT.ID_DETECTED : UI_TEXT.CONTACT.NO_ID}
                    </span>
                 </div>
               }
@@ -553,29 +545,26 @@ const Contact: React.FC = () => {
               <input
                 type="email"
                 required
-                // KEY CHANGE 3: 'name' attribute is mandatory for native submission
                 name="email"
                 value={email}
                 onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField(null)}
                 onChange={(e) => setEmail(e.target.value)}
-                className="relative block w-full bg-transparent p-3 pl-6 md:p-6 text-base md:text-2xl font-light text-white/90 placeholder-transparent focus:outline-none z-10 font-sans tracking-wide"
+                className="relative block w-full bg-transparent p-2 pl-4 md:p-4 md:pl-6 text-base md:text-xl font-light text-white/90 placeholder-transparent focus:outline-none z-10 font-sans tracking-wide"
                 placeholder="Email"
                 id="email"
                 autoComplete="off"
               />
             </TechInputWrapper>
 
-            {/* --- TRANSMIT BUTTON --- */}
-            <div className="pt-2 md:pt-12 pb-2 md:pb-10 flex justify-center items-center relative z-20">
+            <div className="pt-2 flex justify-center items-center relative z-20">
                 <button
                   type="submit"
                   disabled={isSending}
                   onMouseEnter={() => setIsHovered(true)}
                   onMouseLeave={() => setIsHovered(false)}
-                  className="relative w-40 h-40 md:w-64 md:h-64 flex items-center justify-center outline-none bg-transparent group"
+                  className="relative w-32 h-32 md:w-48 md:h-48 flex items-center justify-center outline-none bg-transparent group"
                 >
-                  {/* Ambient Ring */}
                   <div className="absolute inset-0 animate-[spin_12s_linear_infinite] opacity-20 pointer-events-none">
                     <svg viewBox="0 0 200 200" className="w-full h-full">
                       <defs>
@@ -589,21 +578,19 @@ const Contact: React.FC = () => {
                     </svg>
                   </div>
 
-                  {/* Rotating Rings */}
                   <motion.div
-                    className="absolute w-36 h-36 md:w-56 md:h-56 rounded-full border border-white/20 border-dashed"
+                    className="absolute w-28 h-28 md:w-44 md:h-44 rounded-full border border-white/20 border-dashed"
                     animate={{ rotate: isSending ? 360 : (isHovered ? 90 : 0) }}
                     transition={{ duration: isSending ? 6 : 10, ease: "linear", repeat: isSending ? Infinity : 0 }}
                   />
                   <motion.div
-                    className="absolute w-32 h-32 md:w-48 md:h-48 rounded-full border border-white/30 border-t-transparent border-b-transparent"
+                    className="absolute w-24 h-24 md:w-36 md:h-36 rounded-full border border-white/30 border-t-transparent border-b-transparent"
                     animate={{ rotate: isSending ? -360 : (isHovered ? -180 : 0) }}
                     transition={{ duration: isSending ? 4 : 8, ease: "linear", repeat: isSending ? Infinity : 0 }}
                   />
                   
-                  {/* Core Button */}
                   <motion.div
-                    className="relative z-10 w-20 h-20 md:w-32 md:h-32 rounded-full bg-black border border-white/50 flex items-center justify-center overflow-hidden transition-all duration-500"
+                    className="relative z-10 w-16 h-16 md:w-24 md:h-24 rounded-full bg-black border border-white/50 flex items-center justify-center overflow-hidden transition-all duration-500"
                     whileHover={{ scale: 1.05, borderColor: "rgba(255,255,255,1)", boxShadow: "0 0 30px rgba(255,255,255,0.2)" }}
                     animate={{ 
                         scale: isSending ? [1, 0.98, 1] : 1, 
@@ -628,46 +615,14 @@ const Contact: React.FC = () => {
                             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                             className={`text-[9px] md:text-xs tracking-[0.3em] font-mono transition-colors duration-300 ${isSending ? 'text-white' : 'text-gray-300 group-hover:text-white'}`}
                         >
-                            {isSending ? 'SENDING' : 'TRANSMIT'}
+                            {isSending ? UI_TEXT.CONTACT.BUTTON_SENDING : UI_TEXT.CONTACT.BUTTON_TRANSMIT}
                         </motion.span>
-
-                        <motion.div
-                             animate={{ 
-                                 opacity: isSending ? [1, 0.2, 1] : (isHovered ? 1 : 0.5),
-                                 scale: isSending ? [1, 1.2, 1] : (isHovered ? 1.2 : 1)
-                             }}
-                             transition={{ duration: isSending ? 2.5 : 2, repeat: Infinity, ease: "easeInOut" }}
-                        >
-                            <StarFlare size={12} className="text-white fill-white" />
-                        </motion.div>
                     </div>
                   </motion.div>
-
-                  {/* Shockwave Effects */}
-                  {isSending && (
-                    <>
-                       {[0, 1].map((i) => (
-                          <motion.div
-                            key={i}
-                            className="absolute rounded-full border border-white/60"
-                            initial={{ width: '4rem', height: '4rem', opacity: 0.8, borderWidth: '1px' }}
-                            animate={{ width: '22rem', height: '22rem', opacity: 0, borderWidth: '0px' }}
-                            transition={{ duration: 3.5, repeat: Infinity, delay: i * 1.5, ease: "easeOut" }}
-                          />
-                       ))}
-                       <motion.div 
-                         className="absolute w-20 h-20 md:w-40 md:h-40 bg-white blur-[40px] md:blur-[60px] rounded-full"
-                         initial={{ opacity: 0 }}
-                         animate={{ opacity: [0, 0.5, 0] }}
-                         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                       />
-                    </>
-                  )}
                 </button>
             </div>
           </motion.form>
         ) : (
-          /* --- SUCCESS / RECEIVED VIEW --- */
           <motion.div
             key="success-view"
             initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
@@ -676,53 +631,6 @@ const Contact: React.FC = () => {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="w-full max-w-2xl flex flex-col items-center justify-center text-center relative z-20 mb-20"
           >
-              <div className="relative w-48 h-48 mb-12 flex items-center justify-center">
-                  <div className="absolute inset-0 border border-white/20 rounded-full animate-[spin_20s_linear_infinite]" />
-                  <div className="absolute inset-6 border border-white/10 border-dashed rounded-full animate-[spin_30s_linear_infinite_reverse]" />
-                  
-                  <div className="relative flex items-center justify-center">
-                       <motion.div 
-                         initial={{ height: 0, opacity: 0 }} 
-                         animate={{ height: "18rem", opacity: 0.8 }} 
-                         transition={{ duration: 1.5, ease: "easeOut" }}
-                         className="absolute w-[1px] bg-gradient-to-b from-transparent via-white to-transparent" 
-                       />
-                       <motion.div 
-                         initial={{ width: 0, opacity: 0 }} 
-                         animate={{ width: "18rem", opacity: 0.8 }} 
-                         transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-                         className="absolute h-[1px] bg-gradient-to-r from-transparent via-white to-transparent" 
-                       />
-                       
-                       <motion.div
-                          initial={{ scale: 0, rotate: -90, opacity: 0 }}
-                          animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                          transition={{ 
-                              duration: 1.2, 
-                              ease: [0.16, 1, 0.3, 1] 
-                          }}
-                          className="relative z-10"
-                       >
-                           <StarFlare size={36} className="text-white drop-shadow-[0_0_20px_rgba(255,255,255,1)]" />
-                           <motion.div
-                              className="absolute inset-0 text-white mix-blend-overlay"
-                              initial={{ scale: 1.5, opacity: 1 }}
-                              animate={{ scale: 1, opacity: 0 }}
-                              transition={{ duration: 0.8, ease: "easeOut" }}
-                           >
-                              <StarFlare size={36} className="fill-white" />
-                           </motion.div>
-                       </motion.div>
-
-                       <motion.div 
-                          initial={{ scale: 0 }}
-                          animate={{ scale: [1, 1.5, 1] }}
-                          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                          className="absolute w-8 h-8 bg-white/50 blur-[20px] rounded-full"
-                       />
-                  </div>
-              </div>
-
               <div className="space-y-4 mb-16">
                   <motion.p 
                     initial={{ opacity: 0 }}
@@ -730,7 +638,7 @@ const Contact: React.FC = () => {
                     transition={{ delay: 0.8, duration: 1 }}
                     className="font-mono text-xs text-gray-500 tracking-[0.2em]"
                   >
-                     /// ACKNOWLEDGMENT_ID: {Math.floor(Math.random() * 10000).toString().padStart(4, '0')}-{Date.now().toString().slice(-4)}
+                     {UI_TEXT.CONTACT.SUCCESS_ACK_PREFIX} {Math.floor(Math.random() * 10000).toString().padStart(4, '0')}-{Date.now().toString().slice(-4)}
                   </motion.p>
               </div>
 
@@ -746,7 +654,7 @@ const Contact: React.FC = () => {
                       >
                           <div className="flex flex-col items-start">
                               <span className="text-[10px] font-mono text-gray-500 group-hover:text-white/80 tracking-widest mb-1">
-                                  CHANNEL_{index + 1}
+                                  {UI_TEXT.CONTACT.CHANNEL_PREFIX}{index + 1}
                               </span>
                               <span className="text-sm font-light tracking-[0.2em] text-white">
                                   {link.name}
@@ -764,7 +672,7 @@ const Contact: React.FC = () => {
                  className="group relative px-8 py-3 overflow-hidden"
               >
                   <span className="relative z-10 font-mono text-xs tracking-[0.3em] text-gray-400 group-hover:text-white transition-colors duration-300">
-                      // TERMINATE_CONNECTION
+                      {UI_TEXT.CONTACT.BUTTON_RESET}
                   </span>
                   <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-px bg-white group-hover:w-full transition-all duration-500 ease-out" />
               </button>
@@ -781,7 +689,7 @@ const Contact: React.FC = () => {
         transition={{ delay: 0.5, duration: 1 }}
         className="absolute bottom-3 md:bottom-10 text-center font-mono text-gray-700 text-xs tracking-[0.3em]"
       >
-        // COLLAPSAR SYSTEM // 2025
+        {UI_TEXT.CONTACT.FOOTER_COPYRIGHT}
       </motion.footer>
       
       <style>{`

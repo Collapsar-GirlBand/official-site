@@ -1,16 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const Background: React.FC = () => {
+interface BackgroundProps {
+  scrollContainerRef: React.RefObject<HTMLElement>;
+}
+
+const Background: React.FC<BackgroundProps> = ({ scrollContainerRef }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [opacity, setOpacity] = useState(0);
 
-  // 1. Scroll Listener for Fade-In Effect
+  // 1. Scroll Listener for Fade-In Effect (Attached to container)
   useEffect(() => {
     const handleScroll = () => {
-      const scrollY = window.scrollY;
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const scrollY = container.scrollTop;
       const windowHeight = window.innerHeight;
       
-      // Start fading in earlier (at 20% of first screen) to ensure visibility by the time we reach timeline
+      // Start fading in earlier (at 20% of first screen) to ensure visibility by the time we reach timeline/contact
       const startFade = windowHeight * 0.2;
       const endFade = windowHeight * 0.8;
       
@@ -23,11 +30,18 @@ const Background: React.FC = () => {
       setOpacity(newOpacity);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial check
+    const container = scrollContainerRef.current;
+    if (container) {
+        container.addEventListener('scroll', handleScroll);
+        handleScroll(); // Initial check
+    }
 
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    return () => {
+        if (container) {
+            container.removeEventListener('scroll', handleScroll);
+        }
+    };
+  }, [scrollContainerRef]);
 
   // 2. Particle System Logic
   useEffect(() => {

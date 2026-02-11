@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PAST_GIGS } from '../constants';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { PAST_GIGS } from '../content/data';
+import { UI_TEXT } from '../content/ui';
 
 // Internal Star Component for consistency
 const StarFlare: React.FC<{ size?: number, className?: string }> = ({ size = 20, className = "" }) => (
@@ -27,7 +28,7 @@ const Timeline: React.FC = () => {
   const hasHiddenGigs = sortedGigs.length > INITIAL_DISPLAY_COUNT;
 
   // Animation Variants
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { 
       opacity: 0, 
       y: 50, 
@@ -41,7 +42,7 @@ const Timeline: React.FC = () => {
       scale: 1,
       transition: {
         duration: 0.8,
-        ease: [0.25, 0.46, 0.45, 0.94], // Cinematic easing
+        ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number], // Cinematic easing
         delay: i * 0.15 // Stagger delay based on index
       }
     }),
@@ -55,8 +56,6 @@ const Timeline: React.FC = () => {
   };
 
   return (
-    // UPDATED: Removed 'justify-center' to prevent layout jump when expanding. 
-    // Kept 'flex-col' for structure. Content will now flow downwards from the top padding.
     <section className="py-16 md:py-24 px-4 relative z-10 overflow-hidden min-h-screen flex flex-col">
       
       {/* Background Subtle Constellation Hints */}
@@ -80,11 +79,11 @@ const Timeline: React.FC = () => {
         >
           {/* UPDATED: Added mr-[-0.5em] to compensate for the trailing letter-spacing space */}
           <h2 className="text-4xl md:text-6xl font-light tracking-[0.5em] mr-[-0.5em] text-white mix-blend-screen z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-            往期演出
+            {UI_TEXT.TIMELINE.TITLE}
           </h2>
           <div className="h-8 md:h-12 w-px bg-gradient-to-b from-white to-transparent mx-auto mt-4 md:mt-6 opacity-50" />
           <p className="text-[10px] md:text-xs font-mono text-gray-400 mt-2 tracking-[0.4em] uppercase">
-            Past_Events_Constellation
+            {UI_TEXT.TIMELINE.SUBTITLE}
           </p>
         </motion.div>
       </div>
@@ -244,7 +243,7 @@ const Timeline: React.FC = () => {
                         `}
                         animate={{ opacity: isHovered ? 1 : 0 }}
                       >
-                          {hasUrl ? '/// LINK_DETECTED' : `/// COORD_${gig.id}`}
+                          {hasUrl ? UI_TEXT.TIMELINE.LINK_DETECTED : `${UI_TEXT.TIMELINE.COORD_PREFIX}${gig.id}`}
                       </motion.div>
                   </motion.div>
 
@@ -275,7 +274,7 @@ const Timeline: React.FC = () => {
                  className="relative overflow-hidden"
                >
                  <span className="relative font-mono text-[10px] tracking-[0.4em] text-gray-500 group-hover:text-white transition-colors duration-300 uppercase block">
-                    {isExpanded ? 'Collapse_Starmap' : 'Load_More_Data'}
+                    {isExpanded ? UI_TEXT.TIMELINE.COLLAPSE : UI_TEXT.TIMELINE.EXPAND}
                  </span>
                  <span className="absolute bottom-0 left-0 w-full h-[1px] bg-white transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-out" />
                </motion.div>
