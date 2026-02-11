@@ -67,6 +67,6 @@ export const ASSETS = {
     DRUMS: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/drum.m4a',
     VOCAL: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/vocal.m4a',
     ED: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/ed.m4a'
-};
+}
   }
 };
