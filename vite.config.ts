@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      // 这里的路径必须和你的 GitHub 仓库名一致
+      base: '/official-site/', 
       server: {
         port: 3000,
         host: '0.0.0.0',
