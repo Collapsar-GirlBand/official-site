@@ -59,13 +59,14 @@ export const ASSETS = {
     // Caicai (Drums) -> drum.m4a
     // Weili (Vocal) -> vocal.m4a (Assumed based on pattern, or fallback to placeholder if not present)
     
-    GUITAR_LEAD: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/lg.m4a',
-    GUITAR_LEAD_2: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/lg2.m4a',
-    BASS: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/bass.m4a',
-    GUITAR_RHYTHM: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/rg.m4a',
-    KEYBOARD: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/kb.m4a',
-    DRUMS: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/drum.m4a',
-    VOCAL: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/vocal.m4a',
-    ED: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/ed.m4a'
+    GUITAR_LEAD: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/lg.m4a',
+    GUITAR_LEAD_2: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/lg2.m4a',
+    BASS: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/bass.m4a',
+    GUITAR_RHYTHM: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/rg.m4a',
+    KEYBOARD: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/kb.m4a',
+    DRUMS: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/drum.m4a',
+    VOCAL: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/vocal.m4a',
+    ED: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/ed.m4a'
+};
   }
 };
