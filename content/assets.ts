@@ -47,7 +47,7 @@ export const ASSETS = {
     ],
 
     // Sprite Base URL (GitHub Raw)
-    SPRITE_BASE: "https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/sprites/"
+    SPRITE_BASE: "https://cdn.statically.io/Collapsar-GirlBand/official-site/main/sprites/"
   },
   AUDIO: {
     // Hosted on GitHub Raw
