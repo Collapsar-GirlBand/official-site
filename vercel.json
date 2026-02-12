@@ -5,9 +5,10 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://collapsar-girlband.github.io/official-site/"
+          "value": "https://collapsar-girlband.github.io"
         }
       ]
     }
   ]
+
 }
