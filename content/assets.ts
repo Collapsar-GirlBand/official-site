@@ -1,3 +1,4 @@
+
 export const ASSETS = {
   FONTS: {
     GOOGLE_PRECONNECT: "https://fonts.googleapis.com",
@@ -46,18 +47,25 @@ export const ASSETS = {
     ],
 
     // Sprite Base URL (GitHub Raw)
-    // 修正：补上了 /gh/ 路径
-    SPRITE_BASE: "https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/sprites/"
+    SPRITE_BASE: "https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/sprites/"
   },
   AUDIO: {
     // Hosted on GitHub Raw
-    GUITAR_LEAD: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/lg.m4a',
-    GUITAR_LEAD_2: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/lg2.m4a',
-    BASS: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/bass.m4a',
-    GUITAR_RHYTHM: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/rg.m4a',
-    KEYBOARD: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/kb.m4a',
-    DRUMS: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/drum.m4a',
-    VOCAL: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/vocal.m4a',
-    ED: 'https://cdn.statically.io/gh/Collapsar-GirlBand/official-site/main/audio/ed.m4a'
+    // Mapping:
+    // Wanqi (Lead Guitar) -> lg.m4a
+    // Linan (Bass) -> bass.m4a
+    // AS (Rhythm Guitar) -> rg.m4a
+    // Weixiao (Keyboard) -> kb.m4a
+    // Caicai (Drums) -> drum.m4a
+    // Weili (Vocal) -> vocal.m4a (Assumed based on pattern, or fallback to placeholder if not present)
+    
+    GUITAR_LEAD: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/lg.m4a',
+    GUITAR_LEAD_2: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/lg2.m4a',
+    BASS: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/bass.m4a',
+    GUITAR_RHYTHM: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/rg.m4a',
+    KEYBOARD: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/kb.m4a',
+    DRUMS: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/drum.m4a',
+    VOCAL: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/vocal.m4a',
+    ED: 'https://raw.githubusercontent.com/Collapsar-GirlBand/official-site/main/audio/ed.m4a'
   }
-} 
+};
