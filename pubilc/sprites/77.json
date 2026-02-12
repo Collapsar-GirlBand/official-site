@@ -1,0 +1,176 @@
+{
+  "frames": {
+    "77_smile_base.webp": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1136,
+        "h": 2264
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 363,
+        "y": 25,
+        "w": 1136,
+        "h": 2264
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "77_smile_face.webp": {
+      "frame": {
+        "x": 1136,
+        "y": 0,
+        "w": 367,
+        "h": 315
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 563,
+        "y": 122,
+        "w": 367,
+        "h": 315
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "77_nervous_face.webp": {
+      "frame": {
+        "x": 1136,
+        "y": 1890,
+        "w": 367,
+        "h": 315
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 563,
+        "y": 122,
+        "w": 367,
+        "h": 315
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "77_confused_face.webp": {
+      "frame": {
+        "x": 1136,
+        "y": 315,
+        "w": 367,
+        "h": 315
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 563,
+        "y": 122,
+        "w": 367,
+        "h": 315
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "77_happy (2)_face.webp": {
+      "frame": {
+        "x": 1136,
+        "y": 630,
+        "w": 367,
+        "h": 315
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 563,
+        "y": 122,
+        "w": 367,
+        "h": 315
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "77_happy_face.webp": {
+      "frame": {
+        "x": 1136,
+        "y": 945,
+        "w": 367,
+        "h": 315
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 563,
+        "y": 122,
+        "w": 367,
+        "h": 315
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "77_serious_face.webp": {
+      "frame": {
+        "x": 1136,
+        "y": 1260,
+        "w": 367,
+        "h": 315
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 563,
+        "y": 122,
+        "w": 367,
+        "h": 315
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "77_cry_face.webp": {
+      "frame": {
+        "x": 1136,
+        "y": 1575,
+        "w": 367,
+        "h": 315
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 563,
+        "y": 122,
+        "w": 367,
+        "h": 315
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    }
+  },
+  "meta": {
+    "app": "Smart Sprite Studio",
+    "version": "1.0",
+    "image": "sprites.webp",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1503,
+      "h": 2264
+    },
+    "scale": 1,
+    "smartUpdate": "$TexturePacker:SmartUpdate:..."
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "frames": {
+    "as_smile_base.webp": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 745,
+        "h": 1765
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 538,
+        "y": 299,
+        "w": 745,
+        "h": 1765
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "as_smile_face.webp": {
+      "frame": {
+        "x": 745,
+        "y": 0,
+        "w": 215,
+        "h": 250
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 684,
+        "y": 363,
+        "w": 215,
+        "h": 250
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "as_thinking_face.webp": {
+      "frame": {
+        "x": 745,
+        "y": 250,
+        "w": 215,
+        "h": 250
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 684,
+        "y": 363,
+        "w": 215,
+        "h": 250
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "as_serious_face.webp": {
+      "frame": {
+        "x": 745,
+        "y": 500,
+        "w": 215,
+        "h": 250
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 684,
+        "y": 363,
+        "w": 215,
+        "h": 250
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "as_sad_face.webp": {
+      "frame": {
+        "x": 745,
+        "y": 750,
+        "w": 215,
+        "h": 250
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 684,
+        "y": 363,
+        "w": 215,
+        "h": 250
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    },
+    "as_serious (2)_face.webp": {
+      "frame": {
+        "x": 745,
+        "y": 1000,
+        "w": 215,
+        "h": 250
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 684,
+        "y": 363,
+        "w": 215,
+        "h": 250
+      },
+      "sourceSize": {
+        "w": 1600,
+        "h": 2300
+      }
+    }
+  },
+  "meta": {
+    "app": "Smart Sprite Studio",
+    "version": "1.0",
+    "image": "sprites.webp",
+    "format": "RGBA8888",
+    "size": {
+      "w": 960,
+      "h": 1765
+    },
+    "scale": 1,
+    "smartUpdate": "$TexturePacker:SmartUpdate:..."
+  }
+}
