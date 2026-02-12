@@ -8,11 +8,12 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "dependencies": {
+"dependencies": {
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "lucide-react": "0.344.0",
-    "framer-motion": "10.16.4"
+    "framer-motion": "10.16.4",
+    "@vercel/speed-insights": "latest"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
