@@ -1,3 +1,4 @@
+import { SpeedInsights } from "@vercel/speed-insights/react"
 import React, { useEffect, useState, useRef } from 'react';
 import Background from './components/Background';
 import Hero from './components/Hero';
@@ -51,6 +52,8 @@ function App() {
           <GameSystem isOpen={isGameOpen} onClose={() => setIsGameOpen(false)} />
         )}
       </AnimatePresence>
+      
+      <SpeedInsights />
     </main>
   );
 }
