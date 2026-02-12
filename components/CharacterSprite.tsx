@@ -61,15 +61,14 @@ const CharacterSprite: React.FC<CharacterSpriteProps> = ({ charId, expression, c
   // 容器尺寸计算
   // 优先使用身体的尺寸作为容器基准，因为身体通常决定了整体占位
   const refData = baseData || faceData;
-  // Fallback for refData to satisfy Typescript if both are somehow null (though check above prevents this)
   if (!refData) return null;
 
   const fullWidth = refData.sourceSize.w;
   const fullHeight = refData.sourceSize.h;
 
   // 裁切设置
-  // 0.5 只显示上半身 (Top Half)
-  const CROP_RATIO = 0.6; // Slightly increased to ensure we see enough body
+  // 0.6 确保显示足够的上半身
+  const CROP_RATIO = 0.6; 
   const displayHeight = fullHeight * CROP_RATIO;
 
   const containerStyle: React.CSSProperties = {
@@ -80,6 +79,8 @@ const CharacterSprite: React.FC<CharacterSpriteProps> = ({ charId, expression, c
     // 添加底部渐隐遮罩
     maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
     WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
+    // 特殊处理：霖安 (bass) 需要左右翻转
+    transform: charId === 'bass' ? 'scaleX(-1)' : 'none',
   };
 
   return (
