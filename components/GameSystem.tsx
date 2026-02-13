@@ -877,7 +877,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
               if (currentScore < prevThreshold) {
                    // [MODIFIED] Ensure first track (Guitar L) has min volume of 0.3 even at start
                    if (index === 0) {
-                        gainNode.gain.setTargetAtTime(0.3, now, 0.1);
+                        gainNode.gain.setTargetAtTime(0.6, now, 0.1);
                    } else {
                         gainNode.gain.setTargetAtTime(0, now, 0.1);
                    }
