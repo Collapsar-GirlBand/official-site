@@ -875,7 +875,12 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
 
               // If we haven't reached the previous member's cap, this track should be silent
               if (currentScore < prevThreshold) {
-                   gainNode.gain.setTargetAtTime(0, now, 0.1);
+                   // [MODIFIED] Ensure first track (Guitar L) has min volume of 0.3 even at start
+                   if (index === 0) {
+                        gainNode.gain.setTargetAtTime(0.3, now, 0.1);
+                   } else {
+                        gainNode.gain.setTargetAtTime(0, now, 0.1);
+                   }
                    return;
               }
 
