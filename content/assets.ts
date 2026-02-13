@@ -47,7 +47,7 @@ export const ASSETS = {
     ],
 
     // Sprite Base URL (GitHub Raw)
-    SPRITE_BASE: "https://official-site-sand.vercel.app/sprites/"
+    SPRITE_BASE: "/sprites/"
   },
   AUDIO: {
     // Hosted on GitHub Raw
@@ -59,13 +59,13 @@ export const ASSETS = {
     // Caicai (Drums) -> drum.m4a
     // Weili (Vocal) -> vocal.m4a (Assumed based on pattern, or fallback to placeholder if not present)
     
-    GUITAR_LEAD: 'https://official-site-sand.vercel.app/audio/lg.m4a',
-    GUITAR_LEAD_2: 'https://official-site-sand.vercel.app/audio/lg2.m4a',
-    BASS: 'https://official-site-sand.vercel.app/audio/bass.m4a',
-    GUITAR_RHYTHM: 'https://official-site-sand.vercel.app/audio/rg.m4a',
-    KEYBOARD: 'https://official-site-sand.vercel.app/audio/kb.m4a',
-    DRUMS: 'https://official-site-sand.vercel.app/audio/drum.m4a',
-    VOCAL: 'https://official-site-sand.vercel.app/audio/vocal.m4a',
-    ED: 'https://official-site-sand.vercel.app/audio/ed.m4a'
+    GUITAR_LEAD: '/audio/lg.m4a',
+    GUITAR_LEAD_2: '/audio/lg2.m4a',
+    BASS: '/audio/bass.m4a',
+    GUITAR_RHYTHM: '/audio/rg.m4a',
+    KEYBOARD: '/audio/kb.m4a',
+    DRUMS: '/audio/drum.m4a',
+    VOCAL: '/audio/vocal.m4a',
+    ED: '/audio/ed.m4a'
   }
 };
