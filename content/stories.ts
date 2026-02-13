@@ -118,7 +118,6 @@ export const STORY_SCRIPTS: Record<string, StoryScript> = {
     { speakerId: 'guitar_r', text: '这个bgm有种在逛大卖场的既视感', expression: 'as_thinking_face.webp' },
     { speakerId: 'keyboard', text: '……', expression: 'wx_serious (2)_face.webp' },
     { speakerId: 'keyboard', text: '…………', expression: 'wx_serious (2)_face.webp' },
-    { speakerId: 'keyboard', text: '………………', expression: 'wx_serious (2)_face.webp' },
     { speakerId: 'keyboard', text: '完了，还真有点那个意思……', expression: 'wx_serious_face.webp' },
     { speakerId: 'keyboard', text: '该死的塑料键盘……', expression: 'wx_serious_face.webp' },
     { speakerId: 'guitar_r', text: '₍^. ̫ .^₎', expression: 'as_smile_face.webp' },
