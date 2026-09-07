@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { LanguageProvider } from './content/language';
 import { ASSETS } from './content/assets';
 
 // --- CENTRALIZED ASSET LOADING ---
@@ -37,6 +38,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <LanguageProvider><App /></LanguageProvider>
   </React.StrictMode>
 );

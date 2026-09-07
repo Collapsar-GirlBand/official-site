@@ -2,6 +2,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react"
 import React, { useEffect, useState, useRef } from 'react';
 import Background from './components/Background';
 import Hero from './components/Hero';
+import LanguageSwitch from './components/LanguageSwitch';
 import Contact from './components/Contact';
 import GameSystem from './components/GameSystem';
 import { AnimatePresence } from 'framer-motion';
@@ -32,6 +33,7 @@ function App() {
   return (
     <main className="h-screen w-screen overflow-hidden bg-black text-white relative">
       <Background scrollContainerRef={containerRef} />
+      {!isGameOpen && <div className="fixed top-5 right-5 z-50"><LanguageSwitch /></div>}
       
       <div 
         ref={containerRef}

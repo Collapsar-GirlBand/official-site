@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { GIG_TEXT_EN } from '../content/english';
 import { PAST_GIGS } from '../content/data';
-import { UI_TEXT } from '../content/ui';
+import { useLanguage } from '../content/language';
 
 // Internal Star Component for consistency
 const StarFlare: React.FC<{ size?: number, className?: string }> = ({ size = 20, className = "" }) => (
@@ -11,6 +12,7 @@ const StarFlare: React.FC<{ size?: number, className?: string }> = ({ size = 20,
 );
 
 const Timeline: React.FC = () => {
+  const { UI_TEXT, language } = useLanguage();
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -129,7 +131,7 @@ const Timeline: React.FC = () => {
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="absolute inset-0 z-50"
-                      aria-label={`View details for ${gig.location} gig`}
+                      aria-label={`View details for ${language === 'en' ? GIG_TEXT_EN[gig.location] || gig.location : gig.location} gig`}
                     />
                   )}
                   
@@ -230,10 +232,10 @@ const Timeline: React.FC = () => {
                       
                       <div className={`flex flex-col gap-0.5 ${isEven ? 'md:items-end' : 'md:items-start'}`}>
                           <span className={`text-lg font-light tracking-widest transition-colors duration-300 ${isHovered ? 'text-white' : 'text-gray-300'}`}>
-                              {gig.location}
+                              {language === 'en' ? GIG_TEXT_EN[gig.location] || gig.location : gig.location}
                           </span>
                           <span className="text-xs md:text-sm font-mono text-gray-500 uppercase tracking-widest">
-                              {gig.venue}
+                              {language === 'en' ? GIG_TEXT_EN[gig.venue] || gig.venue : gig.venue}
                           </span>
                       </div>
 

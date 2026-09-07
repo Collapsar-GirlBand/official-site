@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { SOCIAL_LINKS, SITE_CONFIG } from '../content/data';
-import { UI_TEXT } from '../content/ui';
+import { useLanguage } from '../content/language';
 
 // 4-Point Star (Diffraction Spike) Component
 const StarFlare: React.FC<{ size?: number, className?: string }> = ({ size = 20, className = "" }) => (
@@ -141,6 +141,7 @@ const TechInputWrapper: React.FC<TechInputWrapperProps> = ({
 
 // Abstract Collapsar (Singularity) Navigation Component
 const CollapsarNav: React.FC = () => {
+  const { UI_TEXT, language } = useLanguage();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
@@ -345,6 +346,7 @@ const CollapsarNav: React.FC = () => {
 };
 
 const Contact: React.FC = () => {
+  const { UI_TEXT, language } = useLanguage();
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
   const [honey, setHoney] = useState('');
@@ -432,7 +434,7 @@ const Contact: React.FC = () => {
                whileInView={isSent ? "sent" : "visible"}
                animate={isSent ? "sent" : undefined}
                viewport={{ once: true }}
-               className="font-light text-white mix-blend-screen z-10 whitespace-nowrap text-4xl md:text-6xl drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+               className="font-light text-white mix-blend-screen z-10 text-balance px-6 text-2xl md:text-5xl drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
             >
                {isSent ? UI_TEXT.CONTACT.TITLE_SENT : UI_TEXT.CONTACT.TITLE_DEFAULT}
             </motion.h2>
@@ -523,7 +525,7 @@ const Contact: React.FC = () => {
                 onBlur={() => setFocusedField(null)}
                 onChange={(e) => setMessage(e.target.value)}
                 className="relative block w-full bg-transparent p-2 pl-4 md:p-4 md:pl-6 text-base md:text-xl font-light text-white/90 placeholder-transparent focus:outline-none resize-none z-10 font-sans tracking-wide leading-relaxed custom-scrollbar"
-                placeholder="内容"
+                placeholder={language === 'en' ? 'Message' : '内容'}
                 id="message"
                 style={{ scrollbarWidth: 'none' }} 
               />

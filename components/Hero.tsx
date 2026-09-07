@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { UI_TEXT } from '../content/ui';
+import { useLanguage } from '../content/language';
 
 interface HeroProps {
   onOpenGame: () => void;
@@ -8,6 +8,7 @@ interface HeroProps {
 }
 
 const Hero: React.FC<HeroProps> = ({ onOpenGame, containerRef }) => {
+  const { UI_TEXT, language } = useLanguage();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -71,7 +72,7 @@ const Hero: React.FC<HeroProps> = ({ onOpenGame, containerRef }) => {
           <div className="w-12 h-px bg-white/30" />
           
           {/* Swapped Styles: Chinese Subtitle Second (Bottom) - Now SMALLER (Remark Style) */}
-          <div className="flex items-center justify-center text-xs md:text-sm font-mono tracking-[0.2em] whitespace-nowrap text-white/60">
+          <div className="flex items-center justify-center text-xs md:text-sm font-mono tracking-[0.2em] text-center px-5 text-white/60">
               {UI_TEXT.HERO.SUBTITLE}
           </div>
       </div>

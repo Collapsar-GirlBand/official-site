@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BAND_MEMBERS, SOCIAL_LINKS } from '../content/data';
+import LanguageSwitch from './LanguageSwitch';
+import { STORIES_EN, MEMBER_NAMES } from '../content/english';
 import { STORY_SCRIPTS } from '../content/stories';
 import { ASSETS } from '../content/assets';
-import { UI_TEXT } from '../content/ui';
+import { useLanguage } from '../content/language';
 import { X, Play, Pause, LogOut, ExternalLink } from 'lucide-react'; 
 import { MAX_SCORE, STORAGE_KEY } from '../constants';
 import CharacterSprite from './CharacterSprite';
@@ -66,36 +68,31 @@ interface TypewriterProps {
 }
 
 const Typewriter: React.FC<TypewriterProps> = ({ text, delay = 0, speed = 30, onComplete }) => {
-  const [displayed, setDisplayed] = useState('');
+  const [progress, setProgress] = useState(0);
   const onCompleteRef = useRef(onComplete);
+  const initialLength = useRef(text.length);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
+  // Language changes only replace the displayed string. The current reveal and
+  // completion timer continue; line changes mount a fresh keyed Typewriter.
   useEffect(() => {
-    onCompleteRef.current = onComplete;
-  }, [onComplete]);
-  
-  useEffect(() => {
-    setDisplayed('');
-    let isMounted = true;
-    const startTimeout = setTimeout(() => {
-        let index = 0;
-        const interval = setInterval(() => {
-            if (!isMounted) return;
-            index++;
-            setDisplayed(text.slice(0, index));
-            if (index >= text.length) {
-                clearInterval(interval);
-                if (onCompleteRef.current) onCompleteRef.current();
-            }
-        }, speed);
-        return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const timeout = setTimeout(() => {
+      let index = 0;
+      interval = setInterval(() => {
+        index++;
+        const next = Math.min(1, index / Math.max(1, initialLength.current));
+        setProgress(next);
+        if (next === 1) {
+          clearInterval(interval);
+          onCompleteRef.current?.();
+        }
+      }, speed);
     }, delay);
-    return () => {
-        isMounted = false;
-        clearTimeout(startTimeout);
-    };
-  }, [text, delay, speed]);
+    return () => { clearTimeout(timeout); clearInterval(interval); };
+  }, [delay, speed]);
 
-  return <span>{displayed}</span>;
+  return <span>{text.slice(0, Math.ceil(text.length * progress))}</span>;
 };
 
 // --- EXTRACTED SUB-COMPONENTS ---
@@ -107,6 +104,7 @@ interface SyncProgressBarProps {
 }
 
 const SyncProgressBar: React.FC<SyncProgressBarProps> = React.memo(({ score, hasPendingStory, gameCompleted }) => {
+  const { UI_TEXT, language } = useLanguage();
   const progress = Math.min(1, score / MAX_SCORE);
   const percentage = Math.floor(progress * 100);
 
@@ -163,6 +161,7 @@ interface IntroViewProps {
 }
 
 const IntroView: React.FC<IntroViewProps> = ({ onFinish }) => {
+  const { UI_TEXT, language } = useLanguage();
   return (
       <div className="absolute inset-0 bg-black flex flex-col items-center justify-center font-mono z-50 px-6 text-center overflow-hidden">
           {/* Subtle Background Animation */}
@@ -177,10 +176,10 @@ const IntroView: React.FC<IntroViewProps> = ({ onFinish }) => {
 
           <div className="min-h-[6rem] flex flex-col items-center justify-center gap-4 mb-20 md:mb-24 relative z-10">
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="text-white text-sm md:text-lg tracking-[0.2em] font-light leading-relaxed">
-                  <Typewriter text="侦测到微弱共鸣……" speed={50} />
+                  <Typewriter text={language === 'en' ? 'Faint resonance detected…' : '侦测到微弱共鸣……'} speed={50} />
              </motion.div>
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.0 }} className="text-white text-sm md:text-lg tracking-[0.2em] font-light leading-relaxed text-gray-400">
-                  <Typewriter text="正在尝试建立连接……" speed={50} delay={1500} />
+                  <Typewriter text={language === 'en' ? 'Establishing a connection…' : '正在尝试建立连接……'} speed={50} delay={1500} />
              </motion.div>
           </div>
           
@@ -213,7 +212,9 @@ const IntroView: React.FC<IntroViewProps> = ({ onFinish }) => {
 };
 
 interface EndingViewProps { onClose: () => void; }
-const EndingView: React.FC<EndingViewProps> = ({ onClose }) => (
+const EndingView: React.FC<EndingViewProps> = ({ onClose }) => {
+  const { language } = useLanguage();
+  return (
     <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
@@ -248,9 +249,9 @@ const EndingView: React.FC<EndingViewProps> = ({ onClose }) => (
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
             transition={{ delay: 2.5, duration: 1 }}
-            className="text-xs md:text-sm font-mono tracking-[0.5em] mb-24 uppercase text-gray-600"
+            className="text-xs md:text-sm font-mono tracking-[0.2em] px-6 text-center mb-24 uppercase text-gray-600"
         >
-            概念小游戏试玩结束
+            {language === 'en' ? 'Concept Demo Complete' : '概念小游戏试玩结束'}
         </motion.p>
         
         <motion.button 
@@ -269,13 +270,14 @@ const EndingView: React.FC<EndingViewProps> = ({ onClose }) => (
             <div className="relative z-10 flex items-center gap-3">
                  <span className="w-1.5 h-1.5 bg-black group-hover:bg-white rounded-full transition-colors duration-500" />
                  <span className="font-mono text-sm tracking-[0.3em] text-black group-hover:text-white transition-colors duration-500 font-bold">
-                     确认
+                     {language === 'en' ? 'Confirm' : '确认'}
                  </span>
                  <span className="w-1.5 h-1.5 bg-black group-hover:bg-white rounded-full transition-colors duration-500" />
             </div>
         </motion.button>
     </motion.div>
 );
+};
 
 // --- SPECIAL ED PLAYER (POST-GAME DEMO INTERFACE) ---
 
@@ -290,6 +292,7 @@ const ED_LYRICS = [
 ];
 
 const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { UI_TEXT, language } = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -384,7 +387,7 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         >
                             {line.en}
                         </motion.span>
-                        {line.cn && (
+                        {language === 'zh' && line.cn && (
                             <span className="text-[10px] font-light text-gray-600 group-hover:text-gray-400 transition-colors duration-500 font-sans tracking-wide">
                                 {line.cn}
                             </span>
@@ -473,6 +476,7 @@ interface StoryViewProps {
 }
 
 const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, isOverlay = false }) => {
+  const { UI_TEXT, language } = useLanguage();
   const [lineIndex, setLineIndex] = useState(0);
   const [isTypingComplete, setIsTypingComplete] = useState(false);
   
@@ -485,7 +489,7 @@ const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, isOver
       return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const script = STORY_SCRIPTS[scriptId] || [];
+  const script = (language === 'en' ? STORIES_EN : STORY_SCRIPTS)[scriptId] || [];
   const currentLine = script[lineIndex];
   
   const displayMember = BAND_MEMBERS.find(m => m.id === (currentLine?.speakerId === 'self' || currentLine?.speakerId === 'system' ? scriptId : currentLine?.speakerId));
@@ -549,16 +553,16 @@ const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, isOver
               </div>
           )}
           
-          <div className="relative z-10 p-6 md:p-12 w-full max-w-5xl mx-auto mb-10 pointer-events-none">
+          <div className="relative z-10 p-4 md:p-12 w-full max-w-5xl mx-auto mb-4 md:mb-10 pointer-events-none max-h-full overflow-y-auto">
                <div className="pointer-events-auto">
                    {currentLine.speakerId !== 'system' && (
                        <div className="inline-block bg-white/10 backdrop-blur-md border-l-2 border-white px-4 py-1 mb-2">
                            <span className="text-sm font-mono tracking-widest uppercase" style={{ color: displayMember?.color || '#fff' }}>
-                               {currentLine.speakerId === 'self' ? UI_TEXT.GAME.SPEAKER_SELF : <span className="flex items-center gap-2"><span className="opacity-50 text-[0.8em] font-bold">[{displayMember?.role}]</span>{displayMember?.name}</span>}
+                               {currentLine.speakerId === 'self' ? UI_TEXT.GAME.SPEAKER_SELF : <span className="flex items-center gap-2"><span className="opacity-50 text-[0.8em] font-bold">[{displayMember?.role}]</span>{language === 'en' ? MEMBER_NAMES[displayMember?.id || ''] : displayMember?.name}</span>}
                            </span>
                        </div>
                    )}
-                   <div className={`border border-white/20 p-4 md:p-8 min-h-[112px] md:min-h-[160px] relative backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.5)] cursor-pointer hover:border-white/40 transition-colors ${currentLine.speakerId === 'system' ? 'bg-red-900/40 border-red-500/50 text-center flex items-center justify-center' : 'bg-black/80'}`}>
+                   <div className={`border border-white/20 p-4 md:p-8 min-h-[112px] md:min-h-[160px] pb-10 relative backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.5)] cursor-pointer hover:border-white/40 transition-colors ${currentLine.speakerId === 'system' ? 'bg-red-900/40 border-red-500/50 text-center flex items-center justify-center' : 'bg-black/80'}`}>
                        <p className={`text-lg md:text-2xl font-light leading-relaxed ${currentLine.speakerId === 'system' ? 'text-red-100 font-bold tracking-widest' : 'text-gray-100'}`}>
                            <Typewriter key={lineIndex} text={currentLine.text} speed={30} onComplete={() => setIsTypingComplete(true)} />
                        </p>
@@ -577,6 +581,7 @@ const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, isOver
 // --- MAIN GAME SYSTEM ---
 
 const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
+  const { UI_TEXT, language } = useLanguage();
   const [gameState, setGameState] = useState<GameState>({ score: 0, unlockedIds: [], hasSeenIntro: false, chaosModeActive: false, gameCompleted: false });
   const [view, setView] = useState<'INTRO' | 'GAME' | 'STORY' | 'ENDING' | 'DEMOS'>('GAME');
   
@@ -1444,11 +1449,13 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black flex flex-col select-none">
+        {/* Available above every overlay without touching canvas input or game state. */}
+        <div className="absolute right-16 top-6 z-[300]"><LanguageSwitch /></div>
         {/* ENDING OVERLAY */}
         {view === 'ENDING' && <EndingView onClose={handleEndingClose} />}
 
         {/* HEADER */}
-        <div className="h-24 border-b border-white/10 flex justify-between items-center px-6 bg-[#050505] relative z-20 shrink-0 gap-8">
+        <div className="h-36 md:h-24 border-b border-white/10 flex justify-between items-center px-6 pt-16 md:pt-0 bg-[#050505] relative z-20 shrink-0 gap-3 md:pr-52">
             <div className="flex-1 flex justify-start">
               {/* Only show progress if game not completed, or if wanted to show chaos score. */}
               {/* If gameCompleted, EdPlayer is shown fullscreen usually, but header remains. */}
@@ -1458,7 +1465,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                   gameCompleted={gameState.gameCompleted} 
               />
             </div>
-            <div className="flex gap-6 text-gray-400 items-center">
+            <div className="absolute right-6 top-9 flex text-gray-400 items-center">
               {view !== 'STORY' && view !== 'DEMOS' && !gameState.gameCompleted && (
                 <button onClick={onClose} className="hover:text-white transition-colors">
                     <X size={20} />
