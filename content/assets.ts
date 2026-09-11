@@ -57,7 +57,6 @@ export const ASSETS = {
     // AS (Rhythm Guitar) -> rg.m4a
     // Weixiao (Keyboard) -> kb.m4a
     // Caicai (Drums) -> drum.m4a
-    // Weili (Vocal) -> vocal.m4a (Assumed based on pattern, or fallback to placeholder if not present)
     
     GUITAR_LEAD: './audio/lg.m4a',
     GUITAR_LEAD_2: './audio/lg2.m4a',
@@ -65,7 +64,6 @@ export const ASSETS = {
     GUITAR_RHYTHM: './audio/rg.m4a',
     KEYBOARD: './audio/kb.m4a',
     DRUMS: './audio/drum.m4a',
-    VOCAL: './audio/vocal.m4a',
     ED: './audio/ed.m4a'
   }
 };

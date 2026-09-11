@@ -10,6 +10,12 @@ import { X, Play, Pause, LogOut, ExternalLink } from 'lucide-react';
 import { MAX_SCORE, STORAGE_KEY } from '../constants';
 import CharacterSprite from './CharacterSprite';
 import { CHAR_CONFIG } from '../content/spriteData';
+import {
+  AssetLoadProgress,
+  getPreloadedAssetBuffer,
+  preloadGameAssets,
+  subscribeToAssetProgress,
+} from '../services/assetPreloader';
 
 interface GameState {
   score: number;
@@ -162,6 +168,25 @@ interface IntroViewProps {
 
 const IntroView: React.FC<IntroViewProps> = ({ onFinish }) => {
   const { UI_TEXT, language } = useLanguage();
+  const [assetProgress, setAssetProgress] = useState<AssetLoadProgress>({
+    loadedBytes: 0,
+    totalBytes: 0,
+    completedFiles: 0,
+    totalFiles: 0,
+    percent: 0,
+    failedUrls: [],
+    done: false,
+  });
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAssetProgress(setAssetProgress);
+    void preloadGameAssets();
+    return unsubscribe;
+  }, []);
+
+  const formatSize = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  const canEnter = assetProgress.done;
+
   return (
       <div className="absolute inset-0 bg-black flex flex-col items-center justify-center font-mono z-50 px-6 text-center overflow-hidden">
           {/* Subtle Background Animation */}
@@ -183,29 +208,71 @@ const IntroView: React.FC<IntroViewProps> = ({ onFinish }) => {
              </motion.div>
           </div>
           
-          <motion.div 
+          <motion.div
               initial={{ opacity: 0, scale: 0.95 }} 
               animate={{ opacity: 1, scale: 1 }} 
-              transition={{ delay: 4.0, duration: 0.8, ease: "easeOut" }}
-              className="flex flex-col items-center gap-10 relative z-10 w-full max-w-md"
+              transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+              className="flex flex-col items-center gap-7 relative z-10 w-full max-w-md"
           >
-              {/* Enhanced Button */}
-              <button 
-                  onClick={onFinish}
-                  className="group relative w-full md:w-auto px-12 py-4 overflow-hidden focus:outline-none"
-              >
-                  <span className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <span className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:via-white/80 transition-all duration-500" />
-                  <span className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:via-white/80 transition-all duration-500" />
-                  
-                  <div className="relative flex items-center justify-center gap-3">
-                      <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      <span className="text-xs md:text-sm font-mono tracking-[0.3em] text-white uppercase group-hover:tracking-[0.4em] transition-all duration-500 whitespace-nowrap">
-                          {UI_TEXT.GAME.SOUND_BUTTON}
-                      </span>
-                      <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="w-full space-y-3 font-mono">
+                  <div className="flex items-center justify-between text-[10px] md:text-xs tracking-[0.16em] text-gray-400">
+                      <span>{language === 'en' ? 'DOWNLOADING ASSETS' : '正在下载素材'}</span>
+                      <span className="text-white tabular-nums">{assetProgress.percent}%</span>
                   </div>
-              </button>
+                  <div className="h-1.5 w-full overflow-hidden border border-white/20 bg-white/5">
+                      <motion.div
+                          className="h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.7)]"
+                          animate={{ width: `${assetProgress.percent}%` }}
+                          transition={{ duration: 0.15, ease: 'linear' }}
+                      />
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] tracking-[0.12em] text-gray-600">
+                      <span>{assetProgress.completedFiles}/{assetProgress.totalFiles} FILES</span>
+                      <span>
+                          {formatSize(assetProgress.loadedBytes)}
+                          {assetProgress.totalBytes > 0 ? ` / ${formatSize(assetProgress.totalBytes)}` : ''}
+                      </span>
+                  </div>
+                  {assetProgress.done && assetProgress.failedUrls.length > 0 && (
+                      <div className="flex items-center justify-between gap-4 text-[9px] tracking-[0.1em] text-yellow-500">
+                          <span>
+                              {language === 'en'
+                                ? `${assetProgress.failedUrls.length} ASSET UNAVAILABLE`
+                                : `${assetProgress.failedUrls.length} 个素材暂不可用`}
+                          </span>
+                          <button
+                              type="button"
+                              onClick={() => void preloadGameAssets(true)}
+                              className="border-b border-yellow-500/60 hover:text-yellow-300"
+                          >
+                              {language === 'en' ? 'RETRY' : '重试'}
+                          </button>
+                      </div>
+                  )}
+              </div>
+
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3.6 }}>
+                  {/* Enhanced Button */}
+                  <button 
+                      onClick={onFinish}
+                      disabled={!canEnter}
+                      className="group relative w-full md:w-auto px-12 py-4 overflow-hidden focus:outline-none disabled:cursor-wait disabled:opacity-35"
+                  >
+                      <span className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      <span className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:via-white/80 transition-all duration-500" />
+                      <span className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:via-white/80 transition-all duration-500" />
+                      
+                      <div className="relative flex items-center justify-center gap-3">
+                          <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          <span className="text-xs md:text-sm font-mono tracking-[0.3em] text-white uppercase group-hover:tracking-[0.4em] transition-all duration-500 whitespace-nowrap">
+                              {canEnter
+                                ? UI_TEXT.GAME.SOUND_BUTTON
+                                : (language === 'en' ? 'LOADING...' : '加载中……')}
+                          </span>
+                          <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      </div>
+                  </button>
+              </motion.div>
           </motion.div>
       </div>
   );
@@ -717,17 +784,20 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   // 2.1 Load Buffers
   const loadBuffers = async (ctx: AudioContext) => {
       const loadPromises = BAND_MEMBERS.map(async (member) => {
+          if (!member.audioTrack) return;
           try {
               // Load Main Track
-              const response = await fetch(member.audioTrack);
-              const arrayBuffer = await response.arrayBuffer();
+              const cachedBuffer = getPreloadedAssetBuffer(member.audioTrack);
+              const response = cachedBuffer ? null : await fetch(member.audioTrack);
+              const arrayBuffer = cachedBuffer ?? await response!.arrayBuffer();
               const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
               buffersRef.current[member.id] = audioBuffer;
 
               // Load Secondary Track if exists
               if (member.audioTrack2) {
-                  const r2 = await fetch(member.audioTrack2);
-                  const b2 = await r2.arrayBuffer();
+                  const cachedBuffer2 = getPreloadedAssetBuffer(member.audioTrack2);
+                  const r2 = cachedBuffer2 ? null : await fetch(member.audioTrack2);
+                  const b2 = cachedBuffer2 ?? await r2!.arrayBuffer();
                   const ab2 = await ctx.decodeAudioData(b2);
                   buffersRef.current[`${member.id}_2`] = ab2;
               }
@@ -759,6 +829,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       const currentLoop = loopIterationRef.current;
 
       BAND_MEMBERS.forEach(member => {
+          if (!member.audioTrack) return;
           let buffer = buffersRef.current[member.id];
           
           // Handle AABB pattern for secondary tracks

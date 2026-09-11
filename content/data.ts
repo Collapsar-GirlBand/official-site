@@ -82,7 +82,6 @@ export const BAND_MEMBERS: BandMember[] = [
     role: 'VOCAL',
     bio: '主唱。承载着记忆与痛苦的奇点。当她接受混沌之时，真正的坍缩星即将诞生。',
     unlockThreshold: 1600, // 80%
-    audioTrack: ASSETS.AUDIO.VOCAL,
     color: '#ffffff', // White (Prompt Requirement)
     profileImage: ASSETS.IMAGES.WEILI.PROFILE,
     avatarImage: ASSETS.IMAGES.WEILI.AVATAR,

@@ -25,7 +25,7 @@ export interface BandMember {
   role: string;
   bio: string;
   unlockThreshold: number; // Score needed to unlock
-  audioTrack: string; // Path to audio file
+  audioTrack?: string; // Optional path to an audio stem
   audioTrack2?: string; // Optional secondary audio file (for AABB looping)
   color: string; // Theme color for the character
   profileImage: string; // URL for the 1715x1640 character art
