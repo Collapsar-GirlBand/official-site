@@ -2,7 +2,7 @@ import { UI_TEXT } from './ui';
 import { STORY_SCRIPTS } from './stories';
 
 export const UI_EN: typeof UI_TEXT = {
-  HERO: { ...UI_TEXT.HERO, SUBTITLE: "A Girl Band from China's Yangtze Delta", ACTION_MAIN: 'Begin Observation', BAND_CN_NAME: '' },
+  HERO: { ...UI_TEXT.HERO, SUBTITLE: '', ACTION_MAIN: 'Begin Observation', ACTION_SUB: '', BAND_CN_NAME: '' },
   TIMELINE: { ...UI_TEXT.TIMELINE, TITLE: 'Star Map' },
   CONTACT: { ...UI_TEXT.CONTACT, TITLE_DEFAULT: 'Resonate With Us', TITLE_SENT: 'Signal Received', INPUT_MESSAGE_LABEL: 'What would you like to share?', INPUT_EMAIL_LABEL: 'Contact Email' },
   GAME: { ...UI_TEXT.GAME,

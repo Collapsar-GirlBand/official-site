@@ -122,7 +122,7 @@ const TechInputWrapper: React.FC<TechInputWrapperProps> = ({
                 ? (isMobile ? '0.65rem' : '0.75rem') // Focused state
                 : (isMobile ? '0.875rem' : '1.25rem'), // Unfocused state
               
-              color: isFocused ? '#ffffff' : (value ? '#6b7280' : '#4b5563'),
+              color: isFocused ? '#ffffff' : (value ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.65)'),
               letterSpacing: isFocused || value ? '0.2em' : 'normal'
             }}
             transition={{ duration: 0.3, ease: "easeOut" }}
