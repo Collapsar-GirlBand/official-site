@@ -682,7 +682,6 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const holePosRef = useRef({ x: 0, y: 0 });
   const prevSizeRef = useRef({ w: 0, h: 0 });
   const scoreRef = useRef(0);
-  const whiteoutAlphaRef = useRef(0);
   
   // Sync Refs
   const unlockedIdsRef = useRef<string[]>([]);
@@ -1394,7 +1393,6 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
           gameCompletedRef.current = true;
           absorbChaosModeRef.current = true; // Ensure chaos mode stays on
           impurityRateRef.current = 1.0; // Max impurity for post-game
-          whiteoutAlphaRef.current = 0; // Reset whiteout
           scoreRef.current = 0; // Reset score for new run
           
           setJustUnlocked(null);

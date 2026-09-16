@@ -141,33 +141,14 @@ const TechInputWrapper: React.FC<TechInputWrapperProps> = ({
 
 // Abstract Collapsar (Singularity) Navigation Component
 const CollapsarNav: React.FC = () => {
-  const { UI_TEXT, language } = useLanguage();
-  const [isScrolled, setIsScrolled] = useState(false);
+  const { UI_TEXT } = useLanguage();
   const [isHovered, setIsHovered] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-       const threshold = window.innerHeight * 0.8;
-       // With snap scrolling, this might trigger immediately on page 2
-       // Using an element or context based trigger is better, but this simple check still works if container is window.
-       // Note: In the new App structure, scroll listener is on the container, not window. 
-       // This component should ideally check parent container scroll, but for simplicity we'll assume it's always visible on the second page.
-       // However, since we are moving to snap scrolling, the nav might not be needed as much for vertical navigation, but useful for social links.
-       // We'll leave it as 'visible' or rework logic.
-       // Actually, 'CollapsarNav' is absolutely positioned fixed. 
-       // We can just rely on user interaction or make it always accessible.
-       // For now, let's keep it simple: always available or logic needs update if scroll tracking is lost.
-       // Since Contact page is the second page, let's just show it.
-    };
-    
     const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setIsSmallScreen(true);
-      } else {
-        setIsSmallScreen(false);
-      }
+      setIsSmallScreen(window.innerWidth < 768);
     };
 
     handleResize();

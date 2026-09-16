@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useLanguage } from '../content/language';
 
@@ -20,38 +20,8 @@ const Hero: React.FC<HeroProps> = ({ onOpenGame, containerRef }) => {
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const holeScale = useTransform(scrollYProgress, [0, 1], [1, 1.5]);
 
-  // State: Interference Active (true) or Stable (false)
-  const [isInterference, setIsInterference] = useState(false);
-  
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    let isMounted = true;
-
-    const runLoop = () => {
-      // 1. Stable State - Duration: 4s
-      setIsInterference(false);
-      
-      timer = setTimeout(() => {
-        if (!isMounted) return;
-        
-        // 2. Interference State - Duration: 2s
-        setIsInterference(true);
-        
-        timer = setTimeout(() => {
-           if (!isMounted) return;
-           runLoop();
-        }, 2000);
-        
-      }, 4000);
-    };
-
-    runLoop();
-
-    return () => {
-        isMounted = false;
-        clearTimeout(timer);
-    };
-  }, []);
+  // State: Hover Active (true) or Default (false)
+  const [isHovered, setIsHovered] = useState(false);
 
   // Visual Components
   const GigInfoContent = () => {
@@ -84,9 +54,14 @@ const Hero: React.FC<HeroProps> = ({ onOpenGame, containerRef }) => {
        {/* Background Glow */}
        <div className="absolute inset-0 bg-white/10 blur-[30px] rounded-full opacity-0 animate-[pulse_1s_infinite]" />
        
-       <h2 className="text-3xl md:text-5xl font-bold text-white tracking-[0.3em] uppercase drop-shadow-[0_0_20px_rgba(255,255,255,1)] z-10 mix-blend-overlay">
-           {UI_TEXT.HERO.ACTION_MAIN}
-       </h2>
+       <div className="flex items-center gap-2 md:gap-4 z-10">
+           <svg className="w-8 h-8 md:w-10 md:h-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+               <path d="M8 5v14l11-7z" />
+           </svg>
+           <h2 className="text-3xl md:text-5xl font-bold text-white tracking-[0.3em] uppercase drop-shadow-[0_0_20px_rgba(255,255,255,1)]">
+               {UI_TEXT.HERO.ACTION_MAIN}
+           </h2>
+       </div>
        <div className="mt-4 flex flex-col items-center z-10">
          <span className="font-mono text-[10px] md:text-xs text-white tracking-[0.5em] uppercase border-t border-b border-white/50 py-1 bg-black/50 px-2">
              {UI_TEXT.HERO.ACTION_SUB}
@@ -171,30 +146,32 @@ const Hero: React.FC<HeroProps> = ({ onOpenGame, containerRef }) => {
         <motion.div 
             className="relative h-40 md:h-48 w-full max-w-4xl flex items-center justify-center cursor-pointer group"
             onClick={onOpenGame}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
         >
             
-            {/* Layer 1: Default/Stable (Click to Observe) -> SignalLostContent */}
+            {/* Layer 1: Default (Click to Observe) -> SignalLostContent */}
             <motion.div
                 className="absolute inset-0 flex items-center justify-center"
                 animate={{ 
-                    filter: isInterference ? "blur(12px)" : "blur(0px)",
-                    opacity: isInterference ? 0.3 : 1,
-                    scale: isInterference ? 0.95 : 1
+                    filter: isHovered ? "blur(12px)" : "blur(0px)",
+                    opacity: isHovered ? 0.3 : 1,
+                    scale: isHovered ? 0.95 : 1
                 }}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
             >
                 <SignalLostContent />
             </motion.div>
 
-            {/* Layer 2: Interference/Glitch (Band Info) -> GigInfoContent */}
+            {/* Layer 2: Hover (Band Info) -> GigInfoContent */}
             <motion.div
                 className="absolute inset-0 flex items-center justify-center"
                 animate={{ 
-                    filter: isInterference ? "blur(0px)" : "blur(20px)",
-                    opacity: isInterference ? 1 : 0,
-                    scale: isInterference ? 1 : 1.2
+                    filter: isHovered ? "blur(0px)" : "blur(20px)",
+                    opacity: isHovered ? 1 : 0,
+                    scale: isHovered ? 1 : 1.2
                 }}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
             >
