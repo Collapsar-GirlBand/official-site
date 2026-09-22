@@ -11,7 +11,8 @@ export const UI_EN: typeof UI_TEXT = {
     SOUND_BUTTON: 'Enable Sound & Enter', ROOM_TITLE: 'Rehearsal Room', ARCHIVES_TITLE: 'Personnel Archives',
     GALLERY_TITLE: 'Visual Records', DEMOS_TITLE: 'Demo Tapes',
     INSTRUCTION_AVOID: 'Press and hold to absorb resonance', INSTRUCTION_CONTROL: 'Release to create a repulsion wave',
-    INSTRUCTION_RELEASE_STORY: 'Energy overflowing /// Release to enter the story',
+    INSTRUCTION_MOVE: 'GRAVITY LINK INACTIVE /// PRESS + MOVE TO CAPTURE RESONANCE',
+    INSTRUCTION_RELEASE_STORY: 'RESONANCE CRITICAL /// RELEASE TO CROSS THE EVENT HORIZON',
   },
 };
 

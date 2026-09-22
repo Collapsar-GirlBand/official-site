@@ -9,6 +9,7 @@ import { useLanguage } from '../content/language';
 import { X, Play, Pause, LogOut, ExternalLink } from 'lucide-react'; 
 import { MAX_SCORE, STORAGE_KEY } from '../constants';
 import CharacterSprite from './CharacterSprite';
+import GalleryView from './GalleryView';
 import { CHAR_CONFIG } from '../content/spriteData';
 import {
   AssetLoadProgress,
@@ -23,6 +24,8 @@ interface GameState {
   hasSeenIntro: boolean;
   chaosModeActive: boolean; 
   gameCompleted: boolean; 
+  pendingStoryId: string | null;
+  storyLineIndex: number;
 }
 
 interface GameSystemProps {
@@ -412,13 +415,13 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <div className="absolute inset-0 bg-[#050505] z-50 flex flex-col items-center justify-center p-6 md:p-12 overflow-hidden">
+    <div className="absolute inset-0 bg-[#050505] z-50 flex flex-col items-center justify-center p-6 md:p-12 overflow-y-auto">
         {/* Background Atmosphere */}
         <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-white/5 rounded-full blur-[100px] opacity-20 animate-pulse" />
         </div>
 
-        <div className="w-full max-w-2xl flex flex-col items-center relative z-10 h-full justify-between py-8 md:py-12">
+        <div className="w-full max-w-2xl flex flex-col items-center relative z-10 min-h-full justify-between gap-8 py-8 md:py-12">
             
             {/* Top: Title */}
             <div className="text-center space-y-2 mt-4">
@@ -539,12 +542,14 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 interface StoryViewProps {
   scriptId: string;
   onStoryComplete: () => void;
+  initialLineIndex?: number;
+  onLineChange?: (lineIndex: number) => void;
   isOverlay?: boolean;
 }
 
-const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, isOverlay = false }) => {
+const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, initialLineIndex = 0, onLineChange, isOverlay = false }) => {
   const { UI_TEXT, language } = useLanguage();
-  const [lineIndex, setLineIndex] = useState(0);
+  const [lineIndex, setLineIndex] = useState(initialLineIndex);
   const [isTypingComplete, setIsTypingComplete] = useState(false);
   
   // Responsive Check for Desktop adjustments
@@ -580,12 +585,14 @@ const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, isOver
   const handleNext = useCallback(() => {
       if (!isTypingComplete) return; 
       if (lineIndex < script.length - 1) {
-          setLineIndex(prev => prev + 1);
+          const nextLineIndex = lineIndex + 1;
+          setLineIndex(nextLineIndex);
+          onLineChange?.(nextLineIndex);
           setIsTypingComplete(false);
       } else {
           onStoryComplete();
       }
-  }, [lineIndex, script.length, isTypingComplete, onStoryComplete]);
+  }, [lineIndex, script.length, isTypingComplete, onLineChange, onStoryComplete]);
 
   if (!currentLine) return null; 
 
@@ -649,14 +656,13 @@ const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, isOver
 
 const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const { UI_TEXT, language } = useLanguage();
-  const [gameState, setGameState] = useState<GameState>({ score: 0, unlockedIds: [], hasSeenIntro: false, chaosModeActive: false, gameCompleted: false });
-  const [view, setView] = useState<'INTRO' | 'GAME' | 'STORY' | 'ENDING' | 'DEMOS'>('GAME');
+  const [gameState, setGameState] = useState<GameState>({ score: 0, unlockedIds: [], hasSeenIntro: false, chaosModeActive: false, gameCompleted: false, pendingStoryId: null, storyLineIndex: 0 });
+  const [view, setView] = useState<'INTRO' | 'GAME' | 'STORY' | 'ENDING' | 'DEMOS' | 'GALLERY'>('GAME');
   
   // notification/unlock state
   const [justUnlocked, setJustUnlocked] = useState<string | null>(null);
   
-  // New state for Story Hint visibility
-  const [showReleaseHint, setShowReleaseHint] = useState(false);
+  const [showMovementHint, setShowMovementHint] = useState(false);
 
   // Audio Context Ref & Scheduling
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -678,7 +684,9 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number>(0);
   const isHoldingRef = useRef(false);
-  const cursorRef = useRef({ x: 0, y: 0 });     
+  const cursorRef = useRef({ x: 0, y: 0 });
+  const lastPointerPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const movementHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holePosRef = useRef({ x: 0, y: 0 });
   const prevSizeRef = useRef({ w: 0, h: 0 });
   const scoreRef = useRef(0);
@@ -715,6 +723,17 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
+    setShowMovementHint(false);
+    if (view === 'GAME' && gameState.unlockedIds.length === 0 && !justUnlocked) {
+      movementHintTimerRef.current = setTimeout(() => setShowMovementHint(true), 3500);
+    }
+    return () => {
+      if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
+    };
+  }, [view, gameState.unlockedIds.length, justUnlocked]);
+
   // Removed useEffect for auto-transition. 
   // Now we wait for user release in handleEnd to trigger 'STORY'.
 
@@ -724,7 +743,19 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setGameState(parsed);
+        const pendingStoryId = typeof parsed.pendingStoryId === 'string' && STORY_SCRIPTS[parsed.pendingStoryId]
+          ? parsed.pendingStoryId
+          : null;
+        const pendingStoryLength = pendingStoryId ? STORY_SCRIPTS[pendingStoryId].length : 0;
+        const restoredLineIndex = pendingStoryId
+          ? Math.min(Math.max(0, parsed.storyLineIndex ?? 0), Math.max(0, pendingStoryLength - 1))
+          : 0;
+        const restoredState: GameState = {
+          ...parsed,
+          pendingStoryId,
+          storyLineIndex: restoredLineIndex,
+        };
+        setGameState(restoredState);
         scoreRef.current = parsed.score || 0;
         unlockedIdsRef.current = parsed.unlockedIds || [];
         absorbChaosModeRef.current = parsed.chaosModeActive || false;
@@ -751,7 +782,10 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
              isLevelCappedRef.current = true;
         }
 
-        if (parsed.hasSeenIntro && isOpen) {
+        if (restoredState.pendingStoryId && isOpen) {
+            setJustUnlocked(restoredState.pendingStoryId);
+            setView('STORY');
+        } else if (parsed.hasSeenIntro && isOpen) {
             // Default view logic adjustment
             if (parsed.gameCompleted) {
                 setView('DEMOS'); // Post-game defaults to DEMOS (EdPlayer)
@@ -916,7 +950,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       }
       
       // New: Fade out if in DEMOS view
-      if (view === 'DEMOS') {
+      if (view === 'DEMOS' || view === 'GALLERY') {
           BAND_MEMBERS.forEach(member => {
               const gainNode = gainNodesRef.current[member.id];
               if (gainNode) {
@@ -987,13 +1021,31 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let width = canvas.width;
-    let height = canvas.height;
+    // Particle coordinates are kept in CSS pixels. The canvas backing store may
+    // be larger on high-DPI screens, but the context transform below keeps all
+    // drawing and pointer maths in the same (CSS pixel) coordinate system.
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
 
     // Handle Resize with SMOOTH TRANSITION (Scaling)
     const updateDimensions = () => {
-        const newWidth = canvas.offsetWidth || window.innerWidth;
-        const newHeight = canvas.offsetHeight || window.innerHeight;
+        const rect = canvas.getBoundingClientRect();
+        const newWidth = Math.round(rect.width);
+        const newHeight = Math.round(rect.height);
+
+        // During navigation the canvas can briefly have no layout box. Writing
+        // the viewport size in that state leaves its intrinsic aspect ratio out
+        // of sync with the box once it becomes visible, which squashes particles.
+        if (newWidth <= 0 || newHeight <= 0) return;
+
+        const nextPixelRatio = Math.max(1, window.devicePixelRatio || 1);
+        const sizeChanged = newWidth !== width || newHeight !== height;
+        const backingStoreChanged =
+            canvas.width !== Math.round(newWidth * nextPixelRatio) ||
+            canvas.height !== Math.round(newHeight * nextPixelRatio);
+
+        if (!sizeChanged && !backingStoreChanged && nextPixelRatio === pixelRatio) return;
         
         // Scale existing particles instead of resetting
         if (prevSizeRef.current.w > 0 && prevSizeRef.current.h > 0) {
@@ -1019,8 +1071,10 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         
         width = newWidth;
         height = newHeight;
-        canvas.width = width;
-        canvas.height = height;
+        pixelRatio = nextPixelRatio;
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
+        ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
         
         prevSizeRef.current = { w: width, h: height };
 
@@ -1032,6 +1086,9 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
     };
     updateDimensions();
     window.addEventListener('resize', updateDimensions);
+    window.visualViewport?.addEventListener('resize', updateDimensions);
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    resizeObserver.observe(canvas);
 
     // --- Particle System Logic ---
     const createParticle = (w: number, h: number, shouldFadeIn: boolean = false): Particle => {
@@ -1328,6 +1385,8 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
     requestRef.current = requestAnimationFrame(loop);
     return () => {
         window.removeEventListener('resize', updateDimensions);
+        window.visualViewport?.removeEventListener('resize', updateDimensions);
+        resizeObserver.disconnect();
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, [isOpen, view, justUnlocked]); 
@@ -1362,7 +1421,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   };
 
   // Handle View Switching (Unlocking the cap)
-  const handleSwitchView = (newView: 'INTRO' | 'GAME' | 'STORY' | 'DEMOS') => {
+  const handleSwitchView = (newView: 'INTRO' | 'GAME' | 'STORY' | 'DEMOS' | 'GALLERY') => {
       // RESET SCORE IF SWITCHING TO GAME IN POST-GAME MODE (though button should be hidden)
       if (newView === 'GAME' && gameCompletedRef.current) {
           // Prevent switching to game if completed
@@ -1382,14 +1441,23 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       // Transition from Ending View to Post-Credits Story
       // Do NOT reset score yet (to keep music playing)
       setJustUnlocked('post_credits');
+      setGameState(prev => ({ ...prev, pendingStoryId: 'post_credits', storyLineIndex: 0 }));
       setView('STORY');
   }, []);
+
+  const handleStoryLineChange = useCallback((lineIndex: number) => {
+      setGameState(prev => ({
+          ...prev,
+          pendingStoryId: justUnlocked,
+          storyLineIndex: lineIndex,
+      }));
+  }, [justUnlocked]);
 
   const handleStoryComplete = useCallback(() => {
       // Handle completion of Post-Credits story specifically
       if (justUnlocked === 'post_credits') {
           // NOW set Game Completed and reset state for infinite mode
-          setGameState(prev => ({ ...prev, gameCompleted: true, score: 0 }));
+          setGameState(prev => ({ ...prev, gameCompleted: true, score: 0, pendingStoryId: null, storyLineIndex: 0 }));
           gameCompletedRef.current = true;
           absorbChaosModeRef.current = true; // Ensure chaos mode stays on
           impurityRateRef.current = 1.0; // Max impurity for post-game
@@ -1427,7 +1495,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
               absorbChaosModeRef.current = true;
           }
 
-          return { ...prev, unlockedIds: newUnlocked, chaosModeActive: nextChaosMode };
+          return { ...prev, unlockedIds: newUnlocked, chaosModeActive: nextChaosMode, pendingStoryId: null, storyLineIndex: 0 };
       });
       
       const newUnlockedList = [...gameState.unlockedIds];
@@ -1468,18 +1536,12 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
 
       cursorRef.current = { x, y };
 
-      // HINT LOGIC FOR STORY RELEASE
-      if (justUnlocked && isHoldingRef.current) {
-          const centerX = rect.width / 2;
-          const centerY = rect.height / 2;
-          // 200px proximity check (Increased from 150px)
-          const dist = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
-          
-          const shouldShow = dist < 200;
-          setShowReleaseHint(prev => (prev !== shouldShow ? shouldShow : prev));
-      } else {
-          setShowReleaseHint(prev => (prev ? false : prev));
+      const previous = lastPointerPositionRef.current;
+      if (previous && Math.hypot(x - previous.x, y - previous.y) > 8) {
+          setShowMovementHint(false);
+          if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
       }
+      lastPointerPositionRef.current = { x, y };
 
   }, [justUnlocked, view]);
 
@@ -1488,6 +1550,11 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       if (view === 'STORY') return;
 
       isHoldingRef.current = true;
+      lastPointerPositionRef.current = null;
+      if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
+      movementHintTimerRef.current = setTimeout(() => {
+          if (isHoldingRef.current) setShowMovementHint(true);
+      }, 1400);
       
       updateCursorPosition(e);
       
@@ -1505,10 +1572,12 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
           isHoldingRef.current = false;
           shockwaveTriggerRef.current = true;
       }
+      if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
+      setShowMovementHint(false);
       
       // TRIGGER STORY ON RELEASE
       if (justUnlocked) {
-          setShowReleaseHint(false); // Force hide hint immediately
+          setGameState(prev => ({ ...prev, pendingStoryId: justUnlocked, storyLineIndex: 0 }));
           setView('STORY');
       }
   }, [justUnlocked]);
@@ -1518,8 +1587,13 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black flex flex-col select-none">
-        {/* Available above every overlay without touching canvas input or game state. */}
-        <div className="absolute right-16 top-6 z-[300]"><LanguageSwitch /></div>
+        {/* Global controls stay available above intro, story and ending overlays. */}
+        <div className="absolute right-6 top-6 z-[300] flex items-center gap-5">
+            <LanguageSwitch />
+            <button type="button" onClick={onClose} aria-label={language === 'zh' ? '退出游戏' : 'Exit game'} className="text-gray-400 hover:text-white transition-colors">
+                <X size={20} />
+            </button>
+        </div>
         {/* ENDING OVERLAY */}
         {view === 'ENDING' && <EndingView onClose={handleEndingClose} />}
 
@@ -1534,13 +1608,6 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                   gameCompleted={gameState.gameCompleted} 
               />
             </div>
-            <div className="absolute right-6 top-9 flex text-gray-400 items-center">
-              {view !== 'STORY' && view !== 'DEMOS' && !gameState.gameCompleted && (
-                <button onClick={onClose} className="hover:text-white transition-colors">
-                    <X size={20} />
-                </button>
-              )}
-            </div>
         </div>
 
         {/* MAIN CONTENT */}
@@ -1548,12 +1615,16 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
             {view === 'INTRO' && <IntroView onFinish={handleIntroComplete} />}
             {/* DEMOS view now renders the enhanced ED Player */}
             {view === 'DEMOS' && <EdPlayer onClose={onClose} />}
+            {view === 'GALLERY' && gameState.gameCompleted && <GalleryView />}
             
             {/* Story View Overlay - Renders ON TOP of game when active */}
             {view === 'STORY' && (
                 <StoryView 
+                    key={justUnlocked || 'story'}
                     scriptId={justUnlocked || ''} 
                     onStoryComplete={handleStoryComplete} 
+                    initialLineIndex={gameState.pendingStoryId === justUnlocked ? gameState.storyLineIndex : 0}
+                    onLineChange={handleStoryLineChange}
                     isOverlay={true} // Always overlay to keep game visible underneath
                 />
             )}
@@ -1601,19 +1672,36 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                         )}
                     </AnimatePresence>
 
+                    <AnimatePresence>
+                        {showMovementHint && !justUnlocked && view === 'GAME' && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 8 }}
+                                className="absolute bottom-[24%] left-0 z-40 flex w-full justify-center px-6 pointer-events-none"
+                            >
+                                <div className="border-l border-white/50 bg-black/55 px-4 py-2 font-mono text-[10px] md:text-xs tracking-[0.22em] text-white/70 backdrop-blur-sm">
+                                    {UI_TEXT.GAME.INSTRUCTION_MOVE}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     {/* --- STORY UNLOCK HINT (Center Screen) --- */}
                     <AnimatePresence>
-                        {showReleaseHint && view === 'GAME' && (
+                        {justUnlocked && view === 'GAME' && (
                             <motion.div 
-                                initial={{ opacity: 0, scale: 0.9 }}
+                                initial={{ opacity: 0, scale: 0.96 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.9 }}
+                                exit={{ opacity: 0, scale: 0.96 }}
                                 className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 p-6"
                             >
-                                 <div className="bg-black/90 backdrop-blur-xl border border-yellow-400/60 px-6 py-5 md:px-10 md:py-8 rounded-xl shadow-[0_0_40px_rgba(250,204,21,0.4)]">
-                                     <p className="text-yellow-400 text-base md:text-2xl font-bold font-mono tracking-[0.2em] uppercase text-center leading-loose animate-pulse">
+                                 <div className="relative flex min-w-[min(32rem,88vw)] items-center gap-4 border-y border-white/25 bg-black/65 px-6 py-4 backdrop-blur-md">
+                                     <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
+                                     <p className="flex-1 text-center font-mono text-xs md:text-sm tracking-[0.28em] text-white/90">
                                          {UI_TEXT.GAME.INSTRUCTION_RELEASE_STORY}
                                      </p>
+                                     <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
                                  </div>
                             </motion.div>
                         )}
@@ -1623,8 +1711,18 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* FOOTER NAV */}
-        {/* Footer removed completely as requested: 'Destroy ... Rehearsal ...' and demo logic moved to post-game */}
-        {!gameState.gameCompleted && (
+        {gameState.gameCompleted ? (
+            <nav aria-label={language === 'zh' ? '通关后页面' : 'Post-game pages'} className="h-16 border-t border-white/10 bg-[#050505] flex items-center justify-center gap-12 relative z-20 shrink-0 px-4">
+                <button type="button" onClick={() => handleSwitchView('DEMOS')} aria-current={view === 'DEMOS' ? 'page' : undefined} className={`flex flex-col items-center gap-2 font-mono text-xs tracking-[0.2em] transition-colors hover:text-white ${view === 'DEMOS' ? 'text-white' : 'text-gray-500'}`}>
+                    <span className={`h-px w-full ${view === 'DEMOS' ? 'bg-white' : 'bg-transparent'}`} />
+                    {language === 'zh' ? '原创曲' : 'ORIGINAL SONG'}
+                </button>
+                <button type="button" onClick={() => handleSwitchView('GALLERY')} aria-current={view === 'GALLERY' ? 'page' : undefined} className={`flex flex-col items-center gap-2 font-mono text-xs tracking-[0.2em] transition-colors hover:text-white ${view === 'GALLERY' ? 'text-white' : 'text-gray-500'}`}>
+                    <span className={`h-px w-full ${view === 'GALLERY' ? 'bg-white' : 'bg-transparent'}`} />
+                    {language === 'zh' ? '画廊' : 'GALLERY'}
+                </button>
+            </nav>
+        ) : (
             <div className={`h-20 border-t border-white/10 bg-[#050505] flex justify-center items-center gap-6 md:gap-12 relative z-20 shrink-0 px-4 ${view === 'STORY' ? 'invisible pointer-events-none' : ''}`}>
                 <button onClick={() => handleSwitchView('GAME')} className={`flex flex-col items-center gap-2 group ${view === 'GAME' ? 'text-white' : 'text-gray-600'}`}>
                     <div className={`w-1 h-1 rounded-full ${view === 'GAME' ? 'bg-white' : 'bg-transparent'}`} />
