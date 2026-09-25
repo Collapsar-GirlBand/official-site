@@ -353,11 +353,11 @@ const EndingView: React.FC<EndingViewProps> = ({ onClose }) => {
 
 const ED_LYRICS = [
   { en: "Pull me from the edge before we stray.", cn: "在我们迷失前，将我从深渊边缘带回" },
-  { en: "Don’t dissolve right in front of me.", cn: "不要在我面前消逝啊" },
+  { en: "Don't dissolve right in front of me.", cn: "不要在我面前消逝啊" },
   { en: "Give me the strength to trust and see.", cn: "赐予我力量，去笃信、去凝望" },
-  { en: "Please say I’ll,", cn: "" },
-  { en: "Please say I’ll,", cn: "" },
-  { en: "Please say I’ll,", cn: "" },
+  { en: "Please say I'll,", cn: "" },
+  { en: "Please say I'll,", cn: "" },
+  { en: "Please say I'll,", cn: "" },
   { en: "stay.", cn: "请说你将会长留此间" },
 ];
 
@@ -413,22 +413,23 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const sec = Math.floor(t % 60);
     return `${min}:${sec.toString().padStart(2, '0')}`;
   };
+  const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
 
   return (
-    <div className="absolute inset-0 bg-[#050505] z-50 flex flex-col items-center justify-center p-6 md:p-12 overflow-y-auto">
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-[#050505] p-3 sm:p-5 md:p-8">
         {/* Background Atmosphere */}
         <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-white/5 rounded-full blur-[100px] opacity-20 animate-pulse" />
         </div>
 
-        <div className="w-full max-w-2xl flex flex-col items-center relative z-10 min-h-full justify-between gap-8 py-8 md:py-12">
+        <div className="relative z-10 flex h-full w-full max-w-2xl flex-col items-center justify-between gap-3 py-1 sm:gap-5 sm:py-3">
             
             {/* Top: Title */}
-            <div className="text-center space-y-2 mt-4">
+            <div className="shrink-0 space-y-1 text-center sm:space-y-2">
                 <motion.h2 
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-2xl md:text-3xl font-light text-white tracking-[0.2em]"
+                    className="text-xl font-light tracking-[0.16em] text-white sm:text-2xl md:text-3xl md:tracking-[0.2em]"
                 >
                     Stray (Ending)
                 </motion.h2>
@@ -436,29 +437,29 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="text-xs font-mono text-gray-500 tracking-[0.3em]"
+                    className="font-mono text-[10px] tracking-[0.22em] text-gray-500 sm:text-xs sm:tracking-[0.3em]"
                 >
                     COLLAPSAR // ORIGINAL TRACK
                 </motion.p>
             </div>
 
             {/* Middle: Lyrics (Compact for One Screen) */}
-            <div className="flex-1 flex flex-col justify-center items-center gap-4 w-full select-none">
+            <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-1.5 select-none sm:gap-2 md:gap-3">
                 {ED_LYRICS.map((line, i) => (
                     <motion.div 
                         key={i}
-                        className="flex flex-col items-center gap-0.5 group cursor-default"
+                        className="group flex flex-col items-center gap-0.5 cursor-default"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5 + i * 0.1 }}
                     >
                         <motion.span 
-                            className="text-base md:text-lg font-serif text-gray-300 group-hover:text-white group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all duration-500 text-center leading-tight"
+                            className="text-center font-serif text-sm leading-tight text-gray-300 transition-all duration-500 group-hover:text-white group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] sm:text-base md:text-lg"
                         >
                             {line.en}
                         </motion.span>
                         {language === 'zh' && line.cn && (
-                            <span className="text-[10px] font-light text-gray-600 group-hover:text-gray-400 transition-colors duration-500 font-sans tracking-wide">
+                            <span className="font-sans text-[9px] font-light tracking-wide text-gray-600 transition-colors duration-500 group-hover:text-gray-400 sm:text-[10px]">
                                 {line.cn}
                             </span>
                         )}
@@ -467,14 +468,14 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
 
             {/* Bottom Section: Player & Footer */}
-            <div className="w-full shrink-0 flex flex-col gap-8">
+            <div className="flex w-full shrink-0 flex-col gap-3 sm:gap-5">
                 {/* Elegant Player Controls (Horizontal) */}
-                <div className="w-full flex items-center gap-6">
+                <div className="flex w-full items-center gap-3 sm:gap-6">
                     <motion.button
                         onClick={togglePlay}
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
-                        className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/5 hover:border-white/50 transition-all duration-300 group shrink-0"
+                        className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 transition-all duration-300 hover:border-white/50 hover:bg-white/5 sm:h-12 sm:w-12"
                     >
                         {isPlaying ? (
                             <Pause size={18} className="text-white fill-white opacity-80 group-hover:opacity-100" />
@@ -483,7 +484,7 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         )}
                     </motion.button>
 
-                    <div className="flex-1 flex items-center gap-4 text-[10px] font-mono text-gray-400">
+                    <div className="flex flex-1 items-center gap-2 font-mono text-[10px] text-gray-400 sm:gap-4">
                         <span className="w-8 text-right">{formatTime(progress)}</span>
                         <div 
                         className="flex-1 h-6 flex items-center cursor-pointer group relative"
@@ -492,11 +493,11 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             <div className="w-full h-[1px] bg-white/10 group-hover:bg-white/20 transition-colors duration-300" />
                             <motion.div 
                                 className="absolute left-0 h-[1px] bg-white shadow-[0_0_5px_white]"
-                                style={{ width: `${(progress / duration) * 100}%` }}
+                                style={{ width: `${progressPercent}%` }}
                             />
                             <motion.div 
                                 className="absolute w-2 h-2 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_5px_white]"
-                                style={{ left: `${(progress / duration) * 100}%`, transform: 'translateX(-50%)' }}
+                                style={{ left: `${progressPercent}%`, transform: 'translateX(-50%)' }}
                             />
                         </div>
                         <span className="w-8">{formatTime(duration || 0)}</span>
@@ -504,11 +505,11 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 </div>
 
                 {/* Return to Webpage */}
-                <div className="w-full shrink-0 flex flex-col items-center gap-6 pt-4 border-t border-white/5">
+                <div className="flex w-full shrink-0 flex-col items-center border-t border-white/5 pt-2 sm:pt-3">
                     {/* Return to Webpage Button */}
                     <button 
                         onClick={onClose}
-                        className="flex items-center gap-2 text-xs font-mono tracking-[0.2em] text-white/40 hover:text-white transition-colors py-2 px-4 rounded hover:bg-white/5 border border-transparent hover:border-white/10"
+                        className="flex items-center gap-2 rounded border border-transparent px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] text-white/40 transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white sm:text-xs sm:tracking-[0.2em]"
                     >
                         <LogOut size={12} />
                         {UI_TEXT.GAME.BACK_TO_INDEX.toUpperCase()}
@@ -651,7 +652,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const [justUnlocked, setJustUnlocked] = useState<string | null>(null);
   const [showMovementHint, setShowMovementHint] = useState(false);
   const [isDrumCalibrationOpen, setIsDrumCalibrationOpen] = useState(false);
-  const [drumBeatOffsetMs, setDrumBeatOffsetMs] = useState(0);
+  const [drumBeatOffsetMs, setDrumBeatOffsetMs] = useState(-100);
 
   // Audio Context Ref & Scheduling
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -692,7 +693,8 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const releaseImpulseRef = useRef(0);
   const gravityBeatPulseRef = useRef(0);
   const lastGravityBeatRef = useRef(-1);
-  const drumBeatOffsetMsRef = useRef(0);
+  // Calibrated against the current drum stem: start the visual 100 ms early.
+  const drumBeatOffsetMsRef = useRef(-100);
   const holdStartedAtRef = useRef(0);
   
   // --- NEW MECHANICS REFS ---
@@ -1542,17 +1544,17 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       setView('DEMOS');
   }, []);
 
-  // 作弊跳关：停在鼓手（菜菜）出现前，便于校准渐强的鼓点动效与音轨。
+  // 作弊跳关：停在键盘剧情结束后，便于完整测试鼓点渐强阶段。
   const handleCheatToDrums = useCallback(() => {
       const drumsIndex = BAND_MEMBERS.findIndex(member => member.id === 'drums');
       const drumsMember = BAND_MEMBERS[drumsIndex];
       if (!drumsMember) return;
 
-      // Keep the preceding members unlocked and enter the final 5% before the
-      // drum reveal, where both the drum stem and resonance visual are strongest.
+      // Keyboard has just joined: begin at the full 1200→1400 drum approach
+      // interval instead of skipping directly to the reveal.
       const priorMemberIds = BAND_MEMBERS.slice(0, drumsIndex).map(member => member.id);
       const previousThreshold = drumsIndex > 0 ? BAND_MEMBERS[drumsIndex - 1].unlockThreshold : 0;
-      const preDrumsScore = Math.max(previousThreshold, drumsMember.unlockThreshold - 10);
+      const preDrumsScore = previousThreshold;
       setGameState(prev => ({
           ...prev,
           hasSeenIntro: true,
@@ -1753,8 +1755,8 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                     <button
                         type="button"
                         onClick={handleCheatToDrums}
-                        title={language === 'zh' ? '作弊：跳到鼓手出现前' : 'Cheat: Jump before Drums'}
-                        aria-label={language === 'zh' ? '作弊：跳到鼓手出现前' : 'Cheat: Jump before Drums'}
+                        title={language === 'zh' ? '作弊：跳到键盘剧情结束后' : 'Cheat: Jump after Keyboard'}
+                        aria-label={language === 'zh' ? '作弊：跳到键盘剧情结束后' : 'Cheat: Jump after Keyboard'}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-white/20 bg-white/5 text-[11px] font-mono tracking-widest text-sky-400/90 hover:text-sky-300 hover:border-sky-400/60 hover:bg-sky-400/10 transition-all shadow-[0_0_10px_rgba(56,189,248,0.15)]"
                     >
                         <FastForward size={14} />
@@ -1798,7 +1800,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                     />
                     <div className="mt-2 flex items-center justify-between font-mono text-[9px] tracking-wide text-white/45">
                         <span>{language === 'zh' ? '负值：提前' : 'NEG: EARLY'}</span>
-                        <button type="button" onClick={() => handleDrumBeatOffsetChange(0)} className="text-cyan-200/80 hover:text-cyan-100">
+                        <button type="button" onClick={() => handleDrumBeatOffsetChange(-100)} className="text-cyan-200/80 hover:text-cyan-100">
                             {language === 'zh' ? '归零' : 'RESET'}
                         </button>
                         <span>{language === 'zh' ? '正值：滞后' : 'POS: LATE'}</span>
@@ -1817,7 +1819,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         {view === 'ENDING' && <EndingView onClose={handleEndingClose} />}
 
         {/* HEADER */}
-        <div className="h-36 md:h-24 border-b border-white/10 flex justify-between items-center px-6 pt-16 md:pt-0 bg-[#050505] relative z-20 shrink-0 gap-3 md:pr-52">
+        <div className={`${gameState.gameCompleted ? 'h-14 px-4 md:h-20 md:px-6' : 'h-36 px-6 pt-16 md:h-24 md:pt-0'} border-b border-white/10 flex justify-between items-center bg-[#050505] relative z-20 shrink-0 gap-3 md:pr-52`}>
             <div className="flex-1 flex justify-start">
               {/* Only show progress if game not completed, or if wanted to show chaos score. */}
               {/* If gameCompleted, EdPlayer is shown fullscreen usually, but header remains. */}
@@ -1945,15 +1947,15 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         {/* FOOTER NAV */}
         {gameState.gameCompleted ? (
             <footer className="relative z-20 shrink-0 bg-[#050505]">
-                <div className="border-t border-white/5 px-4 py-4">
-                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 md:gap-x-8">
+                <div className="border-t border-white/5 px-4 py-2 sm:py-3">
+                    <div className="flex flex-wrap justify-center gap-x-5 gap-y-1.5 sm:gap-x-6 md:gap-x-8">
                         {SOCIAL_LINKS.map(link => (
                             <a
                                 key={link.id}
                                 href={link.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="group flex items-center gap-1 font-mono text-[10px] tracking-widest text-gray-500 transition-colors hover:text-white"
+                                className="group flex items-center gap-1 font-mono text-[9px] tracking-widest text-gray-500 transition-colors hover:text-white sm:text-[10px]"
                             >
                                 {link.name}
                                 <ExternalLink size={10} className="opacity-50 group-hover:opacity-100" />
@@ -1961,12 +1963,12 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                         ))}
                     </div>
                 </div>
-                <nav aria-label={language === 'zh' ? '通关后页面' : 'Post-game pages'} className="flex h-16 items-center justify-center gap-12 border-t border-white/10 px-4">
-                    <button type="button" onClick={() => handleSwitchView('DEMOS')} aria-current={view === 'DEMOS' ? 'page' : undefined} className={`flex flex-col items-center gap-2 font-mono text-xs tracking-[0.2em] transition-colors hover:text-white ${view === 'DEMOS' ? 'text-white' : 'text-gray-500'}`}>
+                <nav aria-label={language === 'zh' ? '通关后页面' : 'Post-game pages'} className="flex h-12 items-center justify-center gap-9 border-t border-white/10 px-4 sm:h-14 sm:gap-12 md:h-16">
+                    <button type="button" onClick={() => handleSwitchView('DEMOS')} aria-current={view === 'DEMOS' ? 'page' : undefined} className={`flex flex-col items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] transition-colors hover:text-white sm:gap-2 sm:text-xs sm:tracking-[0.2em] ${view === 'DEMOS' ? 'text-white' : 'text-gray-500'}`}>
                         <span className={`h-px w-full ${view === 'DEMOS' ? 'bg-white' : 'bg-transparent'}`} />
                         {language === 'zh' ? '原创曲' : 'ORIGINAL SONG'}
                     </button>
-                    <button type="button" onClick={() => handleSwitchView('GALLERY')} aria-current={view === 'GALLERY' ? 'page' : undefined} className={`flex flex-col items-center gap-2 font-mono text-xs tracking-[0.2em] transition-colors hover:text-white ${view === 'GALLERY' ? 'text-white' : 'text-gray-500'}`}>
+                    <button type="button" onClick={() => handleSwitchView('GALLERY')} aria-current={view === 'GALLERY' ? 'page' : undefined} className={`flex flex-col items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] transition-colors hover:text-white sm:gap-2 sm:text-xs sm:tracking-[0.2em] ${view === 'GALLERY' ? 'text-white' : 'text-gray-500'}`}>
                         <span className={`h-px w-full ${view === 'GALLERY' ? 'bg-white' : 'bg-transparent'}`} />
                         {language === 'zh' ? '画廊' : 'GALLERY'}
                     </button>

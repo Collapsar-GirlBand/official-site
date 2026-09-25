@@ -25,7 +25,6 @@ const GalleryView: React.FC = () => {
       <div className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-12">
         <div className="mb-8 border-b border-white/15 pb-6 md:mb-10">
           <p className="mb-3 font-mono text-[10px] tracking-[0.3em] text-white/40">{UI_TEXT.GAME.GALLERY_SUBTITLE}</p>
-          <h2 className="text-2xl font-light tracking-[0.2em] md:text-4xl">{UI_TEXT.GAME.GALLERY_TITLE}</h2>
           <p className="mt-3 font-mono text-xs text-white/40">{GALLERY_ITEMS.length.toString().padStart(2, '0')} {language === 'zh' ? '幅作品' : 'WORKS'}</p>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
