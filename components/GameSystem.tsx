@@ -6,7 +6,7 @@ import { STORIES_EN, MEMBER_NAMES } from '../content/english';
 import { STORY_SCRIPTS } from '../content/stories';
 import { ASSETS } from '../content/assets';
 import { useLanguage } from '../content/language';
-import { X, Play, Pause, LogOut, ExternalLink } from 'lucide-react'; 
+import { X, Play, Pause, LogOut, ExternalLink, FastForward } from 'lucide-react';
 import { MAX_SCORE, STORAGE_KEY } from '../constants';
 import CharacterSprite from './CharacterSprite';
 import GalleryView from './GalleryView';
@@ -164,6 +164,90 @@ const SyncProgressBar: React.FC<SyncProgressBarProps> = React.memo(({ score, has
       </div>
   );
 });
+
+interface UnlockSignalOverlayProps {
+  memberId: string;
+  isHolding: boolean;
+}
+
+const UnlockSignalOverlay: React.FC<UnlockSignalOverlayProps> = ({ memberId, isHolding }) => {
+  const { UI_TEXT, language } = useLanguage();
+  const member = BAND_MEMBERS.find(item => item.id === memberId);
+  if (!member) return null;
+  const signalExpression = STORY_SCRIPTS[memberId]?.[0]?.expression || '';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden pointer-events-none"
+    >
+      <motion.div
+        className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
+        animate={{ opacity: isHolding ? 0.52 : 0.7 }}
+      />
+
+      {/* A signal is being recovered from noise, not presented as a conventional unlock card. */}
+      <div className="absolute inset-0 opacity-35 mix-blend-screen bg-[repeating-linear-gradient(0deg,transparent_0px,transparent_3px,rgba(255,255,255,0.12)_4px)]" />
+      <motion.div
+        className="absolute h-[62vmin] w-[62vmin] rounded-full border border-white/20"
+        animate={{
+          scale: isHolding ? [0.86, 1.03, 0.9] : 1,
+          opacity: isHolding ? [0.2, 0.7, 0.25] : 0.35,
+          rotate: isHolding ? [0, 1.5, -1, 0] : 0,
+        }}
+        transition={{ duration: 0.32, repeat: isHolding ? Infinity : 0, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute h-[48vmin] w-[48vmin] rounded-full border border-dashed border-white/15"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
+      />
+
+      <motion.div
+        className="absolute inset-0 flex items-center justify-center"
+        initial={{ filter: 'grayscale(1) contrast(1.8) brightness(0.25)', opacity: 0 }}
+        animate={{
+          filter: isHolding
+            ? 'grayscale(1) contrast(1.65) brightness(0.72)'
+            : 'grayscale(1) contrast(1.9) brightness(0.42)',
+          opacity: isHolding ? [0.18, 0.48, 0.25, 0.56] : 0.3,
+          x: isHolding ? [0, -2, 1, 0] : 0,
+        }}
+        transition={{ duration: 0.42, repeat: isHolding ? Infinity : 0, ease: 'linear' }}
+        style={{
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 4%, black 24%, black 82%, transparent 98%)',
+          maskImage: 'linear-gradient(to bottom, transparent 4%, black 24%, black 82%, transparent 98%)',
+        }}
+      >
+        <div className="origin-center scale-[0.24] md:scale-[0.34]">
+          <CharacterSprite charId={memberId} expression={signalExpression} />
+        </div>
+      </motion.div>
+
+      <motion.div
+        className="absolute left-0 right-0 h-px bg-white/80 shadow-[0_0_18px_rgba(255,255,255,0.95)]"
+        animate={{ top: ['19%', '81%', '19%'], opacity: [0.1, 0.8, 0.1] }}
+        transition={{ duration: 2.8, repeat: Infinity, ease: 'linear' }}
+      />
+
+      <div className="absolute bottom-[12%] left-6 right-6 flex flex-col items-center gap-4 text-center font-mono">
+        <motion.div
+          animate={{ opacity: [0.38, 1, 0.38] }}
+          transition={{ duration: 1.1, repeat: Infinity }}
+          className="text-[10px] tracking-[0.42em] text-white/70 md:text-xs"
+        >
+          {language === 'en' ? 'HUMAN SIGNAL // RESOLVING' : '人形信号 // 正在解析'}
+        </motion.div>
+        <div className="h-px w-48 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+        <p className="max-w-xl text-xs tracking-[0.28em] text-white md:text-sm">
+          {UI_TEXT.GAME.INSTRUCTION_RELEASE_STORY}
+        </p>
+      </div>
+    </motion.div>
+  );
+};
 
 interface IntroViewProps {
   onFinish: () => void;
@@ -637,7 +721,11 @@ const StoryView: React.FC<StoryViewProps> = ({ scriptId, onStoryComplete, initia
                        </div>
                    )}
                    <div className={`border border-white/20 p-4 md:p-8 min-h-[112px] md:min-h-[160px] pb-10 relative backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.5)] cursor-pointer hover:border-white/40 transition-colors ${currentLine.speakerId === 'system' ? 'bg-red-900/40 border-red-500/50 text-center flex items-center justify-center' : 'bg-black/80'}`}>
-                       <p className={`text-lg md:text-2xl font-light leading-relaxed ${currentLine.speakerId === 'system' ? 'text-red-100 font-bold tracking-widest' : 'text-gray-100'}`}>
+                       <p
+                           lang={language === 'en' ? 'en' : 'zh-CN'}
+                           style={language === 'en' ? { fontFamily: "Georgia, 'Times New Roman', serif" } : undefined}
+                           className={`text-lg md:text-2xl font-light leading-relaxed ${currentLine.speakerId === 'system' ? 'text-red-100 font-bold tracking-widest' : 'text-gray-100'}`}
+                       >
                            <Typewriter key={lineIndex} text={currentLine.text} speed={30} onComplete={() => setIsTypingComplete(true)} />
                        </p>
                        {isTypingComplete && <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="absolute bottom-4 right-4 text-white/50"><Play fill="currentColor" size={16} /></motion.div>}
@@ -661,6 +749,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   
   // notification/unlock state
   const [justUnlocked, setJustUnlocked] = useState<string | null>(null);
+  const [signalHolding, setSignalHolding] = useState(false);
   
   const [showMovementHint, setShowMovementHint] = useState(false);
 
@@ -670,6 +759,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const buffersRef = useRef<{ [key: string]: AudioBuffer }>({});
   const isAudioInitialized = useRef(false);
   const nextNoteTimeRef = useRef(0);
+  const audioTimelineStartRef = useRef(0);
   const scheduleTimerRef = useRef<number | null>(null);
   const loopIterationRef = useRef(0); // Track loop iterations for AABB logic
   
@@ -699,6 +789,9 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const damageFlashRef = useRef(0); 
   const shockwaveTriggerRef = useRef(false); 
   const shockwaveVisualRef = useRef(0); 
+  const gravityBeatPulseRef = useRef(0);
+  const lastGravityBeatRef = useRef(-1);
+  const holdStartedAtRef = useRef(0);
   
   // --- NEW MECHANICS REFS ---
   const impurityRateRef = useRef(0.05); 
@@ -708,6 +801,11 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   
   // PERSISTENT PARTICLES (Bug Fix for Reset)
   const particlesRef = useRef<Particle[]>([]);
+
+  const scheduleMovementHint = useCallback(() => {
+    if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
+    movementHintTimerRef.current = setTimeout(() => setShowMovementHint(true), 7000);
+  }, []);
 
   // --- 0. SCROLL LOCKING ---
   useEffect(() => {
@@ -727,12 +825,12 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
     if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
     setShowMovementHint(false);
     if (view === 'GAME' && gameState.unlockedIds.length === 0 && !justUnlocked) {
-      movementHintTimerRef.current = setTimeout(() => setShowMovementHint(true), 3500);
+      scheduleMovementHint();
     }
     return () => {
       if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
     };
-  }, [view, gameState.unlockedIds.length, justUnlocked]);
+  }, [view, gameState.unlockedIds.length, justUnlocked, scheduleMovementHint]);
 
   // Removed useEffect for auto-transition. 
   // Now we wait for user release in handleEnd to trigger 'STORY'.
@@ -782,7 +880,19 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
              isLevelCappedRef.current = true;
         }
 
-        if (restoredState.pendingStoryId && isOpen) {
+        // Post-credits dialogue is currently disabled. Migrate saves that were
+        // paused there directly into the completed Demo/Gallery state.
+        if (restoredState.pendingStoryId === 'post_credits' && isOpen) {
+            restoredState.pendingStoryId = null;
+            restoredState.storyLineIndex = 0;
+            restoredState.gameCompleted = true;
+            restoredState.score = 0;
+            setGameState(restoredState);
+            gameCompletedRef.current = true;
+            scoreRef.current = 0;
+            setJustUnlocked(null);
+            setView('DEMOS');
+        } else if (restoredState.pendingStoryId && isOpen) {
             setJustUnlocked(restoredState.pendingStoryId);
             setView('STORY');
         } else if (parsed.hasSeenIntro && isOpen) {
@@ -920,6 +1030,8 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       
       // Initialize Scheduler Time
       nextNoteTimeRef.current = ctx.currentTime + 0.1;
+      audioTimelineStartRef.current = nextNoteTimeRef.current;
+      lastGravityBeatRef.current = -1;
       
       // Start Scheduler
       scheduler();
@@ -1105,8 +1217,27 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         const isImpurity = Math.random() < currentImpurityRate; 
         
         const mass = isImpurity ? 0.5 : 3.0;
-        const startX = Math.random() * w;
-        const startY = Math.random() * h;
+        // While the player is holding, never generate a new hazard inside the
+        // reaction buffer around the current gravity centre. Rejection sampling
+        // keeps distribution natural; the fallback projects the particle outward
+        // for very small screens where a valid random point can be hard to find.
+        const safeRadius = Math.min(w < 768 ? 132 : 180, Math.min(w, h) * 0.34);
+        let startX = Math.random() * w;
+        let startY = Math.random() * h;
+        if (isImpurity && isHoldingRef.current) {
+            const pointer = cursorRef.current;
+            let attempts = 0;
+            while (Math.hypot(startX - pointer.x, startY - pointer.y) < safeRadius && attempts < 16) {
+                startX = Math.random() * w;
+                startY = Math.random() * h;
+                attempts += 1;
+            }
+            if (Math.hypot(startX - pointer.x, startY - pointer.y) < safeRadius) {
+                const angle = Math.random() * Math.PI * 2;
+                startX = Math.max(0, Math.min(w, pointer.x + Math.cos(angle) * safeRadius));
+                startY = Math.max(0, Math.min(h, pointer.y + Math.sin(angle) * safeRadius));
+            }
+        }
         const baseAlpha = isImpurity ? Math.random() * 0.3 + 0.7 : Math.random() * 0.4 + 0.2;
 
         return {
@@ -1174,6 +1305,27 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         holePosRef.current.y += dyHole * 0.15;
         const hx = holePosRef.current.x;
         const hy = holePosRef.current.y;
+
+        // The visual pulse shares the exact Web Audio clock used to schedule the
+        // four-bar loop. It therefore follows the musical grid without relying on
+        // frame timing or probabilistic waveform detection. Accents 1 and 3 are
+        // stronger, matching the kick/snare backbone of the 4/4 drum stem.
+        const audioCtx = audioCtxRef.current;
+        const drumsActive = unlockedIdsRef.current.includes('drums');
+        if (audioCtx && drumsActive && audioTimelineStartRef.current > 0) {
+            const beatDuration = 60 / BPM;
+            const elapsed = audioCtx.currentTime - audioTimelineStartRef.current;
+            if (elapsed >= 0) {
+                const absoluteBeat = Math.floor(elapsed / beatDuration);
+                if (absoluteBeat !== lastGravityBeatRef.current) {
+                    lastGravityBeatRef.current = absoluteBeat;
+                    const beatInBar = absoluteBeat % BEATS_PER_BAR;
+                    gravityBeatPulseRef.current = beatInBar === 0 ? 1 : beatInBar === 2 ? 0.72 : 0.42;
+                }
+            }
+        }
+        gravityBeatPulseRef.current *= 0.82;
+        if (gravityBeatPulseRef.current < 0.01) gravityBeatPulseRef.current = 0;
 
         ctx.clearRect(0, 0, width, height);
         ctx.save();
@@ -1265,6 +1417,14 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                     }
                 } else {
                     // IMPURITY LOGIC
+                    // A brief grace window prevents an already nearby impurity
+                    // from punishing the player before they can react to the press.
+                    if (performance.now() - holdStartedAtRef.current < 520) {
+                        const push = 8;
+                        p.vx -= nx * push;
+                        p.vy -= ny * push;
+                        continue;
+                    }
                     if (absorbChaosModeRef.current) {
                         // THE TWIST: Absorbing impurity ADDS score in Chaos Mode
                         // Buffed: Impurity score increased by 3x (2 * 3 = 6)
@@ -1346,8 +1506,30 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         const holdStrokeColor = isLevelCappedRef.current ? 'rgba(255, 215, 0, 1)' : 'rgba(255, 255, 255, 1)';
 
         if (isHoldingRef.current) {
-            ctx.beginPath(); ctx.arc(hx, hy, 450, 0, Math.PI * 2); 
+            const beatPulse = gravityBeatPulseRef.current;
+            const edgeRadius = 450 + beatPulse * 7;
+            ctx.beginPath();
+            if (beatPulse > 0.01) {
+                const segments = 96;
+                for (let segment = 0; segment <= segments; segment++) {
+                    const angle = (segment / segments) * Math.PI * 2;
+                    const vibration = Math.sin(angle * 18 + performance.now() * 0.045) * beatPulse * 3.5;
+                    const radius = edgeRadius + vibration;
+                    const x = hx + Math.cos(angle) * radius;
+                    const y = hy + Math.sin(angle) * radius;
+                    if (segment === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+            } else {
+                ctx.arc(hx, hy, edgeRadius, 0, Math.PI * 2);
+            }
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'; ctx.lineWidth = 1; ctx.stroke();
+            if (beatPulse > 0.01) {
+                ctx.beginPath(); ctx.arc(hx, hy, edgeRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.04 + beatPulse * 0.12})`;
+                ctx.lineWidth = 1 + beatPulse * 1.5;
+                ctx.stroke();
+            }
             ctx.beginPath(); ctx.arc(hx, hy, baseRadius + 10 + pulse, 0, Math.PI * 2);
             ctx.strokeStyle = coreStrokeColor; ctx.lineWidth = 1; ctx.stroke();
         }
@@ -1438,11 +1620,43 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   }, []);
 
   const handleEndingClose = useCallback(() => {
-      // Transition from Ending View to Post-Credits Story
-      // Do NOT reset score yet (to keep music playing)
-      setJustUnlocked('post_credits');
-      setGameState(prev => ({ ...prev, pendingStoryId: 'post_credits', storyLineIndex: 0 }));
-      setView('STORY');
+      // Post-credits dialogue is intentionally bypassed for now. Completing the
+      // ending opens the Demo/Gallery section immediately.
+      setGameState(prev => ({
+          ...prev,
+          gameCompleted: true,
+          score: 0,
+          pendingStoryId: null,
+          storyLineIndex: 0,
+      }));
+      gameCompletedRef.current = true;
+      absorbChaosModeRef.current = true;
+      impurityRateRef.current = 1.0;
+      scoreRef.current = 0;
+      setJustUnlocked(null);
+      setView('DEMOS');
+  }, []);
+
+  // 作弊通关：直接解锁全员并进入通关后界面 (DEMOS / 原创曲及画廊)
+  const handleCheatComplete = useCallback(() => {
+      const allMemberIds = BAND_MEMBERS.map(m => m.id);
+      setGameState(prev => ({
+          ...prev,
+          hasSeenIntro: true,
+          gameCompleted: true,
+          unlockedIds: allMemberIds,
+          score: 0,
+          chaosModeActive: true,
+          pendingStoryId: null,
+          storyLineIndex: 0,
+      }));
+      gameCompletedRef.current = true;
+      absorbChaosModeRef.current = true;
+      impurityRateRef.current = 1.0;
+      scoreRef.current = 0;
+      unlockedIdsRef.current = allMemberIds;
+      setJustUnlocked(null);
+      setView('DEMOS');
   }, []);
 
   const handleStoryLineChange = useCallback((lineIndex: number) => {
@@ -1538,23 +1752,29 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
 
       const previous = lastPointerPositionRef.current;
       if (previous && Math.hypot(x - previous.x, y - previous.y) > 8) {
-          setShowMovementHint(false);
-          if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
+          if (isHoldingRef.current) {
+              setShowMovementHint(false);
+              if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
+          } else if (!showMovementHint) {
+              scheduleMovementHint();
+          }
       }
       lastPointerPositionRef.current = { x, y };
 
-  }, [justUnlocked, view]);
+  }, [justUnlocked, view, showMovementHint, scheduleMovementHint]);
 
   const handleStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
       // If in Story Overlay mode, do not process physics interactions
       if (view === 'STORY') return;
 
       isHoldingRef.current = true;
+      holdStartedAtRef.current = performance.now();
+      setSignalHolding(true);
       lastPointerPositionRef.current = null;
       if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
       movementHintTimerRef.current = setTimeout(() => {
           if (isHoldingRef.current) setShowMovementHint(true);
-      }, 1400);
+      }, 7000);
       
       updateCursorPosition(e);
       
@@ -1572,15 +1792,16 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
           isHoldingRef.current = false;
           shockwaveTriggerRef.current = true;
       }
+      setSignalHolding(false);
       if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
-      setShowMovementHint(false);
+      if (!justUnlocked) scheduleMovementHint();
       
       // TRIGGER STORY ON RELEASE
       if (justUnlocked) {
           setGameState(prev => ({ ...prev, pendingStoryId: justUnlocked, storyLineIndex: 0 }));
           setView('STORY');
       }
-  }, [justUnlocked]);
+  }, [justUnlocked, scheduleMovementHint]);
 
   // --- RENDER ---
   if (!isOpen) return null;
@@ -1588,7 +1809,19 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black flex flex-col select-none">
         {/* Global controls stay available above intro, story and ending overlays. */}
-        <div className="absolute right-6 top-6 z-[300] flex items-center gap-5">
+        <div className="absolute right-6 top-6 z-[300] flex items-center gap-4">
+            {!gameState.gameCompleted && (
+                <button
+                    type="button"
+                    onClick={handleCheatComplete}
+                    title={language === 'zh' ? '作弊：直接通关' : 'Cheat: Direct Clear'}
+                    aria-label={language === 'zh' ? '作弊：直接通关' : 'Cheat: Direct Clear'}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-white/20 bg-white/5 text-[11px] font-mono tracking-widest text-amber-400/90 hover:text-amber-300 hover:border-amber-400/60 hover:bg-amber-400/10 transition-all shadow-[0_0_10px_rgba(251,191,36,0.15)]"
+                >
+                    <FastForward size={14} />
+                    <span className="hidden sm:inline">{language === 'zh' ? '作弊通关' : 'CHEAT CLEAR'}</span>
+                </button>
+            )}
             <LanguageSwitch />
             <button type="button" onClick={onClose} aria-label={language === 'zh' ? '退出游戏' : 'Exit game'} className="text-gray-400 hover:text-white transition-colors">
                 <X size={20} />
@@ -1675,35 +1908,26 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                     <AnimatePresence>
                         {showMovementHint && !justUnlocked && view === 'GAME' && (
                             <motion.div
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 8 }}
-                                className="absolute bottom-[24%] left-0 z-40 flex w-full justify-center px-6 pointer-events-none"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[250] flex items-center justify-center bg-black/55 px-6 pointer-events-none backdrop-blur-[2px]"
                             >
-                                <div className="border-l border-white/50 bg-black/55 px-4 py-2 font-mono text-[10px] md:text-xs tracking-[0.22em] text-white/70 backdrop-blur-sm">
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.96 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="w-full border-y border-white/30 bg-black/70 px-5 py-10 text-center font-mono text-2xl leading-relaxed tracking-[0.12em] text-white md:py-16 md:text-5xl md:tracking-[0.18em]"
+                                >
                                     {UI_TEXT.GAME.INSTRUCTION_MOVE}
-                                </div>
+                                </motion.div>
                             </motion.div>
                         )}
                     </AnimatePresence>
 
-                    {/* --- STORY UNLOCK HINT (Center Screen) --- */}
+                    {/* --- STORY UNLOCK: recover a person-shaped signal from noise --- */}
                     <AnimatePresence>
                         {justUnlocked && view === 'GAME' && (
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 0.96 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.96 }}
-                                className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 p-6"
-                            >
-                                 <div className="relative flex min-w-[min(32rem,88vw)] items-center gap-4 border-y border-white/25 bg-black/65 px-6 py-4 backdrop-blur-md">
-                                     <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
-                                     <p className="flex-1 text-center font-mono text-xs md:text-sm tracking-[0.28em] text-white/90">
-                                         {UI_TEXT.GAME.INSTRUCTION_RELEASE_STORY}
-                                     </p>
-                                     <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
-                                 </div>
-                            </motion.div>
+                            <UnlockSignalOverlay memberId={justUnlocked} isHolding={signalHolding} />
                         )}
                     </AnimatePresence>
                 </div>
