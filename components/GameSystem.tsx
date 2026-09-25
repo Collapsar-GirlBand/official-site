@@ -691,6 +691,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const cursorRef = useRef({ x: 0, y: 0 });
   const lastPointerPositionRef = useRef<{ x: number; y: number } | null>(null);
   const movementHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPointerInsideRef = useRef(false);
   const holePosRef = useRef({ x: 0, y: 0 });
   const prevSizeRef = useRef({ w: 0, h: 0 });
   const scoreRef = useRef(0);
@@ -702,7 +703,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const shakeRef = useRef(0); 
   const damageFlashRef = useRef(0); 
   const shockwaveTriggerRef = useRef(false); 
-  const shockwaveVisualRef = useRef(0); 
+  const releaseImpulseRef = useRef(0);
   const gravityBeatPulseRef = useRef(0);
   const lastGravityBeatRef = useRef(-1);
   const holdStartedAtRef = useRef(0);
@@ -716,9 +717,14 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   // PERSISTENT PARTICLES (Bug Fix for Reset)
   const particlesRef = useRef<Particle[]>([]);
 
-  const scheduleMovementHint = useCallback(() => {
+  const scheduleMovementHint = useCallback((delay: number, interaction: 'hold' | 'hover') => {
     if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
-    movementHintTimerRef.current = setTimeout(() => setShowMovementHint(true), 7000);
+    movementHintTimerRef.current = setTimeout(() => {
+      const interactionIsStillActive = interaction === 'hold'
+        ? isHoldingRef.current
+        : isPointerInsideRef.current && !isHoldingRef.current;
+      if (interactionIsStillActive) setShowMovementHint(true);
+    }, delay);
   }, []);
 
   // --- 0. SCROLL LOCKING ---
@@ -738,13 +744,10 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
     setShowMovementHint(false);
-    if (view === 'GAME' && gameState.unlockedIds.length === 0 && !justUnlocked) {
-      scheduleMovementHint();
-    }
     return () => {
       if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
     };
-  }, [view, gameState.unlockedIds.length, justUnlocked, scheduleMovementHint]);
+  }, [view, gameState.unlockedIds.length, justUnlocked]);
 
   // Removed useEffect for auto-transition. 
   // Now we wait for user release in handleEnd to trigger 'STORY'.
@@ -1220,10 +1223,9 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         const hx = holePosRef.current.x;
         const hy = holePosRef.current.y;
 
-        // The visual pulse shares the exact Web Audio clock used to schedule the
-        // four-bar loop. It therefore follows the musical grid without relying on
-        // frame timing or probabilistic waveform detection. Accents 1 and 3 are
-        // stronger, matching the kick/snare backbone of the 4/4 drum stem.
+        // Resonance breathing shares the exact Web Audio clock used to schedule
+        // the four-bar loop. Accents 1 and 3 are stronger, matching the kick/
+        // snare backbone of the 4/4 drum stem.
         const audioCtx = audioCtxRef.current;
         const drumsActive = unlockedIdsRef.current.includes('drums');
         if (audioCtx && drumsActive && audioTimelineStartRef.current > 0) {
@@ -1240,6 +1242,9 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         }
         gravityBeatPulseRef.current *= 0.82;
         if (gravityBeatPulseRef.current < 0.01) gravityBeatPulseRef.current = 0;
+        const breathingPhase = (Math.sin(performance.now() * 0.0018) + 1) / 2;
+        const resonanceBreath = 0.86 + breathingPhase * 0.22 + gravityBeatPulseRef.current * 0.18;
+        const resonanceGlow = 0.78 + breathingPhase * 0.28 + gravityBeatPulseRef.current * 0.22;
 
         ctx.clearRect(0, 0, width, height);
         ctx.save();
@@ -1256,7 +1261,10 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         
         if (shockwaveTriggerRef.current) {
             shockwaveTriggerRef.current = false; 
-            shockwaveVisualRef.current = 1; 
+            releaseImpulseRef.current = 1;
+            // Releasing the field now disperses a small burst of resonance
+            // instead of drawing a black-hole shockwave ring.
+            createSparks(hx, hy, 8);
         }
         
         // --- SCORE FLOOR CALCULATION ---
@@ -1295,7 +1303,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                 p.vx += nx * force / p.mass; p.vy += ny * force / p.mass;
             }
 
-            if (shockwaveVisualRef.current === 1) { 
+            if (releaseImpulseRef.current === 1) {
                 const blastRadius = 450;
                 const forceFactor = Math.max(0, 1 - (dist / blastRadius));
                 if (forceFactor > 0) {
@@ -1386,12 +1394,15 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                     ctx.fillStyle = `rgba(255, 80, 80, ${p.alpha})`;
                     ctx.shadowBlur = 25 * p.alpha; ctx.shadowColor = `rgba(255, 0, 0, ${p.alpha})`;
                 } else {
-                    // Star (Circle)
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(220, 230, 255, ${p.alpha})`;
-                    if (isLevelCappedRef.current) {
-                        ctx.shadowBlur = 10 * p.alpha; ctx.shadowColor = `rgba(255, 255, 200, ${p.alpha})`;
-                    }
+                    // Resonance matter breathes together; drum beats briefly
+                    // expand and brighten the whole field after drums unlock.
+                    const starAlpha = Math.min(1, p.alpha * resonanceGlow);
+                    ctx.arc(p.x, p.y, p.size * resonanceBreath, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(220, 230, 255, ${starAlpha})`;
+                    ctx.shadowBlur = (isLevelCappedRef.current ? 12 : 7) * resonanceGlow;
+                    ctx.shadowColor = isLevelCappedRef.current
+                        ? `rgba(255, 255, 200, ${starAlpha})`
+                        : `rgba(180, 210, 255, ${starAlpha})`;
                 }
                 ctx.fill(); ctx.shadowBlur = 0; 
             }
@@ -1403,55 +1414,9 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
             for(let k = 0; k < spawnCount; k++) particlesRef.current.push(createParticle(width, height, true)); 
         }
 
-        if (shockwaveVisualRef.current > 0) {
-            ctx.beginPath();
-            ctx.arc(hx, hy, shockwaveVisualRef.current, 0, Math.PI * 2);
-            const alpha = Math.max(0, 1 - (shockwaveVisualRef.current / 400));
-            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
-            ctx.lineWidth = 2 + (1 - alpha) * 10;
-            ctx.stroke();
-            shockwaveVisualRef.current += 10; 
-            if (shockwaveVisualRef.current > 400) shockwaveVisualRef.current = 0;
-        }
-
-        const baseRadius = 20;
-        const pulse = Math.sin(Date.now() * 0.008) * 2;
-        const coreStrokeColor = isLevelCappedRef.current ? 'rgba(255, 215, 0, 0.5)' : 'rgba(255, 255, 255, 0.3)';
-        const holdStrokeColor = isLevelCappedRef.current ? 'rgba(255, 215, 0, 1)' : 'rgba(255, 255, 255, 1)';
-
-        if (isHoldingRef.current) {
-            const beatPulse = gravityBeatPulseRef.current;
-            const edgeRadius = 450 + beatPulse * 7;
-            ctx.beginPath();
-            if (beatPulse > 0.01) {
-                const segments = 96;
-                for (let segment = 0; segment <= segments; segment++) {
-                    const angle = (segment / segments) * Math.PI * 2;
-                    const vibration = Math.sin(angle * 18 + performance.now() * 0.045) * beatPulse * 3.5;
-                    const radius = edgeRadius + vibration;
-                    const x = hx + Math.cos(angle) * radius;
-                    const y = hy + Math.sin(angle) * radius;
-                    if (segment === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                }
-                ctx.closePath();
-            } else {
-                ctx.arc(hx, hy, edgeRadius, 0, Math.PI * 2);
-            }
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'; ctx.lineWidth = 1; ctx.stroke();
-            if (beatPulse > 0.01) {
-                ctx.beginPath(); ctx.arc(hx, hy, edgeRadius, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(255, 255, 255, ${0.04 + beatPulse * 0.12})`;
-                ctx.lineWidth = 1 + beatPulse * 1.5;
-                ctx.stroke();
-            }
-            ctx.beginPath(); ctx.arc(hx, hy, baseRadius + 10 + pulse, 0, Math.PI * 2);
-            ctx.strokeStyle = coreStrokeColor; ctx.lineWidth = 1; ctx.stroke();
-        }
-
-        ctx.beginPath(); ctx.arc(hx, hy, baseRadius + (isHoldingRef.current ? 4 : 0), 0, Math.PI * 2);
-        ctx.fillStyle = '#000000'; ctx.fill();
-        ctx.strokeStyle = isHoldingRef.current ? holdStrokeColor : 'rgba(120, 120, 120, 0.5)';
-        ctx.lineWidth = isHoldingRef.current ? 3 : 2; ctx.stroke();
+        // The interaction field remains invisible; the resonance matter itself
+        // is now the visual focus instead of a central black-hole indicator.
+        if (releaseImpulseRef.current > 0) releaseImpulseRef.current = 0;
 
         if (damageFlashRef.current > 0.01) {
             ctx.fillStyle = `rgba(255, 0, 0, ${damageFlashRef.current})`;
@@ -1696,16 +1661,14 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
 
       const previous = lastPointerPositionRef.current;
       if (previous && Math.hypot(x - previous.x, y - previous.y) > 8) {
-          if (isHoldingRef.current) {
-              setShowMovementHint(false);
-              if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
-          } else if (!showMovementHint) {
-              scheduleMovementHint();
-          }
+          setShowMovementHint(false);
+          scheduleMovementHint(isHoldingRef.current ? 3000 : 6000, isHoldingRef.current ? 'hold' : 'hover');
+          lastPointerPositionRef.current = { x, y };
+      } else if (!previous) {
+          lastPointerPositionRef.current = { x, y };
       }
-      lastPointerPositionRef.current = { x, y };
 
-  }, [justUnlocked, view, showMovementHint, scheduleMovementHint]);
+  }, [view, scheduleMovementHint]);
 
   const handleStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
       // If in Story Overlay mode, do not process physics interactions
@@ -1715,28 +1678,30 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       holdStartedAtRef.current = performance.now();
       lastPointerPositionRef.current = null;
       if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
-      movementHintTimerRef.current = setTimeout(() => {
-          if (isHoldingRef.current) setShowMovementHint(true);
-      }, 7000);
+      setShowMovementHint(false);
+      scheduleMovementHint(3000, 'hold');
       
       updateCursorPosition(e);
       
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
           audioCtxRef.current.resume();
       }
-  }, [updateCursorPosition, view]);
+  }, [scheduleMovementHint, updateCursorPosition, view]);
 
   const handleMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
       updateCursorPosition(e);
   }, [updateCursorPosition]);
 
-  const handleEnd = useCallback(() => {
+  const handleEnd = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
       if (isHoldingRef.current) {
           isHoldingRef.current = false;
           shockwaveTriggerRef.current = true;
       }
       if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
-      if (!justUnlocked) scheduleMovementHint();
+      setShowMovementHint(false);
+      if (!justUnlocked && e && !('touches' in e) && isPointerInsideRef.current) {
+          scheduleMovementHint(6000, 'hover');
+      }
       
       // TRIGGER STORY ON RELEASE
       if (justUnlocked) {
@@ -1744,6 +1709,23 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
           setView('STORY');
       }
   }, [justUnlocked, scheduleMovementHint]);
+
+  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+      isPointerInsideRef.current = true;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      lastPointerPositionRef.current = rect
+        ? { x: e.clientX - rect.left, y: e.clientY - rect.top }
+        : null;
+      if (!isHoldingRef.current && !justUnlocked) scheduleMovementHint(6000, 'hover');
+  }, [justUnlocked, scheduleMovementHint]);
+
+  const handleMouseLeave = useCallback((e: React.MouseEvent) => {
+      isPointerInsideRef.current = false;
+      lastPointerPositionRef.current = null;
+      if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
+      setShowMovementHint(false);
+      handleEnd(e);
+  }, [handleEnd]);
 
   // --- RENDER ---
   if (!isOpen) return null;
@@ -1824,7 +1806,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                     <canvas 
                         ref={canvasRef} 
                         className={`w-full h-full touch-none cursor-crosshair ${view === 'STORY' ? 'pointer-events-none' : 'pointer-events-auto'}`}
-                        onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd} onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
+                        onMouseEnter={handleMouseEnter} onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleMouseLeave} onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
                     />
                     
                     {/* --- PERSISTENT INSTRUCTIONS (First Phase Only) --- */}
@@ -1862,18 +1844,27 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                     <AnimatePresence>
                         {showMovementHint && !justUnlocked && view === 'GAME' && (
                             <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 z-[250] flex items-center justify-center bg-black/55 px-6 pointer-events-none backdrop-blur-[2px]"
+                                initial={{ opacity: 0, y: 8, filter: 'blur(6px)' }}
+                                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                                exit={{ opacity: 0, y: -6, filter: 'blur(5px)' }}
+                                transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                                className="fixed inset-0 z-[250] flex items-center justify-center px-6 pointer-events-none"
                             >
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.96 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="w-full border-y border-white/30 bg-black/70 px-5 py-10 text-center font-mono text-2xl leading-relaxed tracking-[0.12em] text-white md:py-16 md:text-5xl md:tracking-[0.18em]"
+                                <motion.p
+                                    animate={{
+                                        opacity: [0.62, 0.96, 0.62],
+                                        y: [0, -3, 0],
+                                        textShadow: [
+                                            '0 0 10px rgba(255,255,255,0.18)',
+                                            '0 0 24px rgba(255,255,255,0.48)',
+                                            '0 0 10px rgba(255,255,255,0.18)',
+                                        ],
+                                    }}
+                                    transition={{ duration: 3.6, ease: 'easeInOut', repeat: Infinity }}
+                                    className="text-center font-serif text-xl font-light leading-relaxed tracking-[0.14em] text-white/90 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] md:text-4xl md:tracking-[0.2em]"
                                 >
                                     {UI_TEXT.GAME.INSTRUCTION_MOVE}
-                                </motion.div>
+                                </motion.p>
                             </motion.div>
                         )}
                     </AnimatePresence>
