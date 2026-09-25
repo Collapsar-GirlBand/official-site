@@ -6,7 +6,7 @@ import { STORIES_EN, MEMBER_NAMES } from '../content/english';
 import { STORY_SCRIPTS } from '../content/stories';
 import { ASSETS } from '../content/assets';
 import { useLanguage } from '../content/language';
-import { X, Play, Pause, LogOut, ExternalLink, FastForward } from 'lucide-react';
+import { X, Play, Pause, ExternalLink, FastForward } from 'lucide-react';
 import { MAX_SCORE, STORAGE_KEY } from '../constants';
 import CharacterSprite from './CharacterSprite';
 import GalleryView from './GalleryView';
@@ -361,8 +361,8 @@ const ED_LYRICS = [
   { en: "stay.", cn: "请说你将会长留此间" },
 ];
 
-const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { UI_TEXT, language } = useLanguage();
+const EdPlayer: React.FC = () => {
+  const { language } = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -422,29 +422,22 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-white/5 rounded-full blur-[100px] opacity-20 animate-pulse" />
         </div>
 
-        <div className="relative z-10 flex h-full w-full max-w-2xl flex-col items-center justify-between gap-3 py-1 sm:gap-5 sm:py-3">
+        <div className="relative z-10 flex h-full w-full max-w-2xl flex-col items-center justify-center py-1 sm:py-3">
+          <div className="flex w-full flex-col items-center justify-center gap-[clamp(1rem,4vh,2.5rem)]">
             
             {/* Top: Title */}
-            <div className="shrink-0 space-y-1 text-center sm:space-y-2">
+            <div className="shrink-0 text-center">
                 <motion.h2 
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-xl font-light tracking-[0.16em] text-white sm:text-2xl md:text-3xl md:tracking-[0.2em]"
+                    className="text-[clamp(1.25rem,3.5vh,1.875rem)] font-light tracking-[0.16em] text-white md:tracking-[0.2em]"
                 >
                     Stray (Ending)
                 </motion.h2>
-                <motion.p 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="font-mono text-[10px] tracking-[0.22em] text-gray-500 sm:text-xs sm:tracking-[0.3em]"
-                >
-                    COLLAPSAR // ORIGINAL TRACK
-                </motion.p>
             </div>
 
-            {/* Middle: Lyrics (Compact for One Screen) */}
-            <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-1.5 select-none sm:gap-2 md:gap-3">
+            {/* Title, lyrics and playback controls form one vertically-centered unit. */}
+            <div className="flex w-full shrink-0 flex-col items-center gap-[clamp(0.25rem,1.2vh,0.75rem)] select-none">
                 {ED_LYRICS.map((line, i) => (
                     <motion.div 
                         key={i}
@@ -454,12 +447,12 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         transition={{ delay: 0.5 + i * 0.1 }}
                     >
                         <motion.span 
-                            className="text-center font-serif text-sm leading-tight text-gray-300 transition-all duration-500 group-hover:text-white group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] sm:text-base md:text-lg"
+                            className="text-center font-serif text-[clamp(0.875rem,2.4vh,1.125rem)] leading-tight text-gray-300 transition-all duration-500 group-hover:text-white group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"
                         >
                             {line.en}
                         </motion.span>
                         {language === 'zh' && line.cn && (
-                            <span className="font-sans text-[9px] font-light tracking-wide text-gray-600 transition-colors duration-500 group-hover:text-gray-400 sm:text-[10px]">
+                            <span className="font-sans text-[clamp(0.5rem,1.4vh,0.625rem)] font-light tracking-wide text-gray-600 transition-colors duration-500 group-hover:text-gray-400">
                                 {line.cn}
                             </span>
                         )}
@@ -467,15 +460,13 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 ))}
             </div>
 
-            {/* Bottom Section: Player & Footer */}
-            <div className="flex w-full shrink-0 flex-col gap-3 sm:gap-5">
-                {/* Elegant Player Controls (Horizontal) */}
-                <div className="flex w-full items-center gap-3 sm:gap-6">
+            {/* Playback controls */}
+            <div className="flex w-full shrink-0 items-center gap-[clamp(0.75rem,2vh,1.5rem)]">
                     <motion.button
                         onClick={togglePlay}
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
-                        className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 transition-all duration-300 hover:border-white/50 hover:bg-white/5 sm:h-12 sm:w-12"
+                        className="group flex h-[clamp(2.5rem,6vh,3rem)] w-[clamp(2.5rem,6vh,3rem)] shrink-0 items-center justify-center rounded-full border border-white/20 transition-all duration-300 hover:border-white/50 hover:bg-white/5"
                     >
                         {isPlaying ? (
                             <Pause size={18} className="text-white fill-white opacity-80 group-hover:opacity-100" />
@@ -502,21 +493,8 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         </div>
                         <span className="w-8">{formatTime(duration || 0)}</span>
                     </div>
-                </div>
-
-                {/* Return to Webpage */}
-                <div className="flex w-full shrink-0 flex-col items-center border-t border-white/5 pt-2 sm:pt-3">
-                    {/* Return to Webpage Button */}
-                    <button 
-                        onClick={onClose}
-                        className="flex items-center gap-2 rounded border border-transparent px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] text-white/40 transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white sm:text-xs sm:tracking-[0.2em]"
-                    >
-                        <LogOut size={12} />
-                        {UI_TEXT.GAME.BACK_TO_INDEX.toUpperCase()}
-                    </button>
-                </div>
             </div>
-
+          </div>
         </div>
     </div>
   );
@@ -1287,7 +1265,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                 p.x += p.vx; p.y += p.vy; p.vx *= 0.9; p.vy *= 0.9; p.life -= 0.03; p.alpha = p.life;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 220, 100, ${p.alpha})`; 
+                ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
                 ctx.fill();
                 if (p.life <= 0) particlesRef.current.splice(i, 1);
                 continue;
@@ -1420,8 +1398,24 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
             for(let k = 0; k < spawnCount; k++) particlesRef.current.push(createParticle(width, height, true)); 
         }
 
-        // The interaction field remains invisible; the resonance matter itself
-        // is now the visual focus instead of a central black-hole indicator.
+        // Keep the visual judgement area aligned with the 30px collision radius
+        // used above, so holding the field has clear, immediate feedback.
+        if (isHoldingRef.current) {
+            const judgementRadius = 30;
+            const judgementPulse = 0.78 + Math.sin(performance.now() * 0.012) * 0.12;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(hx, hy, judgementRadius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.055 * judgementPulse})`;
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.72 * judgementPulse})`;
+            ctx.shadowBlur = 14;
+            ctx.shadowColor = `rgba(255, 255, 255, ${0.8 * judgementPulse})`;
+            ctx.stroke();
+            ctx.restore();
+        }
+
         if (releaseImpulseRef.current > 0) releaseImpulseRef.current = 0;
 
         if (damageFlashRef.current > 0.01) {
@@ -1835,7 +1829,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         <div className="flex-1 relative overflow-hidden bg-black">
             {view === 'INTRO' && <IntroView onFinish={handleIntroComplete} />}
             {/* DEMOS view now renders the enhanced ED Player */}
-            {view === 'DEMOS' && <EdPlayer onClose={onClose} />}
+            {view === 'DEMOS' && <EdPlayer />}
             {view === 'GALLERY' && gameState.gameCompleted && <GalleryView />}
             
             {/* Story View Overlay - Renders ON TOP of game when active */}
