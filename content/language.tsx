@@ -4,15 +4,25 @@ import { UI_EN } from './english';
 
 export type Language = 'zh' | 'en';
 export const LANGUAGE_KEY = 'collapsar_language';
-const LanguageContext = createContext<{ language: Language; setLanguage: (language: Language) => void }>({ language: 'zh', setLanguage: () => {} });
+const LanguageContext = createContext<{ language: Language; hasSelectedLanguage: boolean; setLanguage: (language: Language) => void }>({ language: 'zh', hasSelectedLanguage: false, setLanguage: () => {} });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const originalMetadata = useRef<Map<HTMLMetaElement, string>>(new Map());
-  const [language, setLanguage] = useState<Language>(() => {
-    try { return localStorage.getItem(LANGUAGE_KEY) === 'en' ? 'en' : 'zh'; } catch { return 'zh'; }
+  const [savedLanguage] = useState<Language | null>(() => {
+    try {
+      const value = localStorage.getItem(LANGUAGE_KEY);
+      return value === 'zh' || value === 'en' ? value : null;
+    } catch { return null; }
   });
+  const [language, setLanguage] = useState<Language>(savedLanguage || 'zh');
+  const [hasSelectedLanguage, setHasSelectedLanguage] = useState(Boolean(savedLanguage));
+
+  const selectLanguage = (nextLanguage: Language) => {
+    setLanguage(nextLanguage);
+    setHasSelectedLanguage(true);
+  };
+
   useEffect(() => {
-    try { localStorage.setItem(LANGUAGE_KEY, language); } catch { /* Storage is optional. */ }
     document.documentElement.lang = language === 'en' ? 'en' : 'zh-CN';
     document.title = language === 'en' ? 'COLLAPSAR | Girl Band' : 'COLLAPSAR | 少女乐队';
     document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property$=":title"], meta[property$=":description"]').forEach(meta => {
@@ -23,13 +33,23 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     });
   }, [language]);
   useEffect(() => {
+    if (!hasSelectedLanguage) return;
+    try { localStorage.setItem(LANGUAGE_KEY, language); } catch { /* Storage is optional. */ }
+  }, [hasSelectedLanguage, language]);
+  useEffect(() => {
     const sync = (event: StorageEvent) => {
-      if (event.key === LANGUAGE_KEY || event.key === null) setLanguage(event.newValue === 'en' ? 'en' : 'zh');
+      if (event.key === LANGUAGE_KEY || event.key === null) {
+        const nextLanguage = event.newValue === 'en' || event.newValue === 'zh' ? event.newValue : null;
+        if (nextLanguage) {
+          setLanguage(nextLanguage);
+          setHasSelectedLanguage(true);
+        }
+      }
     };
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
   }, []);
-  return <LanguageContext.Provider value={{ language, setLanguage }}>{children}</LanguageContext.Provider>;
+  return <LanguageContext.Provider value={{ language, hasSelectedLanguage, setLanguage: selectLanguage }}>{children}</LanguageContext.Provider>;
 }
 
 export function useLanguage() {

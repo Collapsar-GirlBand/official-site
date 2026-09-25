@@ -165,90 +165,6 @@ const SyncProgressBar: React.FC<SyncProgressBarProps> = React.memo(({ score, has
   );
 });
 
-interface UnlockSignalOverlayProps {
-  memberId: string;
-  isHolding: boolean;
-}
-
-const UnlockSignalOverlay: React.FC<UnlockSignalOverlayProps> = ({ memberId, isHolding }) => {
-  const { UI_TEXT, language } = useLanguage();
-  const member = BAND_MEMBERS.find(item => item.id === memberId);
-  if (!member) return null;
-  const signalExpression = STORY_SCRIPTS[memberId]?.[0]?.expression || '';
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden pointer-events-none"
-    >
-      <motion.div
-        className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
-        animate={{ opacity: isHolding ? 0.52 : 0.7 }}
-      />
-
-      {/* A signal is being recovered from noise, not presented as a conventional unlock card. */}
-      <div className="absolute inset-0 opacity-35 mix-blend-screen bg-[repeating-linear-gradient(0deg,transparent_0px,transparent_3px,rgba(255,255,255,0.12)_4px)]" />
-      <motion.div
-        className="absolute h-[62vmin] w-[62vmin] rounded-full border border-white/20"
-        animate={{
-          scale: isHolding ? [0.86, 1.03, 0.9] : 1,
-          opacity: isHolding ? [0.2, 0.7, 0.25] : 0.35,
-          rotate: isHolding ? [0, 1.5, -1, 0] : 0,
-        }}
-        transition={{ duration: 0.32, repeat: isHolding ? Infinity : 0, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="absolute h-[48vmin] w-[48vmin] rounded-full border border-dashed border-white/15"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
-      />
-
-      <motion.div
-        className="absolute inset-0 flex items-center justify-center"
-        initial={{ filter: 'grayscale(1) contrast(1.8) brightness(0.25)', opacity: 0 }}
-        animate={{
-          filter: isHolding
-            ? 'grayscale(1) contrast(1.65) brightness(0.72)'
-            : 'grayscale(1) contrast(1.9) brightness(0.42)',
-          opacity: isHolding ? [0.18, 0.48, 0.25, 0.56] : 0.3,
-          x: isHolding ? [0, -2, 1, 0] : 0,
-        }}
-        transition={{ duration: 0.42, repeat: isHolding ? Infinity : 0, ease: 'linear' }}
-        style={{
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 4%, black 24%, black 82%, transparent 98%)',
-          maskImage: 'linear-gradient(to bottom, transparent 4%, black 24%, black 82%, transparent 98%)',
-        }}
-      >
-        <div className="origin-center scale-[0.24] md:scale-[0.34]">
-          <CharacterSprite charId={memberId} expression={signalExpression} />
-        </div>
-      </motion.div>
-
-      <motion.div
-        className="absolute left-0 right-0 h-px bg-white/80 shadow-[0_0_18px_rgba(255,255,255,0.95)]"
-        animate={{ top: ['19%', '81%', '19%'], opacity: [0.1, 0.8, 0.1] }}
-        transition={{ duration: 2.8, repeat: Infinity, ease: 'linear' }}
-      />
-
-      <div className="absolute bottom-[12%] left-6 right-6 flex flex-col items-center gap-4 text-center font-mono">
-        <motion.div
-          animate={{ opacity: [0.38, 1, 0.38] }}
-          transition={{ duration: 1.1, repeat: Infinity }}
-          className="text-[10px] tracking-[0.42em] text-white/70 md:text-xs"
-        >
-          {language === 'en' ? 'HUMAN SIGNAL // RESOLVING' : '人形信号 // 正在解析'}
-        </motion.div>
-        <div className="h-px w-48 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
-        <p className="max-w-xl text-xs tracking-[0.28em] text-white md:text-sm">
-          {UI_TEXT.GAME.INSTRUCTION_RELEASE_STORY}
-        </p>
-      </div>
-    </motion.div>
-  );
-};
-
 interface IntroViewProps {
   onFinish: () => void;
 }
@@ -551,7 +467,7 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
 
             {/* Bottom Section: Player & Footer */}
-            <div className="w-full flex flex-col gap-8">
+            <div className="w-full shrink-0 flex flex-col gap-8">
                 {/* Elegant Player Controls (Horizontal) */}
                 <div className="w-full flex items-center gap-6">
                     <motion.button
@@ -588,9 +504,9 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 </div>
 
                 {/* New Footer: Social Links & Return Button */}
-                <div className="w-full flex flex-col items-center gap-6 pt-4 border-t border-white/5">
+                <div className="w-full shrink-0 flex flex-col items-center gap-6 pt-4 border-t border-white/5">
                     {/* Socials */}
-                    <div className="flex gap-6 md:gap-8">
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 md:gap-x-8">
                          {SOCIAL_LINKS.map(link => (
                              <a 
                                  key={link.id} 
@@ -749,8 +665,6 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   
   // notification/unlock state
   const [justUnlocked, setJustUnlocked] = useState<string | null>(null);
-  const [signalHolding, setSignalHolding] = useState(false);
-  
   const [showMovementHint, setShowMovementHint] = useState(false);
 
   // Audio Context Ref & Scheduling
@@ -1799,7 +1713,6 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
 
       isHoldingRef.current = true;
       holdStartedAtRef.current = performance.now();
-      setSignalHolding(true);
       lastPointerPositionRef.current = null;
       if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
       movementHintTimerRef.current = setTimeout(() => {
@@ -1822,7 +1735,6 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
           isHoldingRef.current = false;
           shockwaveTriggerRef.current = true;
       }
-      setSignalHolding(false);
       if (movementHintTimerRef.current) clearTimeout(movementHintTimerRef.current);
       if (!justUnlocked) scheduleMovementHint();
       
@@ -1966,10 +1878,23 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                         )}
                     </AnimatePresence>
 
-                    {/* --- STORY UNLOCK: recover a person-shaped signal from noise --- */}
+                    {/* --- STORY UNLOCK HINT (Center Screen) --- */}
                     <AnimatePresence>
                         {justUnlocked && view === 'GAME' && (
-                            <UnlockSignalOverlay memberId={justUnlocked} isHolding={signalHolding} />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.96 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.96 }}
+                                className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 p-6"
+                            >
+                                 <div className="relative flex min-w-[min(32rem,88vw)] items-center gap-4 border-y border-white/25 bg-black/65 px-6 py-4 backdrop-blur-md">
+                                     <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
+                                     <p className="flex-1 text-center font-mono text-xs md:text-sm tracking-[0.28em] text-white/90">
+                                         {UI_TEXT.GAME.INSTRUCTION_RELEASE_STORY}
+                                     </p>
+                                     <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
+                                 </div>
+                            </motion.div>
                         )}
                     </AnimatePresence>
                 </div>

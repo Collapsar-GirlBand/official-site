@@ -63,7 +63,7 @@ export const UI_TEXT = {
     IDENTITY_CONFIRMED: "IDENTITY_CONFIRMED",
     INSTRUCTION_AVOID: "长按屏幕以吸取共鸣物质",
     INSTRUCTION_CONTROL: "松开屏幕产生斥力波",
-    INSTRUCTION_MOVE: "按住并移动以捕获共鸣",
+    INSTRUCTION_MOVE: "按住并【灵活移动】以捕获共鸣",
     INSTRUCTION_RELEASE_STORY: "已获得足够共鸣物质 /// 松手进入事件",
     NAV_OBSERVE: "Observe",
     NAV_ARCHIVES: "Archives",

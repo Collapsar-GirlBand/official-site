@@ -3,13 +3,16 @@ import React, { useState, useRef } from 'react';
 import Background from './components/Background';
 import Hero from './components/Hero';
 import LanguageSwitch from './components/LanguageSwitch';
+import LanguageGate from './components/LanguageGate';
 import Contact from './components/Contact';
 import GameSystem from './components/GameSystem';
 import { AnimatePresence } from 'framer-motion';
+import { useLanguage } from './content/language';
 
 function App() {
   const [isGameOpen, setIsGameOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { hasSelectedLanguage } = useLanguage();
 
   return (
     <main className="h-screen w-screen overflow-hidden bg-black text-white relative">
@@ -35,6 +38,7 @@ function App() {
           <GameSystem isOpen={isGameOpen} onClose={() => setIsGameOpen(false)} />
         )}
       </AnimatePresence>
+      <AnimatePresence>{!hasSelectedLanguage && <LanguageGate />}</AnimatePresence>
       
       <SpeedInsights />
     </main>
