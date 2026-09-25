@@ -1659,6 +1659,36 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       setView('DEMOS');
   }, []);
 
+  // 作弊跳关：从鼓手（菜菜）的解锁剧情开始，方便测试鼓阶段的流程和音轨。
+  const handleCheatToDrums = useCallback(() => {
+      const drumsIndex = BAND_MEMBERS.findIndex(member => member.id === 'drums');
+      const drumsMember = BAND_MEMBERS[drumsIndex];
+      if (!drumsMember) return;
+
+      // Keep the preceding members unlocked, then let the usual story-complete
+      // handler unlock drums and apply its gameplay/audio settings.
+      const priorMemberIds = BAND_MEMBERS.slice(0, drumsIndex).map(member => member.id);
+      setGameState(prev => ({
+          ...prev,
+          hasSeenIntro: true,
+          gameCompleted: false,
+          unlockedIds: priorMemberIds,
+          score: drumsMember.unlockThreshold,
+          chaosModeActive: false,
+          pendingStoryId: 'drums',
+          storyLineIndex: 0,
+      }));
+      gameCompletedRef.current = false;
+      absorbChaosModeRef.current = false;
+      impurityRateRef.current = 0.40;
+      scoreRef.current = drumsMember.unlockThreshold;
+      unlockedIdsRef.current = priorMemberIds;
+      isLevelCappedRef.current = true;
+      floorHitCountRef.current = 0;
+      setJustUnlocked('drums');
+      setView('STORY');
+  }, []);
+
   const handleStoryLineChange = useCallback((lineIndex: number) => {
       setGameState(prev => ({
           ...prev,
@@ -1811,16 +1841,28 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         {/* Global controls stay available above intro, story and ending overlays. */}
         <div className="absolute right-6 top-6 z-[300] flex items-center gap-4">
             {!gameState.gameCompleted && (
-                <button
-                    type="button"
-                    onClick={handleCheatComplete}
-                    title={language === 'zh' ? '作弊：直接通关' : 'Cheat: Direct Clear'}
-                    aria-label={language === 'zh' ? '作弊：直接通关' : 'Cheat: Direct Clear'}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-white/20 bg-white/5 text-[11px] font-mono tracking-widest text-amber-400/90 hover:text-amber-300 hover:border-amber-400/60 hover:bg-amber-400/10 transition-all shadow-[0_0_10px_rgba(251,191,36,0.15)]"
-                >
-                    <FastForward size={14} />
-                    <span className="hidden sm:inline">{language === 'zh' ? '作弊通关' : 'CHEAT CLEAR'}</span>
-                </button>
+                <>
+                    <button
+                        type="button"
+                        onClick={handleCheatToDrums}
+                        title={language === 'zh' ? '作弊：跳到鼓阶段' : 'Cheat: Jump to Drums'}
+                        aria-label={language === 'zh' ? '作弊：跳到鼓阶段' : 'Cheat: Jump to Drums'}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-white/20 bg-white/5 text-[11px] font-mono tracking-widest text-sky-400/90 hover:text-sky-300 hover:border-sky-400/60 hover:bg-sky-400/10 transition-all shadow-[0_0_10px_rgba(56,189,248,0.15)]"
+                    >
+                        <FastForward size={14} />
+                        <span className="hidden sm:inline">{language === 'zh' ? '跳到鼓阶段' : 'TO DRUMS'}</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleCheatComplete}
+                        title={language === 'zh' ? '作弊：直接通关' : 'Cheat: Direct Clear'}
+                        aria-label={language === 'zh' ? '作弊：直接通关' : 'Cheat: Direct Clear'}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-white/20 bg-white/5 text-[11px] font-mono tracking-widest text-amber-400/90 hover:text-amber-300 hover:border-amber-400/60 hover:bg-amber-400/10 transition-all shadow-[0_0_10px_rgba(251,191,36,0.15)]"
+                    >
+                        <FastForward size={14} />
+                        <span className="hidden sm:inline">{language === 'zh' ? '作弊通关' : 'CHEAT CLEAR'}</span>
+                    </button>
+                </>
             )}
             <LanguageSwitch />
             <button type="button" onClick={onClose} aria-label={language === 'zh' ? '退出游戏' : 'Exit game'} className="text-gray-400 hover:text-white transition-colors">
