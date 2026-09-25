@@ -503,24 +503,8 @@ const EdPlayer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     </div>
                 </div>
 
-                {/* New Footer: Social Links & Return Button */}
+                {/* Return to Webpage */}
                 <div className="w-full shrink-0 flex flex-col items-center gap-6 pt-4 border-t border-white/5">
-                    {/* Socials */}
-                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 md:gap-x-8">
-                         {SOCIAL_LINKS.map(link => (
-                             <a 
-                                 key={link.id} 
-                                 href={link.url} 
-                                 target="_blank" 
-                                 rel="noopener noreferrer"
-                                 className="text-[10px] font-mono tracking-widest text-gray-500 hover:text-white transition-colors flex items-center gap-1 group"
-                             >
-                                 {link.name}
-                                 <ExternalLink size={10} className="opacity-50 group-hover:opacity-100" />
-                             </a>
-                         ))}
-                    </div>
-                    
                     {/* Return to Webpage Button */}
                     <button 
                         onClick={onClose}
@@ -666,6 +650,8 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   // notification/unlock state
   const [justUnlocked, setJustUnlocked] = useState<string | null>(null);
   const [showMovementHint, setShowMovementHint] = useState(false);
+  const [isDrumCalibrationOpen, setIsDrumCalibrationOpen] = useState(false);
+  const [drumBeatOffsetMs, setDrumBeatOffsetMs] = useState(0);
 
   // Audio Context Ref & Scheduling
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -706,6 +692,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
   const releaseImpulseRef = useRef(0);
   const gravityBeatPulseRef = useRef(0);
   const lastGravityBeatRef = useRef(-1);
+  const drumBeatOffsetMsRef = useRef(0);
   const holdStartedAtRef = useRef(0);
   
   // --- NEW MECHANICS REFS ---
@@ -1227,24 +1214,36 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         // the four-bar loop. Accents 1 and 3 are stronger, matching the kick/
         // snare backbone of the 4/4 drum stem.
         const audioCtx = audioCtxRef.current;
+        const drumsIndex = BAND_MEMBERS.findIndex(member => member.id === 'drums');
+        const drumsMember = BAND_MEMBERS[drumsIndex];
+        const drumsPreviousThreshold = drumsIndex > 0 ? BAND_MEMBERS[drumsIndex - 1].unlockThreshold : 0;
         const drumsActive = unlockedIdsRef.current.includes('drums');
-        if (audioCtx && drumsActive && audioTimelineStartRef.current > 0) {
+        // The drum stem fades in from the previous member's threshold. Mirror
+        // that same interval visually so the rhythm arrives before the reveal.
+        const drumApproachProgress = !drumsActive && drumsMember
+            ? Math.min(1, Math.max(0, (scoreRef.current - drumsPreviousThreshold) / (drumsMember.unlockThreshold - drumsPreviousThreshold)))
+            : 0;
+        const rhythmIntensity = drumsActive ? 1 : drumApproachProgress;
+        if (audioCtx && rhythmIntensity > 0 && audioTimelineStartRef.current > 0) {
             const beatDuration = 60 / BPM;
-            const elapsed = audioCtx.currentTime - audioTimelineStartRef.current;
+            // Positive values intentionally delay the visual beat. This ref is
+            // driven by the temporary calibration control without restarting audio.
+            const elapsed = audioCtx.currentTime - audioTimelineStartRef.current - drumBeatOffsetMsRef.current / 1000;
             if (elapsed >= 0) {
                 const absoluteBeat = Math.floor(elapsed / beatDuration);
                 if (absoluteBeat !== lastGravityBeatRef.current) {
                     lastGravityBeatRef.current = absoluteBeat;
                     const beatInBar = absoluteBeat % BEATS_PER_BAR;
-                    gravityBeatPulseRef.current = beatInBar === 0 ? 1 : beatInBar === 2 ? 0.72 : 0.42;
+                    const accent = beatInBar === 0 ? 1 : beatInBar === 2 ? 0.72 : 0.42;
+                    gravityBeatPulseRef.current = accent * rhythmIntensity;
                 }
             }
         }
-        gravityBeatPulseRef.current *= 0.82;
+        gravityBeatPulseRef.current *= 0.88;
         if (gravityBeatPulseRef.current < 0.01) gravityBeatPulseRef.current = 0;
         const breathingPhase = (Math.sin(performance.now() * 0.0018) + 1) / 2;
-        const resonanceBreath = 0.86 + breathingPhase * 0.22 + gravityBeatPulseRef.current * 0.18;
-        const resonanceGlow = 0.78 + breathingPhase * 0.28 + gravityBeatPulseRef.current * 0.22;
+        const resonanceBreath = 0.82 + breathingPhase * 0.28 + gravityBeatPulseRef.current * 0.50;
+        const resonanceGlow = 0.72 + breathingPhase * 0.34 + gravityBeatPulseRef.current * 0.56;
 
         ctx.clearRect(0, 0, width, height);
         ctx.save();
@@ -1387,12 +1386,17 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                 ctx.beginPath();
                 if (p.type === 'impurity') {
                     // Impurity (Triangle/Shard)
+                    const impurityBeatGlow = gravityBeatPulseRef.current;
+                    const impurityAlpha = Math.min(1, p.alpha * (1 + impurityBeatGlow * 0.45));
+                    const impurityGreen = Math.round(80 + impurityBeatGlow * 105);
+                    const impurityBlue = Math.round(80 + impurityBeatGlow * 55);
                     ctx.moveTo(p.x, p.y - p.size * 1.5);
                     ctx.lineTo(p.x + p.size * 1.5, p.y);
                     ctx.lineTo(p.x, p.y + p.size * 1.5);
                     ctx.lineTo(p.x - p.size * 1.5, p.y);
-                    ctx.fillStyle = `rgba(255, 80, 80, ${p.alpha})`;
-                    ctx.shadowBlur = 25 * p.alpha; ctx.shadowColor = `rgba(255, 0, 0, ${p.alpha})`;
+                    ctx.fillStyle = `rgba(255, ${impurityGreen}, ${impurityBlue}, ${impurityAlpha})`;
+                    ctx.shadowBlur = (18 + impurityBeatGlow * 18) * impurityAlpha;
+                    ctx.shadowColor = `rgba(255, ${Math.round(30 + impurityBeatGlow * 70)}, 30, ${impurityAlpha})`;
                 } else {
                     // Resonance matter breathes together; drum beats briefly
                     // expand and brighten the whole field after drums unlock.
@@ -1538,34 +1542,44 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
       setView('DEMOS');
   }, []);
 
-  // 作弊跳关：从鼓手（菜菜）的解锁剧情开始，方便测试鼓阶段的流程和音轨。
+  // 作弊跳关：停在鼓手（菜菜）出现前，便于校准渐强的鼓点动效与音轨。
   const handleCheatToDrums = useCallback(() => {
       const drumsIndex = BAND_MEMBERS.findIndex(member => member.id === 'drums');
       const drumsMember = BAND_MEMBERS[drumsIndex];
       if (!drumsMember) return;
 
-      // Keep the preceding members unlocked, then let the usual story-complete
-      // handler unlock drums and apply its gameplay/audio settings.
+      // Keep the preceding members unlocked and enter the final 5% before the
+      // drum reveal, where both the drum stem and resonance visual are strongest.
       const priorMemberIds = BAND_MEMBERS.slice(0, drumsIndex).map(member => member.id);
+      const previousThreshold = drumsIndex > 0 ? BAND_MEMBERS[drumsIndex - 1].unlockThreshold : 0;
+      const preDrumsScore = Math.max(previousThreshold, drumsMember.unlockThreshold - 10);
       setGameState(prev => ({
           ...prev,
           hasSeenIntro: true,
           gameCompleted: false,
           unlockedIds: priorMemberIds,
-          score: drumsMember.unlockThreshold,
+          score: preDrumsScore,
           chaosModeActive: false,
-          pendingStoryId: 'drums',
+          pendingStoryId: null,
           storyLineIndex: 0,
       }));
       gameCompletedRef.current = false;
       absorbChaosModeRef.current = false;
       impurityRateRef.current = 0.40;
-      scoreRef.current = drumsMember.unlockThreshold;
+      scoreRef.current = preDrumsScore;
       unlockedIdsRef.current = priorMemberIds;
-      isLevelCappedRef.current = true;
+      isLevelCappedRef.current = false;
       floorHitCountRef.current = 0;
-      setJustUnlocked('drums');
-      setView('STORY');
+      lastGravityBeatRef.current = -1;
+      setJustUnlocked(null);
+      setView('GAME');
+  }, []);
+
+  const handleDrumBeatOffsetChange = useCallback((value: number) => {
+      drumBeatOffsetMsRef.current = value;
+      setDrumBeatOffsetMs(value);
+      lastGravityBeatRef.current = -1;
+      gravityBeatPulseRef.current = 0;
   }, []);
 
   const handleStoryLineChange = useCallback((lineIndex: number) => {
@@ -1739,12 +1753,20 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                     <button
                         type="button"
                         onClick={handleCheatToDrums}
-                        title={language === 'zh' ? '作弊：跳到鼓阶段' : 'Cheat: Jump to Drums'}
-                        aria-label={language === 'zh' ? '作弊：跳到鼓阶段' : 'Cheat: Jump to Drums'}
+                        title={language === 'zh' ? '作弊：跳到鼓手出现前' : 'Cheat: Jump before Drums'}
+                        aria-label={language === 'zh' ? '作弊：跳到鼓手出现前' : 'Cheat: Jump before Drums'}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-white/20 bg-white/5 text-[11px] font-mono tracking-widest text-sky-400/90 hover:text-sky-300 hover:border-sky-400/60 hover:bg-sky-400/10 transition-all shadow-[0_0_10px_rgba(56,189,248,0.15)]"
                     >
                         <FastForward size={14} />
-                        <span className="hidden sm:inline">{language === 'zh' ? '跳到鼓阶段' : 'TO DRUMS'}</span>
+                        <span className="hidden sm:inline">{language === 'zh' ? '鼓前测试' : 'PRE-DRUMS'}</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsDrumCalibrationOpen(open => !open)}
+                        aria-expanded={isDrumCalibrationOpen}
+                        className={`px-2.5 py-1 rounded border text-[11px] font-mono tracking-widest transition-all ${isDrumCalibrationOpen ? 'border-cyan-300/70 bg-cyan-300/10 text-cyan-200' : 'border-white/20 bg-white/5 text-cyan-400/90 hover:border-cyan-400/60 hover:text-cyan-300'}`}
+                    >
+                        {language === 'zh' ? '鼓点校准' : 'BEAT CAL'}
                     </button>
                     <button
                         type="button"
@@ -1757,6 +1779,34 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
                         <span className="hidden sm:inline">{language === 'zh' ? '作弊通关' : 'CHEAT CLEAR'}</span>
                     </button>
                 </>
+            )}
+            {!gameState.gameCompleted && isDrumCalibrationOpen && (
+                <div className="absolute right-0 top-11 w-72 border border-cyan-300/30 bg-black/90 p-3 shadow-[0_0_20px_rgba(34,211,238,0.12)] backdrop-blur-md">
+                    <div className="flex items-baseline justify-between gap-3 font-mono text-[10px] tracking-wider text-cyan-100/90">
+                        <span>{language === 'zh' ? '动效相对音频偏移' : 'VISUAL / AUDIO OFFSET'}</span>
+                        <span className="text-cyan-300">{drumBeatOffsetMs > 0 ? '+' : ''}{drumBeatOffsetMs} ms</span>
+                    </div>
+                    <input
+                        type="range"
+                        min={-600}
+                        max={600}
+                        step={10}
+                        value={drumBeatOffsetMs}
+                        onChange={event => handleDrumBeatOffsetChange(Number(event.target.value))}
+                        className="mt-3 w-full accent-cyan-300"
+                        aria-label={language === 'zh' ? '鼓点动效校准偏移（毫秒）' : 'Drum beat visual calibration offset in milliseconds'}
+                    />
+                    <div className="mt-2 flex items-center justify-between font-mono text-[9px] tracking-wide text-white/45">
+                        <span>{language === 'zh' ? '负值：提前' : 'NEG: EARLY'}</span>
+                        <button type="button" onClick={() => handleDrumBeatOffsetChange(0)} className="text-cyan-200/80 hover:text-cyan-100">
+                            {language === 'zh' ? '归零' : 'RESET'}
+                        </button>
+                        <span>{language === 'zh' ? '正值：滞后' : 'POS: LATE'}</span>
+                    </div>
+                    <p className="mt-2 font-mono text-[9px] leading-relaxed text-white/35">
+                        {language === 'zh' ? '仅本次测试有效，不会保存；确认数值后可写入默认校准。' : 'Temporary only; share the final value to make it the default.'}
+                    </p>
+                </div>
             )}
             <LanguageSwitch />
             <button type="button" onClick={onClose} aria-label={language === 'zh' ? '退出游戏' : 'Exit game'} className="text-gray-400 hover:text-white transition-colors">
@@ -1894,16 +1944,34 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
 
         {/* FOOTER NAV */}
         {gameState.gameCompleted ? (
-            <nav aria-label={language === 'zh' ? '通关后页面' : 'Post-game pages'} className="h-16 border-t border-white/10 bg-[#050505] flex items-center justify-center gap-12 relative z-20 shrink-0 px-4">
-                <button type="button" onClick={() => handleSwitchView('DEMOS')} aria-current={view === 'DEMOS' ? 'page' : undefined} className={`flex flex-col items-center gap-2 font-mono text-xs tracking-[0.2em] transition-colors hover:text-white ${view === 'DEMOS' ? 'text-white' : 'text-gray-500'}`}>
-                    <span className={`h-px w-full ${view === 'DEMOS' ? 'bg-white' : 'bg-transparent'}`} />
-                    {language === 'zh' ? '原创曲' : 'ORIGINAL SONG'}
-                </button>
-                <button type="button" onClick={() => handleSwitchView('GALLERY')} aria-current={view === 'GALLERY' ? 'page' : undefined} className={`flex flex-col items-center gap-2 font-mono text-xs tracking-[0.2em] transition-colors hover:text-white ${view === 'GALLERY' ? 'text-white' : 'text-gray-500'}`}>
-                    <span className={`h-px w-full ${view === 'GALLERY' ? 'bg-white' : 'bg-transparent'}`} />
-                    {language === 'zh' ? '画廊' : 'GALLERY'}
-                </button>
-            </nav>
+            <footer className="relative z-20 shrink-0 bg-[#050505]">
+                <div className="border-t border-white/5 px-4 py-4">
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 md:gap-x-8">
+                        {SOCIAL_LINKS.map(link => (
+                            <a
+                                key={link.id}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group flex items-center gap-1 font-mono text-[10px] tracking-widest text-gray-500 transition-colors hover:text-white"
+                            >
+                                {link.name}
+                                <ExternalLink size={10} className="opacity-50 group-hover:opacity-100" />
+                            </a>
+                        ))}
+                    </div>
+                </div>
+                <nav aria-label={language === 'zh' ? '通关后页面' : 'Post-game pages'} className="flex h-16 items-center justify-center gap-12 border-t border-white/10 px-4">
+                    <button type="button" onClick={() => handleSwitchView('DEMOS')} aria-current={view === 'DEMOS' ? 'page' : undefined} className={`flex flex-col items-center gap-2 font-mono text-xs tracking-[0.2em] transition-colors hover:text-white ${view === 'DEMOS' ? 'text-white' : 'text-gray-500'}`}>
+                        <span className={`h-px w-full ${view === 'DEMOS' ? 'bg-white' : 'bg-transparent'}`} />
+                        {language === 'zh' ? '原创曲' : 'ORIGINAL SONG'}
+                    </button>
+                    <button type="button" onClick={() => handleSwitchView('GALLERY')} aria-current={view === 'GALLERY' ? 'page' : undefined} className={`flex flex-col items-center gap-2 font-mono text-xs tracking-[0.2em] transition-colors hover:text-white ${view === 'GALLERY' ? 'text-white' : 'text-gray-500'}`}>
+                        <span className={`h-px w-full ${view === 'GALLERY' ? 'bg-white' : 'bg-transparent'}`} />
+                        {language === 'zh' ? '画廊' : 'GALLERY'}
+                    </button>
+                </nav>
+            </footer>
         ) : (
             <div className={`h-20 border-t border-white/10 bg-[#050505] flex justify-center items-center gap-6 md:gap-12 relative z-20 shrink-0 px-4 ${view === 'STORY' ? 'invisible pointer-events-none' : ''}`}>
                 <button onClick={() => handleSwitchView('GAME')} className={`flex flex-col items-center gap-2 group ${view === 'GAME' ? 'text-white' : 'text-gray-600'}`}>
