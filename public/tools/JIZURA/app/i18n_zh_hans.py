@@ -161,6 +161,7 @@ BODY = {
         '将后景（背景图形和歌词后方的装饰）与前景（歌词及其装饰、重影）分别导出为透明 PNG，放在两个文件夹（back / front）中。全屏效果会同时作用于两者，把前景叠在后景上即可还原正常画面',
     '透過PNG 前景／後景（ZIP）': '透明 PNG 前景／后景（ZIP）',
     'title="クリックで消音／解除（プレビューだけ。書き出しの音量は変わりません）">音量</button>': 'title="点击静音／取消静音（仅限预览，不影响导出音量）">音量</button>',
+    'title="クリックで消音／解除（プレビューだけ。書き出しの音量は変わりません）"': 'title="点击静音／取消静音（仅限预览，不影响导出音量）"',
     'aria-label="プレビューの音量"': 'aria-label="预览音量"',
     '歌詞の言語': '歌词语言', '<option value="auto">自動判定</option>': '<option value="auto">自动识别</option>',
     '<button id="btnAddFont">追加</button>': '<button id="btnAddFont">添加</button>',

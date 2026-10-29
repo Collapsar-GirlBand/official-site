@@ -151,8 +151,8 @@ button.tap { font: 700 18px/1 var(--mono); letter-spacing: 0.2em; padding: 16px;
 .ln.cur { border-color: var(--line2); background: var(--raised); }
 .ln .no { font: 500 11px var(--mono); color: var(--faint); text-align: right; }
 .ln .time { width: 100%; padding: 3px 5px; font-size: 12px; }
-.ln .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.ln .meta { grid-column: 2 / 4; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap; }
+.ln .txt { grid-column: 2 / -1; grid-row: 2; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; cursor: pointer; }
+.ln .meta { grid-column: 2 / -1; grid-row: 3; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap; }
 .ln .tools { display: flex; gap: 4px; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 .ln .tools select { padding: 2px 4px; font-size: 11px; max-width: 92px; width: auto; }
 .ln .cuts { display: flex; gap: 4px; flex-wrap: wrap; min-width: 0; flex: 1 1 140px; }
@@ -186,7 +186,10 @@ button.tap { font: 700 18px/1 var(--mono); letter-spacing: 0.2em; padding: 16px;
 .transport { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .transport .vol { display: inline-flex; align-items: center; gap: 4px; }
 .transport .vol input[type=range] { flex: 0 0 80px; width: 80px; }
-#btnLoop[data-mode="line"], #btnLoop[data-mode="cut"] { color: var(--amber); }
+.transport .volume-icon { width: 32px; height: 32px; padding: 5px; display: inline-flex; align-items: center; justify-content: center; }
+.transport .volume-icon svg { width: 20px; height: 20px; fill: currentColor; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.transport .volume-icon .sound-wave { fill: none; }
+.transport .volume-icon[aria-pressed="true"] .sound-wave { display: none; }
 #btnLoop[aria-pressed="false"] { opacity: 0.55; }
 .transport .tc { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }
 .transport input[type=range] { flex: 1 1 160px; accent-color: var(--amber); }
@@ -745,7 +748,7 @@ button.small.primary { padding: 4px 12px; }
 #app.is-mobile .col-left, #app.is-mobile .col-right { overflow: visible; border: 0; border-top: 1px solid var(--line); }
 #app.is-mobile .col-stage { order: -1; position: sticky; top: var(--mbar, 96px); z-index: 30; background: var(--ink); padding: 8px 10px; gap: 6px; box-shadow: 0 8px 18px rgba(0,0,0,0.45); }
 #app.is-mobile .viewport canvas { max-height: 34vh; }
-#app.is-mobile .tl-bar, #app.is-mobile .tl-fx-toolbar, #app.is-mobile #timeline, #app.is-mobile .event-inspector, #app.is-mobile .cutinfo, #app.is-mobile .transport .vol, #app.is-mobile #btnLoop, #app.is-mobile #btnShuffle, #app.is-mobile #btnOmakase { display: none; }
+#app.is-mobile .tl-bar, #app.is-mobile .tl-fx-toolbar, #app.is-mobile #timeline, #app.is-mobile .event-inspector, #app.is-mobile .cutinfo, #app.is-mobile .transport .vol, #app.is-mobile #btnOmakase { display: none; }
 #app.is-mobile .transport { gap: 8px; flex-wrap: nowrap; }
 #app.is-mobile .transport .hist-btns { display: inline-flex; }
 #app.is-mobile .col-right { order: 0; }
@@ -952,7 +955,6 @@ button.small.primary { padding: 4px 12px; }
 </div>
 <div id="app">
   <header class="bar">
-    <div class="brand"><span class="mark" aria-hidden="true">字面</span><span class="word">JIZURA</span><span class="tag">lyric motion engine</span><span class="ver">v0.10.1</span></div>
     <div class="proj">
       <input id="songTitle" type="text" placeholder="Song title (shown on title cards and HUD)" aria-label="Song title">
       <input id="songArtist" type="text" placeholder="Artist" aria-label="Artist">
@@ -1038,15 +1040,9 @@ button.small.primary { padding: 4px 12px; }
       <div class="viewport" id="viewport"><span class="compare-label fx-only">加画面动效</span><div class="compare-base fx-only"><span class="compare-label">无画面动效</span><canvas id="viewNoFx" width="1280" height="720" aria-label="无时间点动效的同步预览"></canvas></div><canvas id="view" width="1280" height="720"></canvas><div id="viewMsg" class="overlay-msg" hidden></div><div id="keyBadge" class="key-badge" hidden></div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div></div>
       <div class="transport">
         <button id="btnPlay" class="play" aria-label="Play">▶</button>
-        <span id="timeNow" class="tc">00:00.00</span><span class="tc muted">/</span><span id="timeDur" class="tc muted">00:00.00</span>
+        <span id="timeNow" class="tc">0.00</span><span class="tc muted">/</span><span id="timeDur" class="tc muted">0.00</span>
         <input id="scrub" type="range" min="0" max="10000" value="0" aria-label="Playback position">
-        <button id="btnLoop" class="ghost small" aria-pressed="true" title="Loop the whole piece">Loop</button>
-        <span class="vol"><button id="btnMute" class="ghost small" aria-pressed="false" title="Click to mute / unmute (preview only — exports keep the original level)">Vol</button><input id="vol" type="range" min="0" max="100" value="80" aria-label="Preview volume"></span>
-        <span class="hist-btns">
-          <button id="btnPrev" class="ghost small icon-txt" title="Previous variation" aria-label="Previous">◀</button>
-          <button id="btnNext" class="ghost small icon-txt" title="Next variation" aria-label="Next">▶</button>
-        </span>
-        <button id="btnShuffle" class="accent" title="Shuffle the arrangement, keeping locked lines">Shuffle</button>
+        <span class="vol"><button id="btnMute" class="ghost small volume-icon" aria-pressed="false" title="Click to mute / unmute (preview only — exports keep the original level)" aria-label="Preview音量"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path class="sound-wave" d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12"/></svg></button><input id="vol" type="range" min="0" max="100" value="80" aria-label="Preview volume"></span>
         <select class="themeSel" aria-label="Randomize theme" title="Randomize theme (when set, Randomize stays within that direction and turns on the part sets it needs)"><option value="">No theme</option><option value="lyricpv">Lyric video</option><option value="kinetic">Kinetic</option><option value="wa">Japanese</option><option value="horror">Horror</option><option value="pop">Pop</option><option value="ballad">Ballad</option></select>
         <button id="btnOmakase" class="primary" title="Randomize style, mood, effects and colors (R)">Randomize</button>
       </div>
@@ -37514,7 +37510,15 @@ function initVolume() {
   let v = 0.8, m = false;
   try { const o = JSON.parse(localStorage.getItem('jizura.previewVolume') || 'null'); if (o) { v = +o.v; m = !!o.m; } } catch (e) {}
   if (!(v >= 0 && v <= 1)) v = 0.8;
-  const show = () => { el.value = Math.round(AP.vol * 100); mb.textContent = AP.muted || AP.vol === 0 ? 'Muted' : 'Vol'; mb.setAttribute('aria-pressed', String(AP.muted)); el.title = 'Volume ' + Math.round(AP.vol * 100) + '%'; };
+  const show = () => {
+    el.value = Math.round(AP.vol * 100);
+    mb.innerHTML = AP.muted || AP.vol === 0
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    mb.setAttribute('aria-pressed', String(AP.muted || AP.vol === 0));
+    mb.setAttribute('aria-label', mb.title);
+    el.title = 'Volume ' + Math.round(AP.vol * 100) + '%';
+  };
   const save = () => { try { localStorage.setItem('jizura.previewVolume', JSON.stringify({ v: AP.vol, m: AP.muted })); } catch (e) {} };
   AP.setVol(v, m); show();
   el.addEventListener('input', () => { AP.setVol(el.value / 100, false); show(); save(); });
@@ -37736,8 +37740,8 @@ function tick(now) {
   if (S.need) { S.need = false; draw(); }
 }
 function updateTimeUI() {
-  $('timeNow').textContent = J.fmtTime(S.t);
-  $('timeDur').textContent = J.fmtTime(S.plan.duration);
+  $('timeNow').textContent = Math.max(0, S.t).toFixed(2);
+  $('timeDur').textContent = Math.max(0, S.plan.duration).toFixed(2);
   if (!S.scrubbing) $('scrub').value = String(Math.round(S.t / Math.max(0.001, S.plan.duration) * 10000));
 }
 // タップ同期の速さ (0.5× / 0.75×): only while tapping — the song's own time is what gets stored
@@ -40334,8 +40338,8 @@ function histGo(d) {
 }
 function updateHist() {
   const canB = H.i > 0, canF = H.i < H.list.length - 1;
-  ['btnPrev', 'btnPrev2'].forEach(id => { $(id).disabled = !canB; });
-  ['btnNext', 'btnNext2'].forEach(id => { $(id).disabled = !canF; });
+  ['btnPrev', 'btnPrev2'].forEach(id => { const b = $(id); if (b) b.disabled = !canB; });
+  ['btnNext', 'btnNext2'].forEach(id => { const b = $(id); if (b) b.disabled = !canF; });
   $('histPos').textContent = H.list.length > 1 ? `${H.i + 1} / ${H.list.length}` : '';
 }
 
@@ -41114,12 +41118,6 @@ function bind() {
       if (cutPickFilter) cutPickFilter.focus();
     });
   }
-  $('btnLoop').addEventListener('click', () => {
-    const i = LOOP_CYCLE.indexOf(S.loop);
-    S.loop = LOOP_CYCLE[(i < 0 ? 0 : i + 1) % LOOP_CYCLE.length];
-    syncLoopBtn(); S.need = true;
-  });
-  $('btnShuffle').addEventListener('click', () => { pushEdit(); remember(); clearSavedCuts(); S.project.seed = (Math.random() * 1e9) | 0; $('seed').value = S.project.seed; replan(); commit(); });
   const sc = $('scrub');
   sc.addEventListener('input', () => { S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
   sc.addEventListener('change', () => { S.scrubbing = false; });
@@ -41429,8 +41427,8 @@ function bind() {
   $('modePro').addEventListener('click', () => setMode('pro'));
   $('btnOmakase').addEventListener('click', omakase);
   $('btnOmakaseBig').addEventListener('click', omakase);
-  ['btnPrev', 'btnPrev2'].forEach(id => $(id).addEventListener('click', () => histGo(-1)));
-  ['btnNext', 'btnNext2'].forEach(id => $(id).addEventListener('click', () => histGo(1)));
+  ['btnPrev', 'btnPrev2'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => histGo(-1)); });
+  ['btnNext', 'btnNext2'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => histGo(1)); });
   $('eStyle').addEventListener('click', () => rerollPart('style'));
   $('eMood').addEventListener('click', () => rerollPart('mood'));
   $('eCut').addEventListener('click', () => rerollPart('cut'));

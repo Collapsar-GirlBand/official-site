@@ -119,6 +119,7 @@ BODY = {
     '後景（背景のグラフィックと歌詞の後ろの装飾）と前景（歌詞とその装飾・ゴースト）を、別々のフォルダ（back / front）に透過PNGで書き出します。画面全体の演出は両方にかかるので、前景を後景の上に重ねると通常の見た目になります': 'Transparent PNGs in two folders: back/ (background graphic and the decorations behind the lyrics) and front/ (lyrics, their decorations and ghosts). Screen effects are applied to both, so front over back matches the normal look.',
     '透過PNG 前景／後景（ZIP）': 'Transparent PNG layers (ZIP)',
     'title="クリックで消音／解除（プレビューだけ。書き出しの音量は変わりません）">音量</button>': 'title="Click to mute / unmute (preview only — exports keep the original level)">Vol</button>',
+    'title="クリックで消音／解除（プレビューだけ。書き出しの音量は変わりません）"': 'title="Click to mute / unmute (preview only — exports keep the original level)"',
     'aria-label="プレビューの音量"': 'aria-label="Preview volume"',
     '歌詞の言語': 'Lyrics language', '<option value="auto">自動判定</option>': '<option value="auto">Auto-detect</option>',
     '<button id="btnAddFont">追加</button>': '<button id="btnAddFont">Add</button>',

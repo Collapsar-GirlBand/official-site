@@ -119,7 +119,15 @@ function initVolume() {
   let v = 0.8, m = false;
   try { const o = JSON.parse(localStorage.getItem('jizura.previewVolume') || 'null'); if (o) { v = +o.v; m = !!o.m; } } catch (e) {}
   if (!(v >= 0 && v <= 1)) v = 0.8;
-  const show = () => { el.value = Math.round(AP.vol * 100); mb.textContent = AP.muted || AP.vol === 0 ? '消音' : '音量'; mb.setAttribute('aria-pressed', String(AP.muted)); el.title = '音量 ' + Math.round(AP.vol * 100) + '%'; };
+  const show = () => {
+    el.value = Math.round(AP.vol * 100);
+    mb.innerHTML = AP.muted || AP.vol === 0
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    mb.setAttribute('aria-pressed', String(AP.muted || AP.vol === 0));
+    mb.setAttribute('aria-label', mb.title);
+    el.title = '音量 ' + Math.round(AP.vol * 100) + '%';
+  };
   const save = () => { try { localStorage.setItem('jizura.previewVolume', JSON.stringify({ v: AP.vol, m: AP.muted })); } catch (e) {} };
   AP.setVol(v, m); show();
   el.addEventListener('input', () => { AP.setVol(el.value / 100, false); show(); save(); });
@@ -341,8 +349,8 @@ function tick(now) {
   if (S.need) { S.need = false; draw(); }
 }
 function updateTimeUI() {
-  $('timeNow').textContent = J.fmtTime(S.t);
-  $('timeDur').textContent = J.fmtTime(S.plan.duration);
+  $('timeNow').textContent = Math.max(0, S.t).toFixed(2);
+  $('timeDur').textContent = Math.max(0, S.plan.duration).toFixed(2);
   if (!S.scrubbing) $('scrub').value = String(Math.round(S.t / Math.max(0.001, S.plan.duration) * 10000));
 }
 // タップ同期の速さ (0.5× / 0.75×): only while tapping — the song's own time is what gets stored
@@ -2939,8 +2947,8 @@ function histGo(d) {
 }
 function updateHist() {
   const canB = H.i > 0, canF = H.i < H.list.length - 1;
-  ['btnPrev', 'btnPrev2'].forEach(id => { $(id).disabled = !canB; });
-  ['btnNext', 'btnNext2'].forEach(id => { $(id).disabled = !canF; });
+  ['btnPrev', 'btnPrev2'].forEach(id => { const b = $(id); if (b) b.disabled = !canB; });
+  ['btnNext', 'btnNext2'].forEach(id => { const b = $(id); if (b) b.disabled = !canF; });
   $('histPos').textContent = H.list.length > 1 ? `${H.i + 1} / ${H.list.length}` : '';
 }
 
@@ -3719,12 +3727,6 @@ function bind() {
       if (cutPickFilter) cutPickFilter.focus();
     });
   }
-  $('btnLoop').addEventListener('click', () => {
-    const i = LOOP_CYCLE.indexOf(S.loop);
-    S.loop = LOOP_CYCLE[(i < 0 ? 0 : i + 1) % LOOP_CYCLE.length];
-    syncLoopBtn(); S.need = true;
-  });
-  $('btnShuffle').addEventListener('click', () => { pushEdit(); remember(); clearSavedCuts(); S.project.seed = (Math.random() * 1e9) | 0; $('seed').value = S.project.seed; replan(); commit(); });
   const sc = $('scrub');
   sc.addEventListener('input', () => { S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
   sc.addEventListener('change', () => { S.scrubbing = false; });
@@ -4034,8 +4036,8 @@ function bind() {
   $('modePro').addEventListener('click', () => setMode('pro'));
   $('btnOmakase').addEventListener('click', omakase);
   $('btnOmakaseBig').addEventListener('click', omakase);
-  ['btnPrev', 'btnPrev2'].forEach(id => $(id).addEventListener('click', () => histGo(-1)));
-  ['btnNext', 'btnNext2'].forEach(id => $(id).addEventListener('click', () => histGo(1)));
+  ['btnPrev', 'btnPrev2'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => histGo(-1)); });
+  ['btnNext', 'btnNext2'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => histGo(1)); });
   $('eStyle').addEventListener('click', () => rerollPart('style'));
   $('eMood').addEventListener('click', () => rerollPart('mood'));
   $('eCut').addEventListener('click', () => rerollPart('cut'));

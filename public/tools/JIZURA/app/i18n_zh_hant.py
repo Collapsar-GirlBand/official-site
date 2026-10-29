@@ -97,6 +97,7 @@ BODY = {
         '將後景（背景圖形與歌詞後方的裝飾）與前景（歌詞及其裝飾、殘影）分別以透明 PNG 匯出到不同資料夾（back / front）。整體畫面效果會同時套用在兩者，把前景疊在後景上即為一般的外觀',
     '透過PNG 前景／後景（ZIP）': '透明 PNG 前景／後景（ZIP）',
     'title="クリックで消音／解除（プレビューだけ。書き出しの音量は変わりません）">音量</button>': 'title="點擊切換靜音（僅限預覽，不影響匯出的音量）">音量</button>',
+    'title="クリックで消音／解除（プレビューだけ。書き出しの音量は変わりません）"': 'title="點擊切換靜音（僅限預覽，不影響匯出的音量）"',
     'aria-label="プレビューの音量"': 'aria-label="預覽音量"',
     '歌詞の言語': '歌詞語言', '<option value="auto">自動判定</option>': '<option value="auto">自動偵測</option>',
     '<button id="btnAddFont">追加</button>': '<button id="btnAddFont">新增</button>',
