@@ -42,7 +42,6 @@ const GalleryView: React.FC = () => {
               <div className="px-1 pb-1 pt-3">
                 <span className="font-mono text-[10px] text-white/35">{String(index + 1).padStart(2, '0')} / {String(GALLERY_ITEMS.length).padStart(2, '0')}</span>
                 <h3 className="mt-1 text-sm font-medium leading-snug md:text-base">{art.title[language]}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-white/50">{art.description[language]}</p>
               </div>
             </button>
           ))}
@@ -62,7 +61,6 @@ const GalleryView: React.FC = () => {
           </div>
           <div className="mx-auto w-full max-w-6xl border-t border-white/15 pt-4 text-center">
             <h3 className="text-lg font-light tracking-wider md:text-2xl">{item.title[language]}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-white/55">{item.description[language]}</p>
           </div>
         </div>
       )}

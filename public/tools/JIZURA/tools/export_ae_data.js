@@ -27,7 +27,8 @@ function tab(fn) {   // inDur / outDur (dur[, n]) -> table on a fixed grid (AE i
   if (fn.length < 2) return { d: DUR.map(d => r3(fn(d, 8))) };
   return { n: NS, d: NS.map(n => DUR.map(d => r3(fn(d, n)))) };
 }
-const KEEP = ['w', 'tags', 'extra', 'wa', 'ae', 'portrait', 'emph', 'enterBias', 'busy', 'treat', 'cam', 'minDur', 'maxChars', 'safe', 'subtle', 'strong',
+if (JJ.initEffectCodes) JJ.initEffectCodes();
+const KEEP = ['code', 'w', 'tags', 'extra', 'wa', 'ae', 'portrait', 'emph', 'enterBias', 'busy', 'treat', 'cam', 'minDur', 'maxChars', 'safe', 'subtle', 'strong',
   'layer', 'edge', 'mid', 'glitchy', 'dur', 'amp', 'pre', 'builtin', 'special', 'scratch', 'pack', 'set'];
 const meta = {}, orders = {}, names = {};
 for (const g of JJ.GROUP_KEYS) {

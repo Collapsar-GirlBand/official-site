@@ -41,6 +41,8 @@ STYLES = {
 }
 
 BODY = {
+    '厳密な配色': 'Batasi ke palet',
+    'エフェクト・つなぎを含む最終画面を、現在のカットの配色だけに制限します。透明度は維持されます。グラデーションや光は段階的になり、高解像度では処理が増えます。合成用背景では適用しません。': 'Batasi gambar akhir, termasuk efek dan transisi, ke palet potongan saat ini. Transparansi dipertahankan. Gradasi dan cahaya dapat terlihat bertingkat; resolusi tinggi memerlukan lebih banyak pemrosesan. Tidak berlaku pada latar untuk keying.',
     '1行に複数のカットがあるときは、カットが切り替わる瞬間に <span class="kbd">Tab</span> を押すと、その行のカットの開始時刻も合わせられます。': 'Jika satu baris punya beberapa cut, tekan <span class="kbd">Tab</span> saat cut harus berganti untuk menyesuaikan waktu cut di baris itu juga.',
     '<label>速さ <select id="tapRate" aria-label="タップ中の再生速度">': '<label>Kecepatan <select id="tapRate" aria-label="Kecepatan putar saat mengetuk">',
     '<input type="checkbox" id="tapCount"> カウントダウン</label>': '<input type="checkbox" id="tapCount"> Hitung mundur</label>',
@@ -93,6 +95,7 @@ BODY = {
     '<button id="tapBack" class="ghost">1つ戻る</button>': '<button id="tapBack" class="ghost">Batalkan ketukan</button>',
     '行の区切り（上の目盛り）はドラッグで動かせます。<span class="kbd">Shift</span> で拍に吸着しない': 'Seret marker baris di bagian atas untuk memindahkan awal baris. Tahan <span class="kbd">Shift</span> agar tidak menempel ke ketukan',
     'title="歌詞・タイミングの変更を元に戻す（Ctrl+Z）" disabled>元に戻す</button>': 'title="Urungkan perubahan lirik dan waktu (Ctrl+Z)" disabled>Urungkan</button>',
+    '<button id="btnRedoEdit" class="ghost small" title="やり直す（Ctrl+Y）" disabled>やり直す</button>': '<button id="btnRedoEdit" class="ghost small" title="Ulangi perubahan (Ctrl+Y)" disabled>Ulangi</button>',
     'title="縮小" aria-label="タイムラインを縮小"': 'title="Perkecil" aria-label="Perkecil timeline"',
     'title="拡大（タイムライン上でホイールでも）" aria-label="タイムラインを拡大"': 'title="Perbesar (atau gulir di timeline)" aria-label="Perbesar timeline"',
     'title="全体を表示">全体</button>': 'title="Tampilkan seluruh lagu">Semua</button>',
@@ -164,6 +167,10 @@ BODY = {
     '3コマ打ち（8枚/秒）': 'Setiap 3 frame (8 gambar/dtk)',
     'スタイル次第': 'Otomatis (sesuai gaya)', '常に表示': 'Selalu tampilkan', '表示しない': 'Sembunyikan',
     '同じシードなら同じ構成になります。行ごとの「再抽選」「ロック」は左の行リストから。': 'Seed yang sama akan menghasilkan susunan yang sama. Acak ulang atau kunci tiap baris dari daftar di sebelah kiri.',
+    '手法を名前・コードで検索 (例: A1, B2)': 'Cari teknik berdasarkan nama atau kode (cth. A1, B2)',
+    '手法を名前・コードで検索': 'Cari teknik berdasarkan nama atau kode',
+    '名前やコードで検索 (例: A1, B2)': 'Cari berdasarkan nama atau kode (cth. A1, B2)',
+    'クリア': 'Hapus',
     '手法を名前で絞り込み': 'Filter teknik berdasarkan nama',
     'グリーンバック／ブラックバックにすると、白い文字と演出だけを単色の背景の上に描きます（背景の模様・紙の質感・粒子・周辺減光は入りません）。プレビューにもそのまま反映されます。グリーンバックは動画編集ソフトのクロマキーで、ブラックバックは「スクリーン」合成や輝度キーで抜いて、別の映像の上に重ねられます。': 'Green screen dan latar hitam hanya menampilkan teks putih dan efek di atas warna solid, tanpa pola latar, tekstur kertas, partikel, atau vignette. Pratinjau juga mengikuti pengaturan ini. Gunakan chroma key untuk green screen, atau mode campur Screen / luma key untuk latar hitam agar bisa ditumpuk di atas video lain.',
     '曲を動画に含める': 'Sertakan audio dalam video', '連番PNG（ZIP）': 'PNG berurutan (ZIP)',
@@ -202,9 +209,13 @@ BODY = {
     'このカットだけ手法をランダムに': 'Acak teknik cut ini saja',
     'このカットをシャッフル': 'Acak cut ini',
     'このカットをおまかせ': 'Buat variasi cut ini',
+    '音楽ファイルをドロップして読み込む': 'Tarik & lepas file audio untuk memuat',
+    'MP3 / WAV / M4A / FLAC / OGG / AAC など': 'Mendukung MP3, WAV, M4A, FLAC, OGG, AAC dll.',
 }
 
 UI = {
+    "'音楽を読み込みました: ' + audio.name": "'Audio dimuat: ' + audio.name",
+    "'音楽ファイル（mp3 / wav / m4a など）をドロップしてください'": "'Silakan lepaskan file audio (MP3, WAV, M4A, dll.)'",
     '`前後の行と順番が入れ替わらないよう ${w.toFixed(2)} 秒にしました`': '`Diatur ke ${w.toFixed(2)} dtk agar urutan baris tetap`',
     "'このカットの開始時刻（手動）。空にすると自動に戻ります'": "'Awal cut ini (manual). Kosongkan untuk kembali otomatis'",
     "'このカットの開始時刻（自動）。数値を入れると固定します'": "'Awal cut ini (otomatis). Ketik waktu untuk menguncinya'",
@@ -290,14 +301,14 @@ UI = {
     '背景の切替': 'Perubahan latar', '動きの強さ': 'Kekuatan gerakan',
     'カットの細かさ': 'Kerapatan cut', '装飾の量': 'Jumlah dekorasi',
     '文字の加工': 'Efek teks', '画面効果': 'Efek layar',
-    'カット間のつなぎ': 'Transisi', 'レイアウト': 'Layout', '登場': 'Masuk',
+    'カット間のつなぎ': 'Transisi', 'レイアウト': 'Layout', 'フォント': 'Font', '登場': 'Masuk',
     '保持': 'Tahan', '退場': 'Keluar', '装飾': 'Dekorasi', '加工': 'Perlakuan',
     'カメラ': 'Kamera', 'つなぎ': 'Transisi', '色ズレ': 'Pergeseran warna',
     'ズレ色A': 'Offset A', 'ズレ色B': 'Offset B', 'アクセント': 'Aksen',
     '文字': 'Teks', '補助': 'Sekunder', '背景': 'Latar',
     'グリッチ': 'Glitch', '質感': 'Tekstur',
     'この行の構成をロック': 'Kunci susunan baris ini', 'この行を再抽選': 'Acak ulang baris ini',
-    'レイアウト指定': 'Pilih layout', '開始（秒）': 'Mulai (dtk)',
+    'レイアウト指定': 'Pilih layout', 'フォント指定': 'Pilih font', 'フォント 自動': 'Font: otomatis', '開始（秒）': 'Mulai (dtk)',
     '・手動': ' · manual', '・自動': ' · otomatis', '行目の開始秒': ' waktu mulai (dtk)',
     '行 / ': ' baris / ', 'カット': 'cut', '行': 'baris ',
     '自動': 'Otomatis', 'なし': 'Tidak ada', 'カスタム': 'Kustom',
@@ -346,7 +357,13 @@ UI = {
 
 
     'この位置のカットは抽選できません': 'Tidak ada cut di posisi ini untuk diundi ulang',
+    '間奏カット': 'Cut interlude',
+    '`${i + 1}行目 間奏カット`': '`Cut interlude baris ${i + 1}`',
+    '`${i + 1}行目 間奏の配色`': '`Palet interlude baris ${i + 1}`',
     '`${i + 1}行目 カット${k + 1}のレイアウト`': '`Layout cut ${k + 1} di baris ${i + 1}`',
+    '`${i + 1}行目 カット${k + 1}のフォント`': '`Font cut ${k + 1} di baris ${i + 1}`',
+    '`${i + 1}行目 カット${k + 1}の配色`': '`Palet cut ${k + 1} baris ${i + 1}`',
+    '`${i + 1}行目のフォント指定`': '`Font baris ${i + 1}`',
     'このカットだけ構成を再抽選': 'Undi ulang susunan cut ini saja',
     'このカットだけ手法をランダムに': 'Acak teknik cut ini saja',
     'このカットをシャッフル': 'Acak cut ini',

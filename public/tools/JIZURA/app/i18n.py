@@ -6,10 +6,10 @@ import importlib, json
 
 # code, output folder, html lang, native name
 EDITIONS = [
-    ('ja', '', 'ja', '日本語'),
+    ('ja', 'ja', 'ja', '日本語'),
     ('en', 'en', 'en', 'English'),
     ('zh-Hant', 'zh-hant', 'zh-Hant', '繁體中文'),
-    ('zh-Hans', 'zh-hans', 'zh-Hans', '简体中文'),
+    ('zh-Hans', '', 'zh-Hans', '简体中文'),
     ('ko', 'ko', 'ko', '한국어'),
     ('id', 'id', 'id-ID', 'Bahasa Indonesia'),
     ('vi', 'vi', 'vi', 'Tiếng Việt'),
@@ -23,7 +23,7 @@ MODULES = {
 COMMUNITY = {'zh-Hant': ('app.chinese', 'app/chinese.js'), 'ko': ('app.korean', 'app/korean.js')}
 # part-name scripts for editions without a community glossary (after app/english.js and the edition's own names)
 PART_NAMES = {'zh-Hans': 'app/chinese_hans.js'}
-BASE = 'https://852wa.github.io/JIZURA/'
+BASE = 'https://collapsar-girlband.github.io/official-site/tools/JIZURA/'
 
 
 class _Merged:

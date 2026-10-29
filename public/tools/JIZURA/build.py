@@ -1,5 +1,5 @@
 """Build the single-file browser editions from src/, app/ and vendor/: Japanese, English, 繁體中文, 简体中文, 한국어, Bahasa Indonesia, Tiếng Việt.
-usage: python3 build.py            -> index.html, en/, zh-hant/, zh-hans/, ko/, id/, vi/ index.html (GitHub Pages)
+usage: python3 build.py            -> Chinese index.html, ja/, en/, zh-hant/, ko/, id/, vi/ index.html (GitHub Pages)
        python3 build.py --dev      -> also dev/www/jizura.js + dev/www/test.html for the test tools"""
 import glob, os, sys
 from app.english import localize_body, localize_js
@@ -73,6 +73,22 @@ for code, _, _, _ in i18n.EDITIONS:
     if code in i18n.MODULES and not i18n.has_module(code):
         print('skip', code, '(no translation module yet)'); continue
     build(code)
+# Keep existing Simplified Chinese bookmarks working, including query strings and fragments.
+os.makedirs('zh-hans', exist_ok=True)
+open('zh-hans/index.html', 'w', encoding='utf-8').write(f'''<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JIZURA — 歌词动态视频制作工具</title>
+<link rel="canonical" href="{i18n.BASE}">
+<script>location.replace('../' + location.search + location.hash);</script>
+<noscript><meta http-equiv="refresh" content="0;url=../"></noscript>
+</head>
+<body><p>正在打开简体中文版。<a href="../">点击此处继续</a></p></body>
+</html>
+''')
+print('zh-hans/index.html redirect')
 # sitemap.xml for search engines: every edition, with its language alternates
 import datetime
 alts = ''.join(f'\n    <xhtml:link rel="alternate" hreflang="{hl}" href="{i18n.BASE}{f + "/" if f else ""}"/>' for c, f, hl, _ in i18n.EDITIONS)

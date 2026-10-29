@@ -297,14 +297,24 @@ function jzMakePlan(o) {
     jzSetLang(plan.lang);
     var hist = [], bgHist = [], fxHist = [], schemeIdx = 0, nS = st.schemes.length;
     function ev(t, type, amp, dur) { plan.events.push({ t: t, type: type, amp: amp, dur: dur }); }
-    if (title && starts.length && starts[0] >= 1.1) {
+    var allowTitleCard = (o.titleCard !== false) && !(o.deletedCards && o.deletedCards.title);
+    if (allowTitleCard && title && starts.length && starts[0] >= 1.1) {
         var tr = new JzRng(jzHash(o.seed, 999));
-        plan.cuts.push({ text: title, note: artist, lineText: title, line: -1, start: 0.1, end: starts[0] - 0.04, layout: 'title', enter: tr.pick(['blur', 'type', 'wipe', 'assemble']), exit: tr.pick(['blur', 'drift', 'wipe']), hold: 'still', inDur: 0.3, outDur: 0.3, params: { font: tr.pick(st.fonts.display) }, decor: [], scheme: 0, seed: jzHash(o.seed, 999, 1) % 1000000, treat: 'none', bg: 'none', cam: 'push' });
+        plan.cuts.push({ text: title, note: artist, lineText: title, line: -1, start: 0.1, end: starts[0], layout: 'title', enter: tr.pick(['blur', 'type', 'wipe', 'assemble']), exit: tr.pick(['blur', 'drift', 'wipe']), hold: 'still', inDur: 0.3, outDur: 0.3, params: { font: tr.pick(st.fonts.display) }, decor: [], scheme: 0, seed: jzHash(o.seed, 999, 1) % 1000000, treat: 'none', bg: 'none', cam: 'push' });
     }
     var F = 1 / 24;
     for (var li = 0; li < lines.length; li++) {
         var ln = lines[li], s0 = starts[li], e0 = ends[li], rng = new JzRng(jzHash(o.seed, li + 1));
         if (ln.interlude) {                                // [間奏]: background, decorations and effects only
+            var isLDel = (o.deletedCards && o.deletedCards.lines && o.deletedCards.lines[li]);
+            if (isLDel) {
+                var pCut = plan.cuts[plan.cuts.length - 1];
+                var pSch = (pCut && pCut.scheme != null) ? pCut.scheme : schemeIdx;
+                var pBg = (pCut && pCut.bg && pCut.bg !== 'none') ? pCut.bg : 'none';
+                var pBgP = (pCut && pCut.bgP) ? pCut.bgP : {};
+                plan.cuts.push({ index: plan.cuts.length, text: '', lineText: '', line: li, start: s0, end: e0, layout: 'interlude', enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.2, outDur: 0.2, params: { variant: 'quiet', showTitle: false, titleText: '' }, decor: [], scheme: pSch, seed: jzHash(o.seed, li, 405) % 1000000, treat: 'none', bg: pBg, bgP: pBgP, cam: 'drift' });
+                continue;
+            }
             plan.lines.push({ index: li, text: '', interlude: true, start: s0, end: e0, visEnd: e0, note: null, impact: false });
             var ibg = jzPickBg(rng, st, en, fx, bgHist); bgHist.push(ibg);
             var idur = e0 - s0, ishow = idur >= 6 && !!(title || artist);
@@ -348,8 +358,32 @@ function jzMakePlan(o) {
             if (/^(explode|fall|drift)$/.test(exit)) outDur = jzClamp(dur * 0.38, 0.25, 0.7);
             var mOut = jzTab(jzMeta('exit', exit).outDur, dur, nn); if (mOut != null) outDur = mOut;
             if (inDur + outDur > dur * 0.92) { var f = dur * 0.92 / (inDur + outDur); inDur *= f; outDur *= f; }
+            var ov = (o.overrides && o.overrides[li]) || {};
+            var tSlot = (ov.cutTech && (ov.cutTech[k] || ov.cutTech[String(k)])) || {};
+            var cutFont = (tSlot.font && JZ_DATA.fonts[tSlot.font]) ? tSlot.font :
+              (ov.cutFonts && ov.cutFonts[k] && JZ_DATA.fonts[ov.cutFonts[k]]) ? ov.cutFonts[k] :
+              (ov.font && JZ_DATA.fonts[ov.font]) ? ov.font : null;
+            var cutSt = cutFont ? {
+                schemes: st.schemes,
+                fonts: { display: [cutFont], serif: [cutFont], body: [cutFont], mono: st.fonts.mono },
+                useGrad: st.useGrad, texture: st.texture, ghost: st.ghost, bias: st.bias
+            } : st;
             var sch = schemeIdx; if (nS > 1 && k > 0 && rng.chance(0.12 * fx.bgSwitch)) sch = (schemeIdx + 1) % nS;
-            var params = jzPlanOf('layout', layout, rng, st, { text: u.text, n: nn, W: LW, H: LH, dur: dur });
+            var cSch = (tSlot.scheme !== undefined && tSlot.scheme !== '') ? tSlot.scheme :
+              (ov.cutSchemes && ov.cutSchemes[k] !== undefined && ov.cutSchemes[k] !== '') ? ov.cutSchemes[k] :
+              (k === 0 && ov.scheme !== undefined && ov.scheme !== '') ? ov.scheme : null;
+            if (cSch !== null && cSch !== undefined) {
+                var ts = +cSch;
+                if (!isNaN(ts) && nS > 0) sch = ((ts % nS) + nS) % nS;
+            }
+            var params = jzPlanOf('layout', layout, rng, cutSt, { text: u.text, n: nn, W: LW, H: LH, dur: dur });
+            if (cutFont && params) {
+                params.font = cutFont;
+                if (params.fontBig) params.fontBig = cutFont;
+                if (params.fontSmall) params.fontSmall = cutFont;
+                if (params.fontB) params.fontB = cutFont;
+                if (params.fontC) params.fontC = cutFont;
+            }
             var decor = jzPickDecor(rng, st, en, fx, layout, hist);
             var treat = jzPickTreat(rng, st, en, fx, layout, emph, hist), treatP = treat !== 'none' ? jzPlanOf('treat', treat, rng, st) : {};
             if (k > 0 && rng.chance(0.18 * fx.bgSwitch + 0.04)) { lineBg = jzPickBg(rng, st, en, fx, bgHist); lineBgP = lineBg !== 'none' ? jzPlanOf('bg', lineBg, rng, st) : {}; }
@@ -367,28 +401,62 @@ function jzMakePlan(o) {
             var dids = []; for (q = 0; q < decor.length; q++) dids.push(decor[q].id);
             plan.cuts.push({ index: plan.cuts.length, text: u.text, lineText: ln.text, note: ln.note, line: li, start: cs, end: ce, dur: dur, layout: layout, enter: enter, exit: exit, hold: hold, inDur: inDur, outDur: outDur,
                 params: params, decor: decor, scheme: sch, seed: jzHash(o.seed, li, k) % 1000000, emph: emph, recap: !!u.recap, words: jzChunk(u.text), stagger: rng.range(0.025, 0.06),
-                treat: treat, treatP: treatP, bg: bg, bgP: bg === lineBg ? lineBgP : {}, cam: cam, camP: camP, trans: trans, transP: transP, transDur: transDur });
+                treat: treat, treatP: treatP, bg: bg, bgP: bg === lineBg ? lineBgP : {}, cam: cam, camP: camP, trans: trans, transP: transP, transDur: transDur, font: cutFont || undefined });
             hist.push({ layout: layout, enter: enter, exit: exit, hold: hold, treat: treat, cam: cam, trans: trans, decor: dids });
             if (zones) jzSplitCut(plan.cuts[plan.cuts.length - 1], zones, st, dur, plan.lang);
-            var g = fx.glitch * (st.glitchBoost || 1);
-            if (en.fx.chroma !== false) ev(cs, 'chroma', 1.4 + rng.range(0, 2) * fx.chroma + (emph ? 2.5 : 0), 0.25);
-            if (en.fx.slice !== false && rng.chance(g * 0.5 + (emph ? 0.3 : 0))) ev(cs, 'slice', 0.6 + rng.range(0, 0.8) * g + (emph ? 0.5 : 0), rng.pick([2, 3, 4]) * F);
-            if (en.fx.block !== false && rng.chance(g * 0.22)) ev(cs + rng.range(0, 0.05), 'block', 0.5 + g, rng.pick([2, 4]) * F);
-            if (en.fx.shake !== false && (emph || rng.chance(fx.motion * 0.18))) ev(cs, 'shake', (emph ? 1 : 0.5) * fx.motion, 0.3);
-            if (en.fx.flash !== false && fx.flash && ln.impact && k === 0) ev(cs, 'flash', 1, 3 * F);
-            if (en.fx.invert !== false && rng.chance(0.035 * g)) ev(cs, 'invert', 1, 2 * F);
-            if (en.fx.zoom !== false && ((emph && rng.chance(0.6)) || rng.chance(0.06 * fx.motion))) ev(cs, 'zoom', 0.7 + 0.5 * fx.motion, 0.22);
-            if (en.fx.mosaic !== false && rng.chance(0.04 * g)) ev(cs, 'mosaic', 1, 3 * F);
-            if (en.fx.slice !== false && dur > 0.8 && rng.chance(g * 0.4)) ev(cs + rng.range(0.35, 0.8) * dur, 'slice', 0.4 + g * 0.4, 2 * F);
-            if (plan.cuts.length > 1 || k > 0 || li > 0) {
-                var pe = jzPickFx(rng, st, en, fx, emph, fxHist, 'edge');
-                if (pe) { var M1 = jzMeta('fx', pe); ev(cs - (M1.pre ? M1.pre * F : 0), pe, (M1.amp || 1) * (0.7 + 0.5 * g + (emph ? 0.3 : 0)), (M1.dur || 4) * F); fxHist.push(pe); }
+            var isManualEvents = o.eventMode === 'manual' || (fx && fx.autoEvents === false);
+            if (!isManualEvents) {
+                var g = fx.glitch * (st.glitchBoost || 1);
+                if (en.fx.chroma !== false) ev(cs, 'chroma', 1.4 + rng.range(0, 2) * fx.chroma + (emph ? 2.5 : 0), 0.25);
+                if (en.fx.slice !== false && rng.chance(g * 0.5 + (emph ? 0.3 : 0))) ev(cs, 'slice', 0.6 + rng.range(0, 0.8) * g + (emph ? 0.5 : 0), rng.pick([2, 3, 4]) * F);
+                if (en.fx.block !== false && rng.chance(g * 0.22)) ev(cs + rng.range(0, 0.05), 'block', 0.5 + g, rng.pick([2, 4]) * F);
+                if (en.fx.shake !== false && (emph || rng.chance(fx.motion * 0.18))) ev(cs, 'shake', (emph ? 1 : 0.5) * fx.motion, 0.3);
+                if (en.fx.flash !== false && fx.flash && ln.impact && k === 0) ev(cs, 'flash', 1, 3 * F);
+                if (en.fx.invert !== false && rng.chance(0.035 * g)) ev(cs, 'invert', 1, 2 * F);
+                if (en.fx.zoom !== false && ((emph && rng.chance(0.6)) || rng.chance(0.06 * fx.motion))) ev(cs, 'zoom', 0.7 + 0.5 * fx.motion, 0.22);
+                if (en.fx.mosaic !== false && rng.chance(0.04 * g)) ev(cs, 'mosaic', 1, 3 * F);
+                if (en.fx.slice !== false && dur > 0.8 && rng.chance(g * 0.4)) ev(cs + rng.range(0.35, 0.8) * dur, 'slice', 0.4 + g * 0.4, 2 * F);
+                if (plan.cuts.length > 1 || k > 0 || li > 0) {
+                    var pe = jzPickFx(rng, st, en, fx, emph, fxHist, 'edge');
+                    if (pe) { var M1 = jzMeta('fx', pe); ev(cs - (M1.pre ? M1.pre * F : 0), pe, (M1.amp || 1) * (0.7 + 0.5 * g + (emph ? 0.3 : 0)), (M1.dur || 4) * F); fxHist.push(pe); }
+                }
+                if (dur > 1.1) { var pm = jzPickFx(rng, st, en, fx, emph, fxHist, 'mid'); if (pm) { var M2 = jzMeta('fx', pm); ev(cs + rng.range(0.4, 0.75) * dur, pm, (M2.amp || 1) * (0.5 + 0.4 * g), (M2.dur || 3) * F); } }
             }
-            if (dur > 1.1) { var pm = jzPickFx(rng, st, en, fx, emph, fxHist, 'mid'); if (pm) { var M2 = jzMeta('fx', pm); ev(cs + rng.range(0.4, 0.75) * dur, pm, (M2.amp || 1) * (0.5 + 0.4 * g), (M2.dur || 3) * F); } }
         }
-        if (li < lines.length - 1 && starts[li + 1] - visEnd > 1.3 && !lines[li + 1].interlude) {
-            var r2 = new JzRng(jzHash(o.seed, li, 404));
-            plan.cuts.push({ index: plan.cuts.length, text: title || '', lineText: '', line: li, start: visEnd, end: starts[li + 1], layout: 'interlude', enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.3, outDur: 0.3, params: { variant: r2.pick(['counter', 'rings']) }, decor: jzPickDecor(r2, st, en, { decor: 1 }, 'interlude', []), scheme: schemeIdx, seed: jzHash(o.seed, li, 405) % 1000000, treat: 'none', bg: 'none', cam: 'push' });
+        if (li < lines.length - 1) {
+            var nextS = starts[li + 1], gap = nextS - visEnd;
+            var lastCut = plan.cuts[plan.cuts.length - 1];
+            if (gap > 0.001 && gap <= 0.35) {
+                if (lastCut && lastCut.line === li) {
+                    lastCut.end = nextS;
+                    lastCut.hold = 'still';
+                }
+            } else if (gap > 0.35 && gap <= 1.5) {
+                var isGDel = (o.autoInterlude === false) || (o.deletedCards && o.deletedCards.gaps && o.deletedCards.gaps[li]);
+                if (!isGDel) {
+                    var bBg = (lastCut && lastCut.bg && lastCut.bg !== 'none') ? lastCut.bg : 'none';
+                    var bBgP = (lastCut && lastCut.bgP) ? lastCut.bgP : {};
+                    var bSch = (lastCut && lastCut.scheme != null) ? lastCut.scheme : schemeIdx;
+                    plan.cuts.push({ index: plan.cuts.length, text: '', lineText: '', line: li, start: visEnd, end: nextS, layout: 'interlude', enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.2, outDur: 0.2, params: { variant: 'quiet', showTitle: false, titleText: '' }, decor: [], scheme: bSch, seed: jzHash(o.seed, li, 405) % 1000000, treat: 'none', bg: bBg, bgP: bBgP, cam: 'drift' });
+                } else if (o.interludeFillMode === 'extend' && lastCut && lastCut.line === li) {
+                    lastCut.end = nextS;
+                    lastCut.hold = 'still';
+                }
+            } else if (gap > 1.5 && !lines[li + 1].interlude) {
+                var isGDel2 = (o.autoInterlude === false) || (o.deletedCards && o.deletedCards.gaps && o.deletedCards.gaps[li]);
+                if (!isGDel2) {
+                    var r2 = new JzRng(jzHash(o.seed, li, 404));
+                    plan.cuts.push({ index: plan.cuts.length, text: title || '', lineText: '', line: li, start: visEnd, end: nextS, layout: 'interlude', enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.3, outDur: 0.3, params: { variant: r2.pick(['counter', 'rings']) }, decor: jzPickDecor(r2, st, en, { decor: 1 }, 'interlude', []), scheme: schemeIdx, seed: jzHash(o.seed, li, 405) % 1000000, treat: 'none', bg: 'none', cam: 'push' });
+                } else if (o.interludeFillMode === 'extend' && lastCut && lastCut.line === li) {
+                    lastCut.end = nextS;
+                    lastCut.hold = 'still';
+                } else {
+                    var bBg2 = (lastCut && lastCut.bg && lastCut.bg !== 'none') ? lastCut.bg : 'none';
+                    var bBgP2 = (lastCut && lastCut.bgP) ? lastCut.bgP : {};
+                    var bSch2 = (lastCut && lastCut.scheme != null) ? lastCut.scheme : schemeIdx;
+                    plan.cuts.push({ index: plan.cuts.length, text: '', lineText: '', line: li, start: visEnd, end: nextS, layout: 'interlude', enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.2, outDur: 0.2, params: { variant: 'quiet', showTitle: false, titleText: '' }, decor: [], scheme: bSch2, seed: jzHash(o.seed, li, 405) % 1000000, treat: 'none', bg: bBg2, bgP: bBgP2, cam: 'drift' });
+                }
+            }
         }
     }
     plan.cuts.sort(function (a, b) { return a.start - b.start; });
@@ -397,6 +465,20 @@ function jzMakePlan(o) {
         if (!zones || pc0.zone) continue;
         if (pc0.layout === 'interlude') { pc0.params.showTitle = false; continue; }     // no lyric: the whole frame
         pc0.zone = jzZoneOf(zones, 0);
+    }
+    if (o.events && o.events.length) {
+        for (q = 0; q < o.events.length; q++) {
+            var ue = o.events[q];
+            if (ue && ue.t != null) {
+                plan.events.push({
+                    t: ue.t,
+                    type: ue.type || 'glitch',
+                    amp: ue.amp != null ? ue.amp : 1,
+                    dur: ue.dur != null ? ue.dur : (ue.type === 'flash' ? 3 * F : ue.type === 'shake' ? 0.3 : 0.15),
+                    manual: true
+                });
+            }
+        }
     }
     plan.events.sort(function (a, b) { return a.t - b.t; });
     return plan;

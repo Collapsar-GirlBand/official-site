@@ -98,9 +98,26 @@ J.fontsOfPlan = (plan) => {
   const set = new Set(['mono']);
   if (!plan) return [...set];
   for (const r of Object.values(plan.style.fonts || {})) for (const k of r) set.add(k);
-  for (const c of plan.cuts || []) for (const v of Object.values(c.params || {})) {
-    if (typeof v === 'string' && J.FONTS[v]) set.add(v);
-    else if (Array.isArray(v)) v.forEach(x => { if (typeof x === 'string' && J.FONTS[x]) set.add(x); });
+  for (const c of plan.cuts || []) {
+    if (c.font && J.FONTS[c.font]) set.add(c.font);
+    for (const v of Object.values(c.params || {})) {
+      if (typeof v === 'string' && J.FONTS[v]) set.add(v);
+      else if (Array.isArray(v)) v.forEach(x => { if (typeof x === 'string' && J.FONTS[x]) set.add(x); });
+    }
+  }
+  const ovs = plan.overrides || (plan.project && plan.project.overrides) || {};
+  for (const o of Object.values(ovs)) {
+    if (o && o.font && J.FONTS[o.font]) set.add(o.font);
+    if (o && o.cutTech) {
+      for (const slot of Object.values(o.cutTech)) {
+        if (slot && slot.font && J.FONTS[slot.font]) set.add(slot.font);
+      }
+    }
+    if (o && o.cutFonts) {
+      for (const f of Object.values(o.cutFonts)) {
+        if (f && J.FONTS[f]) set.add(f);
+      }
+    }
   }
   const out = [...set].filter(k => J.FONTS[k]);
   if ((plan.cuts || []).some(c => c.weightGrow)) out.push('@var');     // 太さ: the variable Noto Sans / Serif JP

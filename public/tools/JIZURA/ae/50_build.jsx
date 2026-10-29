@@ -2,7 +2,8 @@
 function jzEventsArr(plan, type, t0, t1) {
     var out = [], ev = plan.events || [];
     for (var i = 0; i < ev.length; i++) {
-        var e = ev[i]; if (e.type !== type) continue;
+        var e = ev[i];
+        if (e.type !== type && !(type === 'slice' && e.type === 'glitch')) continue;
         if (t0 != null && (e.t < t0 - 0.7 || e.t > t1 + 0.1)) continue;
         out.push('[' + jzN(e.t) + ',' + jzN(e.amp || 1) + ',' + jzN(Math.max(e.dur || 0, 1 / 24)) + ']');
     }
@@ -54,7 +55,16 @@ function jzBuildStart(plan, opt) {
     function buildContent(c, T, CW, CH, cu, sc, label, cdur, ci) {
         var pc = app.project.items.addComp(label + ' text', CW, CH, 1, cdur, fps);
         pc.parentFolder = folder;
-        var ctx = { comp: pc, W: CW, H: CH, u: cu, sc: sc, st: st, fx: FXV, cut: c, P: c.params || {}, roles: roles, plan: plan };
+        var cutFont = c.font || (c.params && c.params.font);
+        var cutSt = st;
+        if (cutFont) {
+            cutSt = {
+                schemes: st.schemes,
+                fonts: { display: [cutFont], serif: [cutFont], body: [cutFont], mono: (st.fonts && st.fonts.mono) || ['mono'] },
+                texture: st.texture, ghost: st.ghost, bias: st.bias, useGrad: st.useGrad
+            };
+        }
+        var ctx = { comp: pc, W: CW, H: CH, u: cu, sc: sc, st: cutSt, fx: FXV, cut: c, P: c.params || {}, roles: roles, plan: plan };
         var bb = null, lk = jzFallback('layout', c.layout, 'center');
         if (lk !== c.layout) { ctx.P = JZ_REG.layout[lk].plan ? JZ_REG.layout[lk].plan(new JzRng(jzHash(c.seed, 31)), { text: c.text, n: jzCount(c.text), W: CW, H: CH, dur: c.dur }, st) : {}; }
         try { bb = JZ_REG.layout[lk].build(ctx); }

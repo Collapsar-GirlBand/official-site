@@ -73,7 +73,7 @@ fx('radialChroma', { name: '放射色収差', tags: ['glitch', 'emotional', 'pop
     const dk = isDark(sc.bg), s = evS(ev);
     const d = (0.03 + 0.016 * J.r(s, 1)) * ampOf(ev) * (0.4 + 0.6 * E.outQuad(k)) * (k > 0.8 ? 1 - (k - 0.8) * 2.5 : 1);
     const w = Math.max(2, Math.round(cw / 3)), h = Math.max(2, Math.round(ch / 3));
-    const M = greyMask(buf(0, w, h), S, sc, w, h, dk), R = tintMask(buf(1, w, h), M, '#FF3020', dk), C = tintMask(buf(2, w, h), M, '#18E0FF', dk);
+    const M = greyMask(buf(0, w, h), S, sc, w, h, dk), R = tintMask(buf(1, w, h), M, I.st.strictPalette ? sc.ghostA : '#FF3020', dk), C = tintMask(buf(2, w, h), M, I.st.strictPalette ? sc.ghostB : '#18E0FF', dk);
     const cx = cw / 2, cy = ch / 2;
     ctx.globalCompositeOperation = dk ? 'screen' : 'multiply';
     ctx.globalAlpha = 0.95; drawScaled(ctx, R, 1 + d, cx, cy, cw, ch); drawScaled(ctx, C, 1 - d * 0.7, cx, cy, cw, ch);

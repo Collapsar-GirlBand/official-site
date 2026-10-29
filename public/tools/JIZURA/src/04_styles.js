@@ -149,29 +149,105 @@ J.STYLES = {
     decor: { rings: 1.4, hud: 0.6, dots: 1 }, hud: false,
   },
 };
-J.STYLE_ORDER = ['noir', 'crimson', 'caution', 'magenta', 'paper', 'hud', 'mint', 'specimen', 'transit', 'blueprint', 'rouge', 'mono'];
+J.defaultCustomStyle = () => ({
+  name: 'カスタム', desc: '自定多组配色、字体、纹理与动画偏好',
+  strictPalette: true,
+  schemes: [
+    { bg: '#08080A', fg: '#FFFFFF', sub: '#A8A8B4', accent: '#FF3366', accent2: '#00E5FF', ink: '#FFFFFF', dim: '#1C1C22', ghostA: '#FF3366', ghostB: '#00E5FF', grad: ['#FF3366', '#7928CA'], paper: false },
+    { bg: '#F5F4F0', fg: '#121214', sub: '#5E5C66', accent: '#E60049', accent2: '#0072F5', ink: '#121214', dim: '#DDD9D2', ghostA: '#E60049', ghostB: '#0072F5', grad: ['#FF4D4D', '#F9CB28'], paper: false },
+    { bg: '#140D24', fg: '#F7EDFF', sub: '#B59EC9', accent: '#00F5D4', accent2: '#7B2CBF', ink: '#F7EDFF', dim: '#241740', ghostA: '#00F5D4', ghostB: '#FF007F', grad: ['#00F5D4', '#7B2CBF'], paper: false },
+  ],
+  fonts: { display: ['gothic_black', 'dela'], serif: ['mincho_bold', 'mincho'], body: ['gothic_med', 'sansui'], mono: ['mono'] },
+  texture: { grain: 0.6, paper: 0, scan: 0.15 },
+  ghost: 1.0, glow: 1.0, glitchBoost: 1.0,
+  bias: {
+    layout: { huge: 1.8, center: 1.5, vcols: 1.4, stack: 1.3, tile: 1.2 },
+    enter: { assemble: 1.8, slice: 1.5, type: 1.3, pop: 1.2 },
+    exit: { glitch: 1.6, explode: 1.5, drift: 1.2 },
+  },
+  decor: { rings: 1.2, arrows: 1.2, grid: 1.0, hud: 0.8, slash: 0.8 },
+  hud: true, useGrad: true,
+});
+J.STYLES.custom = J.defaultCustomStyle();
+J.STYLE_ORDER = ['custom', 'noir', 'crimson', 'caution', 'magenta', 'paper', 'hud', 'mint', 'specimen', 'transit', 'blueprint', 'rouge', 'mono'];
 
 /* resolve style + user colour/font overrides into an effective style */
 J.resolveStyle = (project) => {
-  const base = J.STYLES[project.style] || J.STYLES.noir;
-  const st = JSON.parse(JSON.stringify(base));
-  const ov = project.colors || {};
-  // base colours (background / text) replace the main scheme only
-  if (ov.enabled) st.schemes[0] = Object.assign({}, st.schemes[0], pickDefined(ov, ['bg', 'fg', 'sub']));
-  // accent + chromatic ghost colours apply to every scheme; accent is re-lit per background for contrast
-  if (ov.accentOn) {
-    st.schemes = st.schemes.map(s => {
-      const o = Object.assign({}, s);
-      if (ov.accent) { o.accent = J.fitContrast(ov.accent, s.bg, 2.4); if (s.ink === s.accent) o.ink = o.accent; }
-      // ghosts only need to stay visible against this scheme's background
-      if (ov.ghostA) o.ghostA = J.fitContrast(ov.ghostA, s.bg, 1.35);
-      if (ov.ghostB) o.ghostB = J.fitContrast(ov.ghostB, s.bg, 1.35);
-      if (ov.accent && s.grad) o.grad = [J.fitContrast(ov.accent, s.bg, 2.4), J.mix(ov.accent, '#000000', 0.7)];
-      return o;
-    });
+  let base;
+  if (project.style === 'custom') {
+    base = project.customStyle || J.STYLES.custom || J.defaultCustomStyle();
+  } else {
+    base = J.STYLES[project.style] || J.STYLES.noir;
   }
+  const st = JSON.parse(JSON.stringify(base));
+  // Missing in older projects: retain their original effect colours.
+  st.strictPalette = project.style === 'custom' && base.strictPalette === true;
+
+  if (project.style === 'custom') {
+    const cs = project.customStyle;
+    if (cs) {
+      if (Array.isArray(cs.schemes) && cs.schemes.length) {
+        st.schemes = JSON.parse(JSON.stringify(cs.schemes));
+      }
+      if (cs.fonts) {
+        st.fonts = JSON.parse(JSON.stringify(cs.fonts));
+      }
+      if (cs.texture) {
+        st.texture = Object.assign({ grain: 0, paper: 0, scan: 0 }, cs.texture);
+      }
+      if (cs.ghost != null) st.ghost = +cs.ghost;
+      if (cs.glow != null) st.glow = +cs.glow;
+      if (cs.glitchBoost != null) st.glitchBoost = +cs.glitchBoost;
+      if (cs.hud != null) st.hud = !!cs.hud;
+      if (cs.useGrad != null) st.useGrad = !!cs.useGrad;
+      if (cs.allPaper) {
+        st.schemes.forEach(s => { s.paper = true; });
+      }
+      if (cs.bias) {
+        st.bias = JSON.parse(JSON.stringify(cs.bias));
+      }
+      if (cs.decor) {
+        st.decor = JSON.parse(JSON.stringify(cs.decor));
+      }
+    }
+  } else {
+    const ov = project.colors || {};
+    // base colours (background / text) replace the main scheme only
+    if (ov.enabled) st.schemes[0] = Object.assign({}, st.schemes[0], pickDefined(ov, ['bg', 'fg', 'sub']));
+    // accent + chromatic ghost colours apply to every scheme; accent is re-lit per background for contrast
+    if (ov.accentOn) {
+      st.schemes = st.schemes.map(s => {
+        const o = Object.assign({}, s);
+        if (ov.accent) { o.accent = J.fitContrast(ov.accent, s.bg, 2.4); if (s.ink === s.accent) o.ink = o.accent; }
+        // ghosts only need to stay visible against this scheme's background
+        if (ov.ghostA) o.ghostA = J.fitContrast(ov.ghostA, s.bg, 1.35);
+        if (ov.ghostB) o.ghostB = J.fitContrast(ov.ghostB, s.bg, 1.35);
+        if (ov.accent && s.grad) o.grad = [J.fitContrast(ov.accent, s.bg, 2.4), J.mix(ov.accent, '#000000', 0.7)];
+        return o;
+      });
+    }
+  }
+
+  // Ensure bias & texture & decor structures exist
+  st.bias = Object.assign({ layout: {}, enter: {}, exit: {} }, st.bias || {});
+  st.bias.layout = st.bias.layout || {};
+  st.bias.enter = st.bias.enter || {};
+  st.bias.exit = st.bias.exit || {};
+  st.decor = st.decor || {};
+  st.texture = Object.assign({ grain: 0, paper: 0, scan: 0 }, st.texture || {});
+
+  // font overrides from project.fonts if present
   const fo = project.fonts || {};
-  for (const role of ['display', 'serif', 'body']) if (fo[role] && J.FONTS[fo[role]]) st.fonts[role] = [fo[role]];
+  for (const role of ['display', 'serif', 'body', 'mono']) {
+    if (fo[role]) {
+      if (Array.isArray(fo[role]) && fo[role].length) {
+        st.fonts[role] = fo[role].filter(k => J.FONTS[k]);
+      } else if (typeof fo[role] === 'string' && J.FONTS[fo[role]]) {
+        st.fonts[role] = [fo[role]];
+      }
+    }
+  }
+
   if (J.keyMode(project)) keyStyle(st);
   return st;
 };

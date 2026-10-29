@@ -79,7 +79,7 @@
       </div>
 
       <div class="sec">
-        <div class="sec-h"><h2>行とカット</h2><span id="linesInfo" class="muted mono"></span></div>
+        <div class="sec-h"><h2>行とカット</h2><span class="sec-btns"><button id="btnRestoreCards" class="ghost small" title="削除したタイトルカードや間奏カードを元に戻す" hidden>カード復元</button></span><span id="linesInfo" class="muted mono"></span></div>
         <ol id="lineList"></ol>
       </div>
     </section>
@@ -105,17 +105,88 @@
         <span class="tl-hint muted">行の区切り（上の目盛り）はドラッグで動かせます。<span class="kbd">Shift</span> で拍に吸着しない</span>
         <span class="tl-btns">
           <button id="btnUndoEdit" class="ghost small" title="歌詞・タイミングの変更を元に戻す（Ctrl+Z）" disabled>元に戻す</button>
+          <button id="btnRedoEdit" class="ghost small" title="やり直す（Ctrl+Y）" disabled>やり直す</button>
           <button id="tlOut" class="ghost small icon-txt" title="縮小" aria-label="タイムラインを縮小">−</button>
           <button id="tlIn" class="ghost small icon-txt" title="拡大（タイムライン上でホイールでも）" aria-label="タイムラインを拡大">＋</button>
           <button id="tlFit" class="ghost small" title="全体を表示">全体</button>
         </span>
       </div>
+      <div class="tl-fx-toolbar" id="tlFxToolbar">
+        <div class="tl-fx-actions">
+          <span class="tl-fx-label">画面効果:</span>
+          <button type="button" class="btn-fx-add" id="btnAddGlitch" title="現在の再生位置にグリッチ（Glitch）を配置">⚡ +グリッチ</button>
+          <button type="button" class="btn-fx-add" id="btnAddFlash" title="現在の再生位置にフラッシュ（Flash）を配置">✦ +白フラッシュ</button>
+          <button type="button" class="btn-fx-add" id="btnAddShake" title="現在の再生位置に揺れ・振動（Shake）を配置">〰 +揺れ</button>
+          <div class="fx-dropdown-wrap" id="fxDropdownWrap">
+            <button type="button" class="btn-fx-add ghost" id="btnFxMore">+ その他の効果 ▾</button>
+            <div class="fx-dropdown-menu" id="fxDropdownMenu" hidden>
+              <button type="button" class="fx-menu-item" data-type="chroma">◈ 色ズレ (Chroma)</button>
+              <button type="button" class="fx-menu-item" data-type="zoom">◎ ズームブラー (Zoom)</button>
+              <button type="button" class="fx-menu-item" data-type="invert">◐ 階調反転 (Invert)</button>
+              <button type="button" class="fx-menu-item" data-type="mosaic">☷ モザイク (Mosaic)</button>
+              <button type="button" class="fx-menu-item" data-type="slice">⚡ スライス (Slice)</button>
+              <button type="button" class="fx-menu-item" data-type="block">▦ ブロック (Block)</button>
+              <button type="button" class="fx-menu-item" data-type="radialChroma">✺ 放射色収差 (Radial Chroma)</button>
+              <button type="button" class="fx-menu-item" data-type="bloomFlash">✧ ブルーム (Bloom Flash)</button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-fx-modes">
+          <button type="button" class="ghost small" id="btnFxModeToggle" title="効果生成モード：手動のみ（ランダム生成オフ） / 混合モード（自動生成＋手動）">モード: 混合</button>
+          <button type="button" class="ghost small" id="btnBakeFx" title="自動生成された効果をタイムラインに固定（手動イベント化し微調整可能に）">自動効果を固定</button>
+          <button type="button" class="ghost small danger-text" id="btnClearFx" title="タイムライン上の全効果イベントをクリア">効果をクリア</button>
+        </div>
+      </div>
       <canvas id="timeline" aria-label="タイムライン（クリックで移動・行の区切りはドラッグで調整）"></canvas>
+      <div class="event-inspector" id="eventInspector" hidden>
+        <span class="ev-insp-badge" id="evInspBadge">⚡ グリッチ</span>
+        <div class="ev-insp-field">
+          <label>種類</label>
+          <select id="evInspType">
+            <option value="glitch">⚡ グリッチ (Glitch)</option>
+            <option value="flash">✦ 白フラッシュ (Flash)</option>
+            <option value="shake">〰 揺れ・振動 (Shake)</option>
+            <option value="chroma">◈ 色ズレ (Chroma)</option>
+            <option value="zoom">◎ ズームブラー (Zoom)</option>
+            <option value="invert">◐ 階調反転 (Invert)</option>
+            <option value="mosaic">☷ モザイク (Mosaic)</option>
+            <option value="slice">⚡ スライス (Slice)</option>
+            <option value="block">▦ ブロック (Block)</option>
+            <option value="radialChroma">✺ 放射色収差 (Radial Chroma)</option>
+            <option value="bloomFlash">✧ ブルーム (Bloom Flash)</option>
+          </select>
+        </div>
+        <div class="ev-insp-field">
+          <label>時刻</label>
+          <button type="button" class="ghost tiny icon-btn" id="evNudgeBack" title="0.05秒戻す (キー [ )">◀</button>
+          <span class="mono ev-insp-val" id="evTimeVal">0.00s</span>
+          <button type="button" class="ghost tiny icon-btn" id="evNudgeFwd" title="0.05秒進める (キー ] )">▶</button>
+        </div>
+        <div class="ev-insp-field">
+          <label>強度</label>
+          <input type="range" id="evAmp" min="0.2" max="2.5" step="0.1" value="1.0">
+          <span class="mono ev-insp-val" id="evAmpVal">1.0x</span>
+        </div>
+        <div class="ev-insp-field">
+          <label>長さ</label>
+          <input type="range" id="evDur" min="0.04" max="1.50" step="0.02" value="0.15">
+          <span class="mono ev-insp-val" id="evDurVal">0.15s</span>
+        </div>
+        <div class="ev-insp-actions">
+          <button type="button" class="ghost small" id="evPreview" title="効果をプレビュー再生">▶ 試聴</button>
+          <button type="button" class="ghost small danger" id="evDelete" title="選択中の効果イベントを削除 (Deleteキー)">🗑️ 削除</button>
+          <button type="button" class="ghost small icon-txt" id="evClose" title="閉じる">✕</button>
+        </div>
+      </div>
       <div class="cutinfo" id="cutInfo"></div>
       <div id="cutPick" class="cut-pick pro-only" hidden>
         <div class="cut-pick-h">
           <strong id="cutPickTitle">手法</strong>
           <span class="muted" id="cutPickHint">このカットだけ差し替え</span>
+          <div id="cutPickSearchWrap" class="cut-pick-search-wrap">
+            <input type="text" id="cutPickFilter" class="cut-pick-filter" placeholder="名前やコードで検索 (例: A1, B2)" aria-label="手法を名前・コードで検索">
+            <button type="button" id="cutPickFilterClear" class="cut-pick-filter-clear" aria-label="クリア" hidden>×</button>
+          </div>
           <button type="button" id="cutPickAuto" class="ghost small">自動</button>
           <button type="button" id="cutPickClose" class="ghost small" aria-label="閉じる">✕</button>
         </div>
@@ -188,23 +259,128 @@
 
       <div class="tabpane" data-pane="style">
         <div id="styleGrid" class="style-grid"></div>
-        <h3>フォントの役割</h3>
-        <div id="fontRoles"></div>
-        <div class="row" style="margin-top:8px">
-          <input id="localFont" type="text" placeholder="PCのフォント名（例: 游明朝）" style="flex:1">
-          <button id="btnAddFont">追加</button>
+
+        <!-- 自定义风格面板 Custom Style Panel -->
+        <div id="customStyleSec" class="custom-sec">
+          <div class="sec-h" style="margin-bottom:8px">
+            <h3 style="margin:0">カスタムスタイル設定</h3>
+            <span class="row" style="gap:6px">
+              <button id="btnApplyCustom" class="small primary" title="カスタムスタイルを適用">適用</button>
+              <select id="presetToCustom" class="small" aria-label="プリセットから複製" title="プリセットをテンプレートとしてカスタムに複製します">
+                <option value="">プリセットから複製...</option>
+              </select>
+              <button id="btnResetCustom" class="small ghost" title="既定のカスタム設定に戻す">初期値</button>
+            </span>
+          </div>
+
+          <!-- 自定义子面板导航 Tabs -->
+          <div class="cust-tabs" role="tablist">
+            <button type="button" class="cust-tab-btn active" data-cust-tab="palette">配色セット</button>
+            <button type="button" class="cust-tab-btn" data-cust-tab="fonts">フォント候補</button>
+            <button type="button" class="cust-tab-btn" data-cust-tab="fx">質感・色ズレ・発光</button>
+            <button type="button" class="cust-tab-btn" data-cust-tab="layout">レイアウト傾向</button>
+            <button type="button" class="cust-tab-btn" data-cust-tab="anim">動きの傾向</button>
+            <button type="button" class="cust-tab-btn" data-cust-tab="decor">装飾の傾向</button>
+            <button type="button" class="cust-tab-btn" data-cust-tab="switches">特別スイッチ</button>
+          </div>
+
+          <!-- 子面板 1: 多组配色方案 -->
+          <div class="cust-pane" data-cust-pane="palette">
+            <label class="check"><input id="custStrictPalette" type="checkbox"> 厳密な配色</label>
+            <p class="note">エフェクト・つなぎを含む最終画面を、現在のカットの配色だけに制限します。透明度は維持されます。グラデーションや光は段階的になり、高解像度では処理が増えます。合成用背景では適用しません。</p>
+            <div class="row" style="justify-content:space-between; margin-bottom:8px">
+              <div id="schemeTabs" class="scheme-tabs"></div>
+              <div class="row" style="gap:4px">
+                <button type="button" id="btnAddScheme" class="small ghost" title="新しい配色セットを追加">+ 追加</button>
+                <button type="button" id="btnInvertScheme" class="small ghost" title="背景色と文字色を反転">反転</button>
+                <button type="button" id="btnRandScheme" class="small accent" title="このセットの配色をランダム生成">ランダム</button>
+              </div>
+            </div>
+            <div id="schemeEditor" class="scheme-editor-grid"></div>
+            <div id="custSchemeSwatch" class="scheme-swatch-bar" aria-hidden="true"></div>
+          </div>
+
+          <!-- 子面板 2: 字体候选 -->
+          <div class="cust-pane" data-cust-pane="fonts" hidden>
+            <p class="note" style="margin-top:0">見出し・本文・明朝・数字などの役割ごとにフォント候補を指定します。生成時に候補の中からランダムに選ばれます。</p>
+            <div id="custFontRoles"></div>
+            <div class="row" style="margin-top:10px">
+              <input id="localFont" type="text" placeholder="PCのフォント名（例: 游明朝, 微软雅黑）" style="flex:1">
+              <button id="btnAddFont" type="button">追加</button>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <label class="file">フォントファイル（.ttf/.otf/.woff）<input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2"></label>
+            </div>
+          </div>
+
+          <!-- 子面板 3: 纹理与光效 (颗粒、纸张、扫描线、色差、发光、故障) -->
+          <div class="cust-pane" data-cust-pane="fx" hidden>
+            <div id="custSliders"></div>
+          </div>
+
+          <!-- 子面板 4: 布局偏好 -->
+          <div class="cust-pane" data-cust-pane="layout" hidden>
+            <div class="row" style="justify-content:space-between; margin-bottom:6px">
+              <span class="muted" style="font-size:11px">クリックで出現頻度を切替（3x 出やすい / 2x 好み / 1x 通常 / 0x 停止）</span>
+              <button type="button" id="btnResetLayoutBias" class="small ghost">リセット</button>
+            </div>
+            <div id="layoutBiasChips" class="bias-chips"></div>
+          </div>
+
+          <!-- 子面板 5: 登场与退场动画偏好 -->
+          <div class="cust-pane" data-cust-pane="anim" hidden>
+            <div class="sec-h" style="margin-bottom:6px">
+              <h4 style="margin:0; font-size:11px; color:var(--muted)">登場アニメーション (Enter)</h4>
+              <button type="button" id="btnResetEnterBias" class="small ghost">リセット</button>
+            </div>
+            <div id="enterBiasChips" class="bias-chips" style="margin-bottom:12px"></div>
+            <div class="sec-h" style="margin-bottom:6px">
+              <h4 style="margin:0; font-size:11px; color:var(--muted)">退場アニメーション (Exit)</h4>
+              <button type="button" id="btnResetExitBias" class="small ghost">リセット</button>
+            </div>
+            <div id="exitBiasChips" class="bias-chips"></div>
+          </div>
+
+          <!-- 子面板 6: 装饰偏好 -->
+          <div class="cust-pane" data-cust-pane="decor" hidden>
+            <div class="row" style="justify-content:space-between; margin-bottom:6px">
+              <span class="muted" style="font-size:11px">円、矢印、グリッドなどの出やすさを調整</span>
+              <button type="button" id="btnResetDecorBias" class="small ghost">リセット</button>
+            </div>
+            <div id="decorBiasChips" class="bias-chips"></div>
+          </div>
+
+          <!-- 子面板 7: 特殊开关 -->
+          <div class="cust-pane" data-cust-pane="switches" hidden>
+            <label class="check">
+              <input id="custSwitchHud" type="checkbox">
+              <span>HUD 演出を表示<small>画面の四隅や背景に座標・時間・インジケーターなどの計器UIを描画します</small></span>
+            </label>
+            <label class="check">
+              <input id="custSwitchGrad" type="checkbox">
+              <span>グラデーション文字を優先<small>配色セットで設定した2色のグラデーションを見出し文字に優先適用します</small></span>
+            </label>
+            <label class="check">
+              <input id="custSwitchPaper" type="checkbox">
+              <span>全配色に紙の質感を適用<small>すべての配色セットに印刷紙のような微細な繊維テクスチャを重ねます</small></span>
+            </label>
+          </div>
         </div>
-        <div class="row" style="margin-top:8px"><label class="file">フォントファイル（.ttf/.otf）<input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2"></label></div>
-        <h3>アクセント・ズレ色</h3>
-        <label class="check"><input id="accentOn" type="checkbox"><span>自分の色で上書き<small>全シーンに適用。背景に合わせて明るさを自動調整します</small></span></label>
-        <div class="color-row" id="colorRowAccent"></div>
-        <div class="row" style="margin-top:10px">
-          <button id="btnRandPalette" class="accent">ランダムに配色</button>
-          <div id="paletteSwatch" class="swatches" aria-hidden="true"></div>
-        </div>
-        <h3>背景・文字色</h3>
-        <label class="check"><input id="colorOn" type="checkbox"><span>メインの背景と文字を自分の色にする</span></label>
-        <div class="color-row" id="colorRow"></div>
+
+        <details class="legacy-custom" style="margin-top:14px">
+          <summary class="muted" style="cursor:pointer; font-size:11px">簡易オーバーライド（旧設定）</summary>
+          <div id="fontRoles" hidden></div>
+          <h3>アクセント・ズレ色</h3>
+          <label class="check"><input id="accentOn" type="checkbox"><span>自分の色で上書き<small>全シーンに適用。背景に合わせて明るさを自動調整します</small></span></label>
+          <div class="color-row" id="colorRowAccent"></div>
+          <div class="row" style="margin-top:10px">
+            <button id="btnRandPalette" class="accent">ランダムに配色</button>
+            <div id="paletteSwatch" class="swatches" aria-hidden="true"></div>
+          </div>
+          <h3>背景・文字色</h3>
+          <label class="check"><input id="colorOn" type="checkbox"><span>メインの背景と文字を自分の色にする</span></label>
+          <div class="color-row" id="colorRow"></div>
+        </details>
       </div>
 
       <div class="tabpane" data-pane="fx" hidden>
@@ -237,7 +413,7 @@
           <label class="check"><input class="kinetic-toggle" type="checkbox" checked><span>キネティックの部品を使う<small>「キ」印の手法。オフにすると、おまかせやシャッフルでは選ばれません</small></span></label>
           <label class="check"><input class="horror-toggle" type="checkbox"><span>ホラーの演出も使う<small>「ホ」印の手法とスタイル。おまかせでは雰囲気が「ホラー」のときだけ使います</small></span></label>
         </div>
-        <div class="row" style="margin-bottom:10px"><input id="techFilter" type="text" placeholder="手法を名前で絞り込み" style="flex:1" aria-label="手法を名前で絞り込み"><span id="techTotal" class="muted mono"></span></div>
+        <div class="row" style="margin-bottom:10px"><input id="techFilter" type="text" placeholder="手法を名前・コードで検索 (例: A1, B2)" style="flex:1" aria-label="手法を名前・コードで検索"><span id="techTotal" class="muted mono"></span></div>
         <p class="note">画面に見えているプレビューは自動でループします。</p>
         <div id="techLists"></div>
       </div>
@@ -306,3 +482,14 @@
     <div class="terms-foot"><span class="muted mono">© 2026 hakoniwa · MIT</span><button value="close" class="primary" autofocus>閉じる</button></div>
   </form>
 </dialog>
+<div id="dropOverlay" class="drop-overlay" hidden aria-hidden="true">
+  <div class="drop-overlay-box">
+    <svg class="drop-overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18V5l12-2v13"></path>
+      <circle cx="6" cy="18" r="3"></circle>
+      <circle cx="18" cy="16" r="3"></circle>
+    </svg>
+    <div class="drop-overlay-title">音楽ファイルをドロップして読み込む</div>
+    <div class="drop-overlay-sub">MP3 / WAV / M4A / FLAC / OGG / AAC など</div>
+  </div>
+</div>

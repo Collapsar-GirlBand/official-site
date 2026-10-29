@@ -96,10 +96,20 @@ class Renderer {
     const events = plan.events;
     let spike = 0, shake = 0, beatPulse = 0;
     for (let i = 0; i < events.length; i++) {
-      const ev = events[i]; if (ev.t > t) break; const dt = (t - ev.t) * 24;
-      if (dt > 14) continue;
-      if (ev.type === 'chroma') spike += ev.amp * Math.pow(0.55, dt);
-      else if (ev.type === 'shake') shake += ev.amp * Math.pow(0.62, dt);
+      const ev = events[i]; if (ev.t > t) break;
+      if (ev.type === 'chroma') {
+        const dt = (t - ev.t) * 24;
+        if (dt <= 14) spike += (ev.amp != null ? ev.amp : 1) * Math.pow(0.55, dt);
+      } else if (ev.type === 'shake') {
+        const a = ev.amp != null ? ev.amp : 1;
+        const dur = ev.dur || 0.3;
+        if (t >= ev.t && t <= ev.t + dur) {
+          shake += a;
+        } else if (t > ev.t + dur) {
+          const dt = (t - (ev.t + dur)) * 24;
+          if (dt <= 14) shake += a * Math.pow(0.62, dt);
+        }
+      }
     }
     if (plan.beats && plan.beats.length) {
       const b = prevBeat(plan.beats, t);
@@ -217,6 +227,13 @@ class Renderer {
     // ---------- post ----------
     if (!opt.noPost) this.post(ctx, plan, t, tq, step, sc, scale, opt, allowFilter);
     if (key && !opt.noPost) this.keyFinish(ctx, key, opt);
+    // Constrain only the finished frame, after transitions, filters and blend modes.
+    // Intermediate transition/glyph buffers must retain their original pixel data.
+    if (st.strictPalette && !key && !opt.noPost && !opt.glyphLog) {
+      const pixels = ctx.getImageData(0, 0, cw, ch);
+      J.strictPalettePixels(pixels.data, sc);
+      ctx.putImageData(pixels, 0, 0);
+    }
   }
 
   /* 合成用の背景: make the finished frame monochrome (white text + effects only) and put it on the key colour.
@@ -302,7 +319,15 @@ class Renderer {
   }
   makeEnv(ctx, plan, cut, sc, o) {
     const W = o.zone ? o.zone.w : plan.W, H = o.zone ? o.zone.h : plan.H;   // 中央を空ける: a cut lives in its side band
-    const env = Object.assign({ ctx, W, H, sc, st: plan.style, fx: plan.fx, fps: plan.fps, cut, plan }, o);
+    const envSt = (cut && cut.font && J.FONTS[cut.font]) ? Object.assign({}, plan.style, {
+      fonts: Object.assign({}, plan.style.fonts, {
+        display: [cut.font],
+        serif: [cut.font],
+        body: [cut.font],
+        mono: plan.style.fonts.mono
+      })
+    }) : plan.style;
+    const env = Object.assign({ ctx, W, H, sc, st: envSt, fx: plan.fx, fps: plan.fps, cut, plan }, o);
     if (cut) {
       env.pIn = J.clamp(o.lt / Math.max(0.01, cut.inDur));
       env.pOut = cut.outDur > 0 ? J.clamp((o.lt - (cut.dur - cut.outDur)) / cut.outDur) : 0;
@@ -368,14 +393,28 @@ class Renderer {
   }
 
   drawCut(env) {
-    const cut = env.cut, L = J.LAYOUTS[cut.layout] || J.LAYOUTS.center;
-    const decor = cut.decor || [];
-    if (env.layer !== 'front') for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'back') try { D.draw(env, null, d); } catch (e) { console.warn(e); } }
-    if (env.layer === 'back') return null;                // 後景だけ: the lyrics and the front decorations go to the other layer
-    let bb = null;
-    try { bb = L.render(env); } catch (e) { console.warn('layout', cut.layout, e); }
-    for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'front') try { D.draw(env, bb, d); } catch (e) { console.warn(e); } }
-    return bb;
+    const shot = env.cut;
+    const textEnd = Number.isFinite(shot.textEnd) ? Math.min(shot.end, shot.textEnd) : shot.end;
+    // Background drawing happens separately and continues to use the full shot clock.
+    // Skip the whole lyric composition (including text-bound shapes/decorations).
+    if (env.t >= textEnd) return null;
+    const cut = textEnd < shot.end ? Object.assign({}, shot, {
+      end: textEnd, dur: textEnd - shot.start,
+      exit: shot.textExit ?? shot.exit, outDur: shot.textOutDur ?? shot.outDur,
+    }) : shot;
+    const pOut = env.pOut;
+    env.cut = cut;
+    env.pOut = cut.outDur > 0 ? J.clamp((env.lt - (cut.dur - cut.outDur)) / cut.outDur) : 0;
+    try {
+      const L = J.LAYOUTS[cut.layout] || J.LAYOUTS.center;
+      const decor = cut.decor || [];
+      if (env.layer !== 'front') for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'back') try { D.draw(env, null, d); } catch (e) { console.warn(e); } }
+      if (env.layer === 'back') return null;                // 後景だけ: the lyrics and the front decorations go to the other layer
+      let bb = null;
+      try { bb = L.render(env); } catch (e) { console.warn('layout', cut.layout, e); }
+      for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'front') try { D.draw(env, bb, d); } catch (e) { console.warn(e); } }
+      return bb;
+    } finally { env.cut = shot; env.pOut = pOut; }
   }
 
   /* 透過PNG: screen effects are written for an opaque frame (they paint the background colour, wash the whole frame,
@@ -425,7 +464,7 @@ class Renderer {
     const cw = ctx.canvas.width, ch = ctx.canvas.height;
     const fx = plan.fx, st = plan.style;
     const active = plan.events.filter(ev => t >= ev.t && t < ev.t + Math.max(ev.dur, 1 / plan.fps));
-    const needScratch = active.some(ev => ['slice', 'block', 'zoom', 'mosaic'].includes(ev.type) || (J.FXE[ev.type] && J.FXE[ev.type].scratch)) || (!opt.fast && (st.glow || 0) > 0);
+    const needScratch = active.some(ev => ['slice', 'block', 'glitch', 'zoom', 'mosaic'].includes(ev.type) || (J.FXE[ev.type] && J.FXE[ev.type].scratch)) || (!opt.fast && (st.glow || 0) > 0);
     const S = needScratch ? this.ensure(this.scratch, cw, ch) : null;
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
     const copy = () => { const sx = S.getContext('2d'); sx.globalCompositeOperation = 'copy'; sx.drawImage(ctx.canvas, 0, 0); sx.globalCompositeOperation = 'source-over'; };
@@ -446,32 +485,36 @@ class Renderer {
         if (guard) guard.end();
         continue;
       }
-      if (ev.type === 'slice') {
+      if (ev.type === 'slice' || ev.type === 'glitch') {
         copy();
+        const amp = ev.amp != null ? ev.amp : 1;
         const n = 6 + (J.h(st2, 3) % 7);
         let y = 0;
         for (let i = 0; i < n && y < ch; i++) {
           const h = Math.max(2, ch * J.rr(0.01, 0.12, st2, i, 1));
-          const dx = (J.r(st2, i, 2) < 0.55 ? J.rs(st2, i, 3) * cw * 0.06 * ev.amp : 0);
+          const dx = (J.r(st2, i, 2) < 0.55 ? J.rs(st2, i, 3) * cw * 0.06 * amp : 0);
           if (dx) ctx.drawImage(S, 0, y, cw, h, dx, y, cw, h);
           y += h + ch * J.rr(0, 0.08, st2, i, 4);
         }
-      } else if (ev.type === 'block') {
-        copy();
+      }
+      if (ev.type === 'block' || ev.type === 'glitch') {
+        if (ev.type !== 'glitch') copy();
+        const amp = ev.amp != null ? ev.amp : 1;
         for (let i = 0; i < 9; i++) {
           const w = cw * J.rr(0.05, 0.3, st2, i, 5), h = ch * J.rr(0.01, 0.07, st2, i, 6);
           const x = J.r(st2, i, 7) * (cw - w), y = J.r(st2, i, 8) * (ch - h);
-          const sx = J.clamp(x + J.rs(st2, i, 9) * cw * 0.08, 0, cw - w), sy = J.clamp(y + J.rs(st2, i, 10) * ch * 0.04, 0, ch - h);
+          const sx = J.clamp(x + J.rs(st2, i, 9) * cw * 0.08 * amp, 0, cw - w), sy = J.clamp(y + J.rs(st2, i, 10) * ch * 0.04 * amp, 0, ch - h);
           ctx.drawImage(S, sx, sy, w, h, x, y, w, h);
           if (J.r(st2, i, 11) < 0.35) { ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = J.r(st2, i, 12) < 0.5 ? sc.ghostA : sc.ghostB; ctx.fillRect(x, y, w, h); ctx.globalCompositeOperation = 'source-over'; }
         }
       } else if (ev.type === 'invert') {
         ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cw, ch); ctx.globalCompositeOperation = 'source-over';
       } else if (ev.type === 'flash') {
-        ctx.globalAlpha = Math.pow(1 - k, 1.5) * 0.92; ctx.fillStyle = J.lum(sc.bg) < 0.5 ? sc.fg : '#ffffff'; ctx.fillRect(0, 0, cw, ch); ctx.globalAlpha = 1;
+        const amp = ev.amp != null ? ev.amp : 1;
+        ctx.globalAlpha = Math.min(1, Math.pow(1 - k, 1.5) * 0.92 * amp); ctx.fillStyle = J.lum(sc.bg) < 0.5 ? sc.fg : '#ffffff'; ctx.fillRect(0, 0, cw, ch); ctx.globalAlpha = 1;
       } else if (ev.type === 'zoom') {
         copy();
-        const a = ev.amp * (1 - k);
+        const a = (ev.amp != null ? ev.amp : 1) * (1 - k);
         for (let i = 1; i <= 6; i++) {
           const s = 1 + i * 0.022 * a; ctx.globalAlpha = 0.2 * (1 - i / 7) * Math.min(1, a * 1.3);
           ctx.drawImage(S, cw / 2 - cw * s / 2, ch / 2 - ch * s / 2, cw * s, ch * s);
@@ -479,7 +522,8 @@ class Renderer {
         ctx.globalAlpha = 1;
       } else if (ev.type === 'mosaic') {
         copy();
-        const T = this.ensure(this.tiny, Math.max(8, Math.round(cw / 42)), Math.max(8, Math.round(ch / 42))), tx = T.getContext('2d');
+        const a = ev.amp != null ? ev.amp : 1;
+        const T = this.ensure(this.tiny, Math.max(8, Math.round(cw / (42 * a))), Math.max(8, Math.round(ch / (42 * a)))), tx = T.getContext('2d');
         tx.imageSmoothingEnabled = true; tx.drawImage(S, 0, 0, T.width, T.height);
         ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 0.85 * (1 - k); ctx.drawImage(T, 0, 0, cw, ch); ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = true;
       }

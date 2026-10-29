@@ -42,6 +42,8 @@ STYLES = {
 }
 
 BODY = {
+    '厳密な配色': 'Chỉ dùng bảng màu',
+    'エフェクト・つなぎを含む最終画面を、現在のカットの配色だけに制限します。透明度は維持されます。グラデーションや光は段階的になり、高解像度では処理が増えます。合成用背景では適用しません。': 'Giới hạn khung hình cuối, gồm hiệu ứng và chuyển cảnh, trong bảng màu của đoạn hiện tại. Giữ nguyên độ trong suốt. Chuyển sắc và ánh sáng có thể hiện thành các bậc màu; độ phân giải cao cần xử lý nhiều hơn. Không áp dụng cho nền tách phông.',
     '1行に複数のカットがあるときは、カットが切り替わる瞬間に <span class="kbd">Tab</span> を押すと、その行のカットの開始時刻も合わせられます。': 'Nếu một dòng có nhiều cảnh, nhấn <span class="kbd">Tab</span> đúng lúc cảnh cần chuyển để canh cả thời điểm bắt đầu các cảnh của dòng đó.',
     '<label>速さ <select id="tapRate" aria-label="タップ中の再生速度">': '<label>Tốc độ <select id="tapRate" aria-label="Tốc độ phát khi nhấn">',
     '<input type="checkbox" id="tapCount"> カウントダウン</label>': '<input type="checkbox" id="tapCount"> Đếm ngược</label>',
@@ -105,6 +107,7 @@ BODY = {
     '<button id="tapBack" class="ghost">1つ戻る</button>': '<button id="tapBack" class="ghost">Hoàn tác</button>',
     '行の区切り（上の目盛り）はドラッグで動かせます。<span class="kbd">Shift</span> で拍に吸着しない': 'Kéo thanh neo ở trên để dời điểm bắt đầu câu. Giữ <span class="kbd">Shift</span> để kéo tự do không bám nhịp',
     'title="歌詞・タイミングの変更を元に戻す（Ctrl+Z）" disabled>元に戻す</button>': 'title="Hoàn tác thay đổi lời và thời gian (Ctrl+Z)" disabled>Hoàn tác</button>',
+    '<button id="btnRedoEdit" class="ghost small" title="やり直す（Ctrl+Y）" disabled>やり直す</button>': '<button id="btnRedoEdit" class="ghost small" title="Làm lại thay đổi (Ctrl+Y)" disabled>Làm lại</button>',
     'title="縮小" aria-label="タイムラインを縮小"': 'title="Thu nhỏ" aria-label="Thu nhỏ dòng thời gian"',
     'title="拡大（タイムライン上でホイールでも）" aria-label="タイムラインを拡大"': 'title="Phóng to (hoặc cuộn trong dòng thời gian)" aria-label="Phóng to dòng thời gian"',
     'title="全体を表示">全体</button>': 'title="Hiển thị tất cả bài hát">Tất cả</button>',
@@ -204,6 +207,10 @@ BODY = {
     '常に表示': 'Luôn hiển thị',
     '表示しない': 'Ẩn',
     '同じシードなら同じ構成になります。行ごとの「再抽選」「ロック」は左の行リストから。': 'Cùng một hạt giống sẽ tạo ra thứ tự hiệu ứng giống nhau. Sắp xếp lại hoặc khóa từng câu từ danh sách bên trái.',
+    '手法を名前・コードで検索 (例: A1, B2)': 'Tìm hiệu ứng theo tên hoặc mã (vd: A1, B2)',
+    '手法を名前・コードで検索': 'Tìm hiệu ứng theo tên hoặc mã',
+    '名前やコードで検索 (例: A1, B2)': 'Tìm theo tên hoặc mã (vd: A1, B2)',
+    'クリア': 'Xóa',
     '手法を名前で絞り込み': 'Kỹ thuật lọc theo tên',
     'グリーンバック／ブラックバックにすると、白い文字と演出だけを単色の背景の上に描きます（背景の模様・紙の質感・粒子・周辺減光は入りません）。プレビューにもそのまま反映されます。グリーンバックは動画編集ソフトのクロマキーで、ブラックバックは「スクリーン」合成や輝度キーで抜いて、別の映像の上に重ねられます。': 'Màn hình màu xanh lá cây và nền đen chỉ hiển thị văn bản và hiệu ứng màu trắng trên nền màu đồng nhất, không có mẫu nền, họa tiết giấy, hạt hoặc họa tiết. Xem trước cũng tuân theo cài đặt này. Sử dụng khóa màu (chroma key) cho màn hình xanh hoặc chế độ kết hợp khóa Màn hình / luma cho nền đen để có thể xếp lớp lên trên các video khác.',
     '曲を動画に含める': 'Đưa âm thanh vào video',
@@ -259,10 +266,14 @@ BODY = {
     '標準': 'Tiêu chuẩn',
     '最高': 'Tối đa',
     '高': 'Cao',
-    '中止': 'Đã hủy'
+    '中止': 'Đã hủy',
+    '音楽ファイルをドロップして読み込む': 'Thả tệp âm thanh để tải vào',
+    'MP3 / WAV / M4A / FLAC / OGG / AAC など': 'Hỗ trợ MP3, WAV, M4A, FLAC, OGG, AAC v.v.',
 }
 
 UI = {
+    "'音楽を読み込みました: ' + audio.name": "'Đã tải âm thanh: ' + audio.name",
+    "'音楽ファイル（mp3 / wav / m4a など）をドロップしてください'": "'Vui lòng thả tệp âm thanh (MP3, WAV, M4A, v.v.)'",
     '`前後の行と順番が入れ替わらないよう ${w.toFixed(2)} 秒にしました`': '`Đã đặt ${w.toFixed(2)} giây để giữ thứ tự các dòng`',
     "'このカットの開始時刻（手動）。空にすると自動に戻ります'": "'Thời điểm bắt đầu cảnh này (thủ công). Xóa trống để về tự động'",
     "'このカットの開始時刻（自動）。数値を入れると固定します'": "'Thời điểm bắt đầu cảnh này (tự động). Nhập số để cố định'",
@@ -301,7 +312,11 @@ UI = {
     "'ロック：'": "'Đã khóa: '",
     "'ロック解除：'": "'Đã mở khóa: '",
     'この位置のカットは抽選できません': 'Không có cảnh nào ở vị trí này để chọn lại',
+    '間奏カット': 'Cảnh nhạc dạo',
+    '`${i + 1}行目 間奏カット`': '`Cảnh nhạc dạo dòng ${i + 1}`',
+    '`${i + 1}行目 間奏の配色`': '`Bảng màu cảnh nhạc dạo dòng ${i + 1}`',
     '`${i + 1}行目 カット${k + 1}のレイアウト`': '`Bố cục của cảnh ${k + 1} ở dòng ${i + 1}`',
+    '`${i + 1}行目 カット${k + 1}の配色`': '`Bảng màu của cảnh ${k + 1} ở dòng ${i + 1}`',
     'このカットだけ構成を再抽選': 'Chỉ chọn lại bố cục của cảnh này',
     'このカットだけ手法をランダムに': 'Chỉ chọn ngẫu nhiên kỹ thuật của cảnh này',
     'このカットをシャッフル': 'Sắp xếp ngẫu nhiên cảnh này',
@@ -385,6 +400,7 @@ UI = {
     '画面効果': 'Hiệu ứng màn hình',
     'カット間のつなぎ': 'Chuyển tiếp',
     'レイアウト': 'Bố cục',
+    'フォント': 'Phông chữ',
     '登場': 'Đi vào',
     '保持': 'Đứng',
     '退場': 'Đi ra',
@@ -404,6 +420,8 @@ UI = {
     'この行の構成をロック': 'Khóa cách sắp xếp hàng này',
     'この行を再抽選': 'Sắp xếp lại hàng này',
     'レイアウト指定': 'Chọn bố cục',
+    'フォント指定': 'Chọn phông chữ',
+    'フォント 自動': 'Phông chữ: Tự động',
     '開始（秒）': 'Bắt đầu (giây)',
     '・手動': '· thủ công',
     '・自動': '· tự động',

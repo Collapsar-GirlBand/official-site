@@ -199,6 +199,7 @@
     }
   }
   const styles = {
+    custom: ['Custom', 'User-defined color schemes, font candidates, texture and animation biases'],
     noir: ['Noir Chroma', 'Black and white with cyan and amber color offsets'],
     crimson: ['Crimson Signal', 'Deep red, monochrome type and damaged data'],
     caution: ['Caution', 'Yellow, red and blue with instrument graphics'],

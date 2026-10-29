@@ -47,6 +47,7 @@ J.isExtra = (g, k) => { const d = def(g, k); return !!(d && d.extra); };
 J.setOf = (g, k) => { const d = def(g, k); return (d && d.set) || null; };
 /* may random picks use this entry? (g: a group key, 'style' or 'font') — 追加分 first, then 和風 */
 J.randomOk = (project, g, k) => {
+  if (g === 'style' && k === 'custom') return false;
   const d = def(g, k); if (!d) return false;
   if (d.extra && !(project && project.extra === true)) return false;
   if (d.wa && project && project.wa === false) return false;
