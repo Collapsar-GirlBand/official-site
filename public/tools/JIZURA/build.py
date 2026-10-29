@@ -23,6 +23,10 @@ def build(lang):
     body = read('app/body.html').replace('@VERSION@', VERSION).replace('    <div class="acts">', '    ' + language_nav + '\n    <div class="acts">', 1)
     if english: body = localize_body(body)
     elif local: body = i18n.localize_body(lang, body)
+    if lang == 'zh-Hans':
+        start = body.index('    <div class="terms-main">', body.index('<dialog id="termsDlg"'))
+        end = body.index('    <details class="terms-oss">', start)
+        body = body[:start] + read('app/usage_zh.html') + body[end:]
     if english: script = '\n'.join(localize_js(read(f), f) for f in sources)
     elif local: script = '\n'.join(i18n.localize_js(lang, read(f), f) for f in sources)
     else: script = js
@@ -50,6 +54,14 @@ def build(lang):
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script>
+(() => {{
+  let theme;
+  try {{ theme = localStorage.getItem('jizura.uiTheme.v1'); }} catch (_) {{}}
+  document.documentElement.dataset.uiTheme = ['light', 'dark'].includes(theme) ? theme :
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+}})();
+</script>
 <style>
 {read('app/style.css')}
 </style>

@@ -20,6 +20,14 @@
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script>
+(() => {
+  let theme;
+  try { theme = localStorage.getItem('jizura.uiTheme.v1'); } catch (_) {}
+  document.documentElement.dataset.uiTheme = ['light', 'dark'].includes(theme) ? theme :
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+})();
+</script>
 <style>
 :root {
   color-scheme: dark;
@@ -138,6 +146,7 @@ button.tap { font: 700 18px/1 var(--mono); letter-spacing: 0.2em; padding: 16px;
 /* line list */
 #lineList { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .ln { display: grid; grid-template-columns: 22px 66px minmax(0, 1fr); gap: 4px 6px; align-items: center; padding: 6px; border: 1px solid transparent; border-radius: var(--r); }
+.ln { cursor: pointer; }
 .ln:hover { background: var(--raised); }
 .ln.cur { border-color: var(--line2); background: var(--raised); }
 .ln .no { font: 500 11px var(--mono); color: var(--faint); text-align: right; }
@@ -194,7 +203,7 @@ button.play { width: 40px; height: 34px; padding: 0; font-size: 14px; }
 .ln.is-inter .txt { color: var(--muted); font-style: italic; }
 .ln .txt-edit { width: 100%; padding: 3px 6px; font-size: 13px; }
 .ln .tools .icon[aria-pressed=true] { color: var(--amber); }
-#timeline { width: 100%; height: 84px; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 0; cursor: pointer; touch-action: none; }
+#timeline { width: 100%; height: 60px; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 0; cursor: pointer; touch-action: none; }
 .tl-fx-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; background: #141418; border: 1px solid var(--line); border-bottom: none; border-radius: var(--r) var(--r) 0 0; font-size: 11px; flex-wrap: wrap; }
 .tl-fx-actions, .tl-fx-modes { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .tl-fx-label { color: var(--muted); font-size: 11px; font-weight: 600; margin-right: 2px; }
@@ -841,6 +850,94 @@ button.small.primary { padding: 4px 12px; }
   color: var(--muted);
 }
 
+.ln .cuts span.cut-lay { font-size: 11px; color: var(--muted); padding: 2px 4px; }
+
+/* Compact custom style controls and opt-in template previews. */
+.custom-sec { margin-top: 0; }
+.custom-sec > .sec-h { flex-wrap: wrap; gap: 8px; }
+.custom-sec > .sec-h > .row { flex-wrap: wrap; }
+#styleTemplates { margin-bottom: 12px; }
+.custom-help { margin-bottom: 10px; }
+.custom-help > summary { cursor: pointer; width: fit-content; list-style: none; }
+.custom-help > summary::-webkit-details-marker { display: none; }
+.custom-help-copy { color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+/* Keep the current-cut controls neutral; amber marks interaction only. */
+#cutInfo .chip {
+  border-color: var(--line2);
+  color: var(--text);
+  background: var(--raised);
+}
+#cutInfo .chip-code {
+  color: var(--text);
+  background: var(--raised2);
+}
+#cutInfo button.chip:hover:not(:disabled) {
+  border-color: var(--muted);
+  background: var(--raised2);
+}
+#cutInfo button.chip.is-forced { border-color: var(--muted); }
+#cutInfo button.chip[aria-pressed=true] {
+  border-color: var(--amber);
+  background: var(--raised2);
+}
+#cutInfo .cut-action-btn:hover:not(:disabled) {
+  border-color: var(--muted);
+  color: var(--text);
+}
+
+/* Editor day/night palettes. Canvas previews retain their project colours. */
+:root[data-ui-theme="light"] {
+  color-scheme: light;
+  --ink: #f2f4f7;
+  --panel: #ffffff;
+  --raised: #f0f3f7;
+  --raised2: #e3e9f0;
+  --line: #d7dee7;
+  --line2: #bdc8d6;
+  --text: #202c3b;
+  --muted: #536479;
+  --faint: #66758a;
+  --amber: #a85b00;
+  --cyan: #00786e;
+  --rose: #b32d61;
+  --danger: #c12d42;
+}
+:root[data-ui-theme="light"] button.primary,
+:root[data-ui-theme="light"] .lang-switch [aria-current=page] { color: #fff; }
+:root[data-ui-theme="light"] button.primary:hover { background: #8e4d00; }
+:root[data-ui-theme="light"] .toast,
+:root[data-ui-theme="light"] .overlay-msg,
+:root[data-ui-theme="light"] .drop-overlay-box { background: var(--panel); color: var(--text); }
+:root[data-ui-theme="light"] .bias-chip[data-w="3"],
+:root[data-ui-theme="light"] .fx-menu-item:hover,
+:root[data-ui-theme="light"] .btn-fx-add:hover,
+:root[data-ui-theme="light"] #btnAddFlash:hover { color: var(--text); }
+:root[data-ui-theme="light"] .fx-menu-item:hover { background: var(--raised2); }
+:root[data-ui-theme="light"] .brand .mark { text-shadow: -1px -1px 0 #84d4c8, 1px 1px 0 #f1c785; }
+#btnUiTheme { line-height: 1.5; }
+.usage-steps { padding-left: 1.6em; line-height: 1.8; }
+.usage-steps li + li { margin-top: 6px; }
+
+/* Screen effects workspace: one clock, two previews. */
+.fx-only { display: none !important; }
+.screen-fx-mode .fx-only { display: block !important; }
+.screen-fx-mode #cutInfo, .screen-fx-mode #cutPick { display: none !important; }
+.screen-fx-mode .viewport { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 26px; }
+.screen-fx-mode #view { grid-column: 1; grid-row: 1; }
+.screen-fx-mode .compare-base { grid-column: 2; grid-row: 1; min-width: 0; }
+.compare-label { position: absolute; left: 10px; top: 5px; color: var(--muted); font-size: 11px; }
+.compare-base > .compare-label { left: calc(50% + 8px); }
+.screen-fx-panel { border: 1px solid var(--line); padding: 10px; border-radius: var(--r); }
+.screen-fx-panel p { font-size: 11px; margin: 0 0 8px; }
+.fx-event-list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 110px; overflow: auto; margin-top: 8px; }
+.fx-event-list button { font-size: 11px; }
+.screen-fx-panel .event-inspector { margin-top: 8px; flex-wrap: wrap; }
+.screen-fx-panel .event-inspector[hidden] { display: none; }
+.screen-fx-panel input[type=number] { width: 90px; }
+
+#app:not(.screen-fx-mode) [data-tab="fx"], #app:not(.screen-fx-mode) [data-pane="fx"] { display: none !important; }
+
 </style>
 </head>
 <body>
@@ -862,6 +959,7 @@ button.small.primary { padding: 4px 12px; }
     </div>
     <button id="btnOmakaseTop" class="primary omk-top" title="스타일·분위기·연출·배색을 한꺼번에 무작위로">자동 생성</button>
     <button id="btnMenu" class="ghost menu-btn" aria-expanded="false" aria-controls="appMenu">메뉴</button>
+    <button id="btnUiTheme" class="ghost" type="button" aria-pressed="false">日间 / 黑夜</button>
     <div class="modes" role="group" aria-label="편집 모드">
       <button id="modeMobile" class="mode-mobile" aria-pressed="false" title="스마트폰 화면(자동 생성 버튼을 위에 고정, 줄은 접어서 표시)">스마트폰</button>
       <button id="modeEasy" aria-pressed="false" title="자동 생성 중심의 간단한 화면">간단</button>
@@ -933,7 +1031,11 @@ button.small.primary { padding: 4px 12px; }
 
     <!-- ================= center: stage ================= -->
     <section class="col col-stage" aria-label="미리보기">
-      <div class="viewport" id="viewport"><canvas id="view" width="1280" height="720"></canvas><div id="viewMsg" class="overlay-msg" hidden></div><div id="keyBadge" class="key-badge" hidden></div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div></div>
+      <div class="row stage-mode" role="group" aria-label="编辑模式">
+        <button type="button" id="btnShotMode" class="accent" aria-pressed="true">镜头编辑</button>
+        <button type="button" id="btnScreenFxMode" class="ghost" aria-pressed="false">画面动效 · 对比</button>
+      </div>
+      <div class="viewport" id="viewport"><span class="compare-label fx-only">加画面动效</span><div class="compare-base fx-only"><span class="compare-label">无画面动效</span><canvas id="viewNoFx" width="1280" height="720" aria-label="无时间点动效的同步预览"></canvas></div><canvas id="view" width="1280" height="720"></canvas><div id="viewMsg" class="overlay-msg" hidden></div><div id="keyBadge" class="key-badge" hidden></div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div></div>
       <div class="transport">
         <button id="btnPlay" class="play" aria-label="재생">▶</button>
         <span id="timeNow" class="tc">00:00.00</span><span class="tc muted">/</span><span id="timeDur" class="tc muted">00:00.00</span>
@@ -958,73 +1060,27 @@ button.small.primary { padding: 4px 12px; }
           <button id="tlFit" class="ghost small" title="곡 전체 보기">전체</button>
         </span>
       </div>
-      <div class="tl-fx-toolbar" id="tlFxToolbar">
-        <div class="tl-fx-actions">
-          <span class="tl-fx-label">画面効果:</span>
-          <button type="button" class="btn-fx-add" id="btnAddGlitch" title="現在の재생 위치にグリッチ（Glitch）を配置">⚡ +グリッチ</button>
-          <button type="button" class="btn-fx-add" id="btnAddFlash" title="現在の재생 위치に플래시（Flash）を配置">✦ +白플래시</button>
-          <button type="button" class="btn-fx-add" id="btnAddShake" title="現在の재생 위치に揺れ・振動（Shake）を配置">〰 +揺れ</button>
-          <div class="fx-dropdown-wrap" id="fxDropdownWrap">
-            <button type="button" class="btn-fx-add ghost" id="btnFxMore">+ その他の効果 ▾</button>
-            <div class="fx-dropdown-menu" id="fxDropdownMenu" hidden>
-              <button type="button" class="fx-menu-item" data-type="chroma">◈ 色ズレ (Chroma)</button>
-              <button type="button" class="fx-menu-item" data-type="zoom">◎ ズームブラー (Zoom)</button>
-              <button type="button" class="fx-menu-item" data-type="invert">◐ 階調反転 (Invert)</button>
-              <button type="button" class="fx-menu-item" data-type="mosaic">☷ モザイク (Mosaic)</button>
-              <button type="button" class="fx-menu-item" data-type="slice">⚡ スライス (Slice)</button>
-              <button type="button" class="fx-menu-item" data-type="block">▦ ブロック (Block)</button>
-              <button type="button" class="fx-menu-item" data-type="radialChroma">✺ 放射色収差 (Radial Chroma)</button>
-              <button type="button" class="fx-menu-item" data-type="bloomFlash">✧ ブルーム (Bloom Flash)</button>
-            </div>
-          </div>
-        </div>
-        <div class="tl-fx-modes">
-          <button type="button" class="ghost small" id="btnFxModeToggle" title="効果生成モード：手動のみ（ランダム生成オフ） / 混合モード（자동生成＋手動）">モード: 混合</button>
-          <button type="button" class="ghost small" id="btnBakeFx" title="자동生成された効果をタイムラインに固定（手動イベント化し微調整可能に）">자동効果を固定</button>
-          <button type="button" class="ghost small danger-text" id="btnClearFx" title="タイムライン上の全効果イベントを지우기">効果を지우기</button>
-        </div>
-      </div>
       <canvas id="timeline" aria-label="타임라인(클릭으로 이동, 줄 구분은 드래그로 조정)"></canvas>
-      <div class="event-inspector" id="eventInspector" hidden>
-        <span class="ev-insp-badge" id="evInspBadge">⚡ グリッチ</span>
-        <div class="ev-insp-field">
-          <label>種類</label>
-          <select id="evInspType">
-            <option value="glitch">⚡ グリッチ (Glitch)</option>
-            <option value="flash">✦ 白플래시 (Flash)</option>
-            <option value="shake">〰 揺れ・振動 (Shake)</option>
-            <option value="chroma">◈ 色ズレ (Chroma)</option>
-            <option value="zoom">◎ ズームブラー (Zoom)</option>
-            <option value="invert">◐ 階調反転 (Invert)</option>
-            <option value="mosaic">☷ モザイク (Mosaic)</option>
-            <option value="slice">⚡ スライス (Slice)</option>
-            <option value="block">▦ ブロック (Block)</option>
-            <option value="radialChroma">✺ 放射色収差 (Radial Chroma)</option>
-            <option value="bloomFlash">✧ ブルーム (Bloom Flash)</option>
-          </select>
+      <section class="screen-fx-panel fx-only" aria-label="画面动效编辑">
+        <p class="muted">两侧同步播放，仅对比时间点动效；布局、字体、镜头运动、转场及基础质感保持一致。</p>
+        <div class="row">
+          <select id="fxAddType" aria-label="添加动效类型"></select>
+          <button type="button" id="btnAddScreenFx" class="accent">在当前时间添加</button>
+          <button type="button" id="btnFxModeToggle" class="ghost"></button>
+          <button type="button" id="btnBakeFx" class="ghost">转为手动编辑</button>
+          <button type="button" id="btnClearFx" class="ghost">清空动效</button>
         </div>
-        <div class="ev-insp-field">
-          <label>時刻</label>
-          <button type="button" class="ghost tiny icon-btn" id="evNudgeBack" title="0.05秒戻す (キー [ )">◀</button>
-          <span class="mono ev-insp-val" id="evTimeVal">0.00s</span>
-          <button type="button" class="ghost tiny icon-btn" id="evNudgeFwd" title="0.05秒進める (キー ] )">▶</button>
+        <div id="fxEventList" class="fx-event-list" role="group" aria-label="动效事件"></div>
+        <div class="event-inspector" id="eventInspector" hidden>
+          <span id="evInspBadge"></span>
+          <label>类型 <select id="evInspType"></select></label>
+          <label>时间（秒）<input id="evTimeInput" type="number" min="0" step="0.01"></label>
+          <button type="button" id="evNudgeBack" class="ghost">−0.05s</button><span id="evTimeVal" class="mono"></span><button type="button" id="evNudgeFwd" class="ghost">+0.05s</button>
+          <label>强度 <input id="evAmp" type="range" min="0.2" max="2.5" step="0.1"><span id="evAmpVal"></span></label>
+          <label>时长 <input id="evDur" type="range" min="0.04" max="1.5" step="0.02"><span id="evDurVal"></span></label>
+          <button type="button" id="evDelete" class="ghost">删除动效</button><button type="button" id="evClose" class="ghost">收起</button>
         </div>
-        <div class="ev-insp-field">
-          <label>強度</label>
-          <input type="range" id="evAmp" min="0.2" max="2.5" step="0.1" value="1.0">
-          <span class="mono ev-insp-val" id="evAmpVal">1.0x</span>
-        </div>
-        <div class="ev-insp-field">
-          <label>長さ</label>
-          <input type="range" id="evDur" min="0.04" max="1.50" step="0.02" value="0.15">
-          <span class="mono ev-insp-val" id="evDurVal">0.15s</span>
-        </div>
-        <div class="ev-insp-actions">
-          <button type="button" class="ghost small" id="evPreview" title="効果を미리보기재생">▶ 試聴</button>
-          <button type="button" class="ghost small danger" id="evDelete" title="選択中の効果イベントを削除 (Deleteキー)">🗑️ 削除</button>
-          <button type="button" class="ghost small icon-txt" id="evClose" title="닫기">✕</button>
-        </div>
-      </div>
+      </section>
       <div class="cutinfo" id="cutInfo"></div>
       <div id="cutPick" class="cut-pick pro-only" hidden>
         <div class="cut-pick-h">
@@ -1105,7 +1161,6 @@ button.small.primary { padding: 4px 12px; }
       </nav>
 
       <div class="tabpane" data-pane="style">
-        <div id="styleGrid" class="style-grid"></div>
 
         <!-- 自定义风格面板 Custom Style Panel -->
         <div id="customStyleSec" class="custom-sec">
@@ -1113,12 +1168,16 @@ button.small.primary { padding: 4px 12px; }
             <h3 style="margin:0">カスタム스타일設定</h3>
             <span class="row" style="gap:6px">
               <button id="btnApplyCustom" class="small primary" title="カスタム스타일を適用">適用</button>
-              <select id="presetToCustom" class="small" aria-label="プリセットから複製" title="プリセットをテンプレートとしてカスタムに複製します">
+              <button type="button" id="btnStyleTemplates" class="small ghost" aria-expanded="false" aria-controls="styleTemplates">模板</button>
+              <select hidden id="presetToCustom" class="small" aria-label="プリセットから複製" title="プリセットをテンプレートとしてカスタムに複製します">
                 <option value="">プリセットから複製...</option>
               </select>
               <button id="btnResetCustom" class="small ghost" title="既定のカスタム設定に戻す">初期値</button>
             </span>
           </div>
+
+          <details class="custom-help"><summary aria-label="设置说明">❓</summary><div class="custom-help-copy"><p>효과와 전환을 포함한 최종 화면을 현재 컷의 팔레트 색상으로 제한합니다. 투명도는 유지됩니다. 그라데이션과 빛에 색상 단계가 보일 수 있으며, 고해상도에서는 처리량이 늘어납니다. 합성용 배경에는 적용되지 않습니다.</p><p>見出し・本文・明朝・数字などの役割ごとにフォント候補を指定します。生成時に候補の中からランダムに選ばれます。</p><p>クリックで出現頻度を切替（3x 出やすい / 2x 好み / 1x 通常 / 0x 停止）</p><p>円、矢印、グリッドなどの出やすさを調整</p><p>画面の四隅や배경に座標・時間・インジケーターなどの計器UIを描画します</p><p>배색セットで設定した2色のグラデーションを見出し文字に優先適用します</p><p>すべての배색セットに印刷紙のような微細な繊維テクスチャを重ねます</p></div></details>
+          <div id="styleTemplates" hidden><div id="styleGrid" class="style-grid"></div></div>
 
           <!-- 自定义子面板导航 Tabs -->
           <div class="cust-tabs" role="tablist">
@@ -1134,7 +1193,7 @@ button.small.primary { padding: 4px 12px; }
           <!-- 子面板 1: 多组배색方案 -->
           <div class="cust-pane" data-cust-pane="palette">
             <label class="check"><input id="custStrictPalette" type="checkbox"> 팔레트 색상만 사용</label>
-            <p class="note">효과와 전환을 포함한 최종 화면을 현재 컷의 팔레트 색상으로 제한합니다. 투명도는 유지됩니다. 그라데이션과 빛에 색상 단계가 보일 수 있으며, 고해상도에서는 처리량이 늘어납니다. 합성용 배경에는 적용되지 않습니다.</p>
+            
             <div class="row" style="justify-content:space-between; margin-bottom:8px">
               <div id="schemeTabs" class="scheme-tabs"></div>
               <div class="row" style="gap:4px">
@@ -1149,7 +1208,7 @@ button.small.primary { padding: 4px 12px; }
 
           <!-- 子面板 2: 字体候选 -->
           <div class="cust-pane" data-cust-pane="fonts" hidden>
-            <p class="note" style="margin-top:0">見出し・本文・明朝・数字などの役割ごとにフォント候補を指定します。生成時に候補の中からランダムに選ばれます。</p>
+            
             <div id="custFontRoles"></div>
             <div class="row" style="margin-top:10px">
               <input id="localFont" type="text" placeholder="PCのフォント名（例: 游明朝, 微软雅黑）" style="flex:1">
@@ -1168,7 +1227,7 @@ button.small.primary { padding: 4px 12px; }
           <!-- 子面板 4: 布局偏好 -->
           <div class="cust-pane" data-cust-pane="layout" hidden>
             <div class="row" style="justify-content:space-between; margin-bottom:6px">
-              <span class="muted" style="font-size:11px">クリックで出現頻度を切替（3x 出やすい / 2x 好み / 1x 通常 / 0x 停止）</span>
+              
               <button type="button" id="btnResetLayoutBias" class="small ghost">リセット</button>
             </div>
             <div id="layoutBiasChips" class="bias-chips"></div>
@@ -1191,7 +1250,7 @@ button.small.primary { padding: 4px 12px; }
           <!-- 子面板 6: 装饰偏好 -->
           <div class="cust-pane" data-cust-pane="decor" hidden>
             <div class="row" style="justify-content:space-between; margin-bottom:6px">
-              <span class="muted" style="font-size:11px">円、矢印、グリッドなどの出やすさを調整</span>
+              
               <button type="button" id="btnResetDecorBias" class="small ghost">リセット</button>
             </div>
             <div id="decorBiasChips" class="bias-chips"></div>
@@ -1201,20 +1260,20 @@ button.small.primary { padding: 4px 12px; }
           <div class="cust-pane" data-cust-pane="switches" hidden>
             <label class="check">
               <input id="custSwitchHud" type="checkbox">
-              <span>HUD 연출を表示<small>画面の四隅や배경に座標・時間・インジケーターなどの計器UIを描画します</small></span>
+              <span>HUD 연출を表示</span>
             </label>
             <label class="check">
               <input id="custSwitchGrad" type="checkbox">
-              <span>グラデーション文字を優先<small>배색セットで設定した2色のグラデーションを見出し文字に優先適用します</small></span>
+              <span>グラデーション文字を優先</span>
             </label>
             <label class="check">
               <input id="custSwitchPaper" type="checkbox">
-              <span>全배색に紙の質感を適用<small>すべての배색セットに印刷紙のような微細な繊維テクスチャを重ねます</small></span>
+              <span>全배색に紙の質感を適用</span>
             </label>
           </div>
         </div>
 
-        <details class="legacy-custom" style="margin-top:14px">
+        <details hidden class="legacy-custom" style="margin-top:14px">
           <summary class="muted" style="cursor:pointer; font-size:11px">簡易オーバーライド（旧設定）</summary>
           <div id="fontRoles" hidden></div>
           <h3>강조색·오프셋 색</h3>
@@ -4801,34 +4860,17 @@ J.plan = (project, audio) => {
     const visEnd = Math.min(e, s + Math.max(3.6, n * 0.5 + 1.2));
     const D = visEnd - s;
     plan.lines.push({ index: li, src: ln.src, lrc: ln.lrc, text: ln.text, start: s, end: e, visEnd, note: ln.note, impact: ln.impact, emph: ln.emph, chunks: null, seed: lineSeed });
-    const chunks = ln.manual || (plan.lang === 'en' ? J.phraseChunks(J.chunkText(ln.text)) : J.chunkText(ln.text));
+    // Slash boundaries are authoritative: one lyric unit per non-empty segment.
+    // Timing, density, overrides and recap heuristics must never change this count.
+    const chunks = ln.manual || [ln.text];
     plan.lines[li].chunks = chunks;
-    const L = J.lerp(1.3, 0.5, fx.density);
-    let nC = Math.round(D / L);
-    const maxC = chunks.length + (chunks.length >= 2 && D > 2.0 ? 1 : 0);
-    nC = J.clamp(nC, 1, Math.max(1, maxC));
     const ovAny = Object.keys(ov).some(k2 => !['lock', 'lockedSeed', 'seed', 'cutTech', 'cutLayouts', 'cutSchemes', 'cutQuiet', 'cutTime'].includes(k2));
     const kime = !!(U && U.kime.has(li) && !ov.cuts);
-    if (ov.single || kime) nC = 1;
-    if (zones) nC = Math.max(1, Math.min(nC, Math.floor(chunks.length / 2)));   // 中央を空ける: each cut is split in two, so keep ≥ 2 words per cut
-    // カット数の指定 (per line): exactly that many cuts — chunks are split further when the line has fewer
-    const fixedN = ov.cuts > 0 ? Math.min(12, ov.cuts | 0) : 0;
-    let chunks2 = chunks;
-    if (fixedN) { nC = fixedN; chunks2 = splitToCount(chunks, fixedN); }
-    // groups of chunks
-    let groups;
-    const nG = Math.min(nC, chunks2.length);
-    if (nG <= 1) groups = [ln.text];
-    else groups = partition(chunks2, nG).map(g => J.joinWords(g));
-    const recap = !fixedN && nC > groups.length && groups.length >= 2;
-    let units = groups.map(g => ({ text: g, w: [...g].length + 1.6 }));
-    if (recap) units.push({ text: ln.text, w: (units.reduce((a, u) => a + u.w, 0) / units.length) * 1.25, recap: true });
+    const units = chunks.map(g => ({ text: g, w: [...g].length + 1.6 }));
     // a locked or saved line keeps its own cuts too (the cut count would otherwise follow the 細かさ slider or おまかせ)
     const savedSource = (ov.lock && Array.isArray(ov.lockedCuts)) ? ov.lockedCuts : (ov.savedCuts && Array.isArray(ov.savedCuts) ? ov.savedCuts : null);
     // Older snapshots may include an automatically inserted gap card. It is not a lyric unit.
     const cutsSource = savedSource && savedSource.filter(c => c && c.layout !== 'interlude');
-    if (cutsSource && cutsSource.length && cutsSource.every(c => c && typeof c.utext === 'string' && ln.text.includes(c.utext.trim())))
-      units = cutsSource.map(c => ({ text: c.utext, w: [...c.utext].length + 1.6, recap: !!c.recap }));
     const tot = units.reduce((a, u) => a + u.w, 0);
     // ロック/保存: a locked or saved line keeps exactly what it showed when it was locked/saved (layouts, motion, decorations, colours,
     // accents) — rerolling other lines changes the shared "recently used" state, so the seed alone is not enough
@@ -4859,6 +4901,7 @@ J.plan = (project, audio) => {
     let lineBg = (lockSpecs && lockSpecs[0] && lockSpecs[0].bg !== undefined) ? (J.BG[lockSpecs[0].bg] ? lockSpecs[0].bg : 'none') : (ov.bg && J.BG[ov.bg] ? ov.bg : pickBg(rng, st, en, fx, bgHistory));
     bgHistory.push(lineBg);
     let lineBgP = (lockSpecs && lockSpecs[0] && lockSpecs[0].bgP) ? lockSpecs[0].bgP : (J.BG[lineBg] && J.BG[lineBg].plan ? J.BG[lineBg].plan(rng, st) : {});
+    let lineLabels = null;
     units.forEach((u, k) => {
       const cs = bounds[k], ce = bounds[k + 1], dur = ce - cs;
       const halves = zones ? splitHalf(u.text, plan.lang) : null;               // 中央を空ける: 「花が」｜「咲いた」
@@ -4937,6 +4980,26 @@ J.plan = (project, audio) => {
         bg = LS.bg && J.BG[LS.bg] ? LS.bg : 'none'; if (bg !== 'none') { lineBg = bg; lineBgP = LS.bgP || {}; }
         inDur = LS.inDur; outDur = LS.outDur;
       }
+      // Share the line's default labels before applying any per-cut manual choices.
+      // Keep layout parameters specific to each segment's text and duration.
+      if (!lineLabels) {
+        lineLabels = { layout, enter, exit, hold, treat, cam, bg, scheme: sch,
+          font: (ov.font && J.FONTS[ov.font]) ? ov.font : (tech.font
+            ? LD.plan(J.rng(J.h(lineSeed, 0, 97)), { text: txt, n: nn, W: LW, H: LH, dur }, st).font
+            : (params && params.font)),
+          decor: decor.map(d => d.id), bgP: lineBgP };
+      } else {
+        ({ layout, enter, exit, hold, treat, cam, bg } = lineLabels);
+        sch = lineLabels.scheme;
+        LD = J.LAYOUTS[layout];
+        params = LD.plan(J.rng(J.h(lineSeed, k, 97)), { text: txt, n: nn, W: LW, H: LH, dur }, cutSt);
+        decor = lineLabels.decor.map(id => decorParams(J.rng(J.h(lineSeed, k, 98)), id));
+        treatP = J.TREAT[treat].plan ? J.TREAT[treat].plan(J.rng(J.h(lineSeed, k, 99)), st) : {};
+        camP = J.CAMERA[cam].plan ? J.CAMERA[cam].plan(J.rng(J.h(lineSeed, k, 100)), st) : {};
+        lineBgP = lineLabels.bgP;
+      }
+      if (tech.font === undefined && lineLabels.font && J.FONTS[lineLabels.font]) cutFont = lineLabels.font;
+      [inDur, outDur] = durs(enter, exit);
       // このカットだけの指定: applied on top of the draw with its own random stream, so changing one cut never
       // shifts the other cuts (history below keeps what was drawn, as if nothing had been changed here)
       const drawn = { layout, enter, exit, hold, treat, cam, decor: decor.map(d => d.id) };
@@ -4989,7 +5052,8 @@ J.plan = (project, audio) => {
       const joinSaved = { enter, inDur, prevExit: prevCut && prevCut.exit, prevOut: prevCut && prevCut.outDur };
       // a locked line keeps its own exit: the next (unlocked) line may not replace it with a transition / morph
       const prevLockedOther = prevCut && prevCut.line !== li && !LS && ((project.overrides || {})[prevCut.line] || {}).lock;
-      const canTrans = prevCut && Math.abs(prevCut.end - cs) < 0.06 && dur > 0.5 && !prevLockedOther;
+      const canTrans = prevCut && Math.abs(prevCut.end - cs) < 0.06 && dur > 0.5 && !prevLockedOther
+        && !!((ov.trans && ov.trans !== 'none') || (tech.trans && tech.trans !== 'none'));
       // 統一感: モーフ — the next part of the same line grows out of this one (shared characters glide, the rest melts)
       if (LS) {                                       // locked: the same join as before, when the cuts still touch
         if (canTrans && LS.morph) { morph = { dur: LS.morph.dur }; prevCut.exit = 'cut'; prevCut.outDur = 0; }
@@ -5887,7 +5951,7 @@ class Renderer {
     }
     // ---------- camera & chroma amounts ----------
     const u = H / 1080;
-    const events = plan.events;
+    const events = opt.noEvents ? [] : plan.events;
     let spike = 0, shake = 0, beatPulse = 0;
     for (let i = 0; i < events.length; i++) {
       const ev = events[i]; if (ev.t > t) break;
@@ -6062,7 +6126,7 @@ class Renderer {
     const key = A.index + ':' + B.index + ':' + cw + 'x' + ch + ':' + scale.toFixed(4), M = this.morphCache.map;
     if (M.has(key)) return M.get(key);
     const cv = this.ensure(this.morphCv || (this.morphCv = mk(2, 2)), cw, ch), x = cv.getContext('2d');
-    const o2 = { scale, noPost: true, noHud: true, noTrans: true, noGhost: true, transparent: opt.transparent, fast: true };
+    const o2 = { scale, noPost: true, noHud: true, noTrans: true, noGhost: true, transparent: opt.transparent, noEvents: opt.noEvents, fast: true };
     const la = [], lb = [];
     this.frame(x, plan, Math.max(A.start, A.end - 1e-3), Object.assign({}, o2, { glyphLog: la }));
     this.frame(x, plan, B.start + B.morph.dur + 1e-3, Object.assign({}, o2, { glyphLog: lb }));
@@ -6257,7 +6321,7 @@ class Renderer {
   post(ctx, plan, t, tq, step, sc, scale, opt, allowFilter) {
     const cw = ctx.canvas.width, ch = ctx.canvas.height;
     const fx = plan.fx, st = plan.style;
-    const active = plan.events.filter(ev => t >= ev.t && t < ev.t + Math.max(ev.dur, 1 / plan.fps));
+    const active = (opt.noEvents ? [] : plan.events).filter(ev => t >= ev.t && t < ev.t + Math.max(ev.dur, 1 / plan.fps));
     const needScratch = active.some(ev => ['slice', 'block', 'glitch', 'zoom', 'mosaic'].includes(ev.type) || (J.FXE[ev.type] && J.FXE[ev.type].scratch)) || (!opt.fast && (st.glow || 0) > 0);
     const S = needScratch ? this.ensure(this.scratch, cw, ch) : null;
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -37616,6 +37680,30 @@ J.randomOk = (project, g, k) => {
 if (!document.getElementById('app')) return;          // engine-only pages (tests)
 if (J.initEffectCodes) J.initEffectCodes();
 const $ = id => document.getElementById(id);
+// Editor appearance is independent of project colours and exported frames.
+const uiThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+let uiThemeSaved = null;
+try { uiThemeSaved = localStorage.getItem('jizura.uiTheme.v1'); } catch (_) {}
+if (!['light', 'dark'].includes(uiThemeSaved)) uiThemeSaved = null;
+function applyUiTheme(theme) {
+  document.documentElement.dataset.uiTheme = theme;
+  const button = $('btnUiTheme');
+  if (!button) return;
+  const lang = document.documentElement.lang;
+  const words = lang.startsWith('zh') ? ['日间', '黑夜'] : lang === 'ja' ? ['昼間', '夜間'] : ['Day', 'Night'];
+  button.textContent = words.join(' / ');
+  button.setAttribute('aria-pressed', String(theme === 'dark'));
+  button.title = `${words[theme === 'dark' ? 1 : 0]} → ${words[theme === 'dark' ? 0 : 1]}`;
+}
+applyUiTheme(uiThemeSaved || (uiThemeMedia.matches ? 'dark' : 'light'));
+$('btnUiTheme')?.addEventListener('click', () => {
+  uiThemeSaved = document.documentElement.dataset.uiTheme === 'dark' ? 'light' : 'dark';
+  applyUiTheme(uiThemeSaved);
+  try { localStorage.setItem('jizura.uiTheme.v1', uiThemeSaved); } catch (_) {}
+});
+uiThemeMedia.addEventListener('change', event => {
+  if (!uiThemeSaved) applyUiTheme(event.matches ? 'dark' : 'light');
+});
 const LS_KEY = 'jizura.project.v1';
 const LS_HIST_KEY = 'jizura.undoHistory.v1';
 const PERSIST_UNDO_MAX = 10;
@@ -37873,7 +37961,7 @@ function fixedLayout() { return !!(FIXED_MQ && FIXED_MQ.matches) && document.doc
 function sizeViewport() {
   const vp = $('viewport'), c = $('view');
   const ar = S.plan.W / S.plan.H;
-  let cssW = vp.clientWidth || 800, cssH = cssW / ar;
+  let cssW = S.screenFxMode ? Math.max(1, (vp.clientWidth - 10) / 2) : (vp.clientWidth || 800), cssH = cssW / ar;
   // fixed workspace: the viewport gets whatever height is left under the header / above the transport and timeline
   const maxH = fixedLayout() ? Math.max(160, vp.clientHeight - 2) : Math.max(220, window.innerHeight * 0.68);
   if (cssH > maxH) { cssH = maxH; cssW = cssH * ar; }
@@ -37881,6 +37969,8 @@ function sizeViewport() {
   const pw = Math.round(Math.min(S.plan.W, cssW * dpr)), ph = Math.round(pw / ar);
   if (c.width !== pw || c.height !== ph) { c.width = pw; c.height = ph; }
   c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
+  const base = $('viewNoFx');
+  if (base && S.screenFxMode) { base.width = pw; base.height = ph; base.style.width = cssW + 'px'; base.style.height = cssH + 'px'; }
   S.need = true;
 }
 // preview only: dotted outline of the centre that 中央を空ける keeps free (never in exports)
@@ -37896,6 +37986,13 @@ function draw() {
   const c = $('view'), ctx = c.getContext('2d');
   const t0 = performance.now();
   S.renderer.frame(ctx, S.plan, S.t, { scale: c.width / S.plan.W, fast: S.playing && S.slow });
+  if (S.screenFxMode) {
+    const b = $('viewNoFx'), bx = b.getContext('2d');
+    // Same renderer and clock preserve cached textures and all non-event styling.
+    S.renderer.frame(bx, S.plan, S.t, { scale: b.width / S.plan.W, fast: S.playing && S.slow, noEvents: true });
+    if (S.plan.centerFree) drawCenterGuide(bx, b.width / S.plan.W);
+    renderScreenFxEvents();
+  }
   if (S.plan.centerFree) drawCenterGuide(ctx, c.width / S.plan.W);
   const dt = performance.now() - t0;
   S.slow = S.playing ? (dt > 30 ? true : dt < 14 ? false : S.slow) : false;
@@ -37991,8 +38088,7 @@ function drawTimeline() {
   for (const b of beats) { if (b < off) continue; if (b > off + vd) break; x.fillRect(Math.round(X(b)), h - 6 * dpr, 1, 6 * dpr); }
 
   const yLines = 19 * dpr;
-  const yFx0 = 20 * dpr, yFx1 = 43 * dpr;
-  const top = 45 * dpr, bot = h - 8 * dpr;
+  const top = 21 * dpr, bot = h - 8 * dpr;
 
   const R = exportRange();
   if (R) { x.fillStyle = 'rgba(245,165,12,0.10)'; x.fillRect(X(R.t0), 0, X(R.t1) - X(R.t0), h); }
@@ -38024,81 +38120,6 @@ function drawTimeline() {
     x.fillStyle = on ? '#f5a50c' : '#8e8a94'; x.fillText(String(ln.index + 1).padStart(2, '0') + (ln.interlude ? ' 간주' : ''), lx + 4 * dpr, 14 * dpr);
   }
 
-  // ---------- FX Events Track (画面动效轨道) ----------
-  x.fillStyle = 'rgba(255,255,255,0.02)';
-  x.fillRect(0, yFx0, w, yFx1 - yFx0);
-  x.fillStyle = 'rgba(255,255,255,0.07)';
-  x.fillRect(0, yFx1, w, 1 * dpr);
-  x.fillStyle = 'rgba(236,231,225,0.3)';
-  x.font = `bold ${8 * dpr}px monospace`;
-  x.fillText('FX', 3 * dpr, yFx0 + 15 * dpr);
-
-  const fxEvents = S.plan.events || [];
-  for (let i = 0; i < fxEvents.length; i++) {
-    const ev = fxEvents[i];
-    const ex0 = X(ev.t);
-    const edur = ev.dur || (ev.type === 'flash' ? 3 / 24 : ev.type === 'shake' ? 0.3 : 0.15);
-    const ex1 = Math.max(ex0 + 16 * dpr, X(ev.t + edur));
-    if (ex1 < 0 || ex0 > w) continue;
-
-    const isSel = S.selectedEvent && (S.selectedEvent.id === ev.id || (Math.abs(S.selectedEvent.t - ev.t) < 0.001 && S.selectedEvent.type === ev.type));
-    const isHov = TL.hoverEvent && (TL.hoverEvent.id === ev.id || (Math.abs(TL.hoverEvent.t - ev.t) < 0.001 && TL.hoverEvent.type === ev.type));
-
-    // Style colors by type
-    let fill = 'rgba(217, 70, 239, 0.28)', stroke = '#d946ef', textCol = '#f5d0fe', icon = '⚡', label = 'Glitch';
-    if (ev.type === 'flash' || ev.type === 'bloomFlash') {
-      fill = 'rgba(254, 240, 138, 0.35)'; stroke = '#fef08a'; textCol = '#ffffff'; icon = '✦'; label = 'Flash';
-    } else if (ev.type === 'shake') {
-      fill = 'rgba(249, 115, 22, 0.30)'; stroke = '#f97316'; textCol = '#fed7aa'; icon = '〰'; label = 'Shake';
-    } else if (ev.type === 'chroma' || ev.type === 'radialChroma') {
-      fill = 'rgba(6, 182, 212, 0.28)'; stroke = '#06b6d4'; textCol = '#cffafe'; icon = '◈'; label = 'Chroma';
-    } else if (ev.type === 'zoom') {
-      fill = 'rgba(99, 102, 241, 0.28)'; stroke = '#6366f1'; textCol = '#e0e7ff'; icon = '◎'; label = 'Zoom';
-    } else if (ev.type === 'invert') {
-      fill = 'rgba(16, 185, 129, 0.28)'; stroke = '#10b981'; textCol = '#d1fae5'; icon = '◐'; label = 'Invert';
-    } else if (ev.type === 'mosaic') {
-      fill = 'rgba(20, 184, 166, 0.28)'; stroke = '#14b8a6'; textCol = '#ccfbf1'; icon = '☷'; label = 'Mosaic';
-    } else if (ev.type === 'slice') {
-      fill = 'rgba(236, 72, 153, 0.28)'; stroke = '#ec4899'; textCol = '#fce7f3'; icon = '⚡'; label = 'Slice';
-    } else if (ev.type === 'block') {
-      fill = 'rgba(168, 85, 247, 0.28)'; stroke = '#a855f7'; textCol = '#f3e8ff'; icon = '▦'; label = 'Block';
-    } else {
-      fill = 'rgba(139, 92, 246, 0.28)'; stroke = '#8b5cf6'; textCol = '#ede9fe'; icon = '★'; label = (J.FXE[ev.type] && J.FXE[ev.type].name) || ev.type;
-    }
-
-    const pillH = 17 * dpr, pillY = yFx0 + 3 * dpr, pillW = Math.max(16 * dpr, ex1 - ex0);
-    x.save();
-    x.fillStyle = isHov ? fill.replace('0.28', '0.45').replace('0.35', '0.55').replace('0.30', '0.50') : fill;
-    x.strokeStyle = isSel ? '#f5a50c' : stroke;
-    x.lineWidth = isSel ? 2.5 * dpr : (ev.manual ? 1.5 * dpr : 1 * dpr);
-    if (!ev.manual) x.setLineDash([3 * dpr, 2 * dpr]);
-    else x.setLineDash([]);
-
-    x.beginPath();
-    if (x.roundRect) x.roundRect(ex0, pillY, pillW, pillH, 4 * dpr);
-    else x.rect(ex0, pillY, pillW, pillH);
-    x.fill();
-    x.stroke();
-
-    if (ev.manual) {
-      x.fillStyle = isSel ? '#f5a50c' : stroke;
-      x.beginPath(); x.arc(ex0 + 4 * dpr, pillY + 4 * dpr, 2 * dpr, 0, Math.PI * 2); x.fill();
-    }
-    if (isSel) {
-      x.fillStyle = '#f5a50c';
-      x.fillRect(ex0 + pillW - 3 * dpr, pillY + 3 * dpr, 2 * dpr, pillH - 6 * dpr);
-    }
-    x.fillStyle = textCol;
-    x.font = `${9 * dpr}px sans-serif`;
-    x.beginPath(); x.rect(ex0, pillY, pillW - 2 * dpr, pillH); x.clip();
-    if (pillW > 38 * dpr) {
-      x.fillText(`${icon} ${label}`, ex0 + (ev.manual ? 8 * dpr : 4 * dpr), pillY + 12 * dpr);
-    } else {
-      x.fillText(icon, ex0 + (ev.manual ? 7 * dpr : 3 * dpr), pillY + 12 * dpr);
-    }
-    x.restore();
-  }
-
   // overview & loop & playhead
   if (TL.z > 1) {
     x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(0, h - 2 * dpr, w, 2 * dpr);
@@ -38126,31 +38147,6 @@ function tlHandleAt(ev) {
   let best = -1, bd = 8;
   for (const ln of S.plan.lines) { const d = Math.abs((ln.start - off) / vd * r.width - (ev.clientX - r.left)); if (d < bd) { bd = d; best = ln.index; } }
   return best;
-}
-/* the FX event under pointer (middle band: 20px - 44px) */
-function tlEventAt(ev) {
-  const c = $('timeline'), r = c.getBoundingClientRect(), { vd, off } = tlView();
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const my = (ev.clientY - r.top) * dpr;
-  const mx = (ev.clientX - r.left) * dpr;
-  const w = c.width;
-  const X = t => (t - off) / vd * w;
-  const yFx0 = 20 * dpr, yFx1 = 44 * dpr;
-
-  if (my < yFx0 || my > yFx1) return null;
-
-  const events = S.plan.events || [];
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i];
-    const ex0 = X(e.t);
-    const edur = e.dur || (e.type === 'flash' ? 3 / 24 : e.type === 'shake' ? 0.3 : 0.15);
-    const ex1 = Math.max(ex0 + 16 * dpr, X(e.t + edur));
-    if (mx >= ex0 - 4 * dpr && mx <= ex1 + 4 * dpr) {
-      const edge = Math.abs(mx - ex1) <= 7 * dpr ? 'right' : 'body';
-      return { ev: e, edge, ex0, ex1 };
-    }
-  }
-  return null;
 }
 function tlDragTo(i, ev) {
   let t = tlTime(ev);
@@ -38186,6 +38182,8 @@ function updateEventInspector(ev) {
     else { icon = '★'; label = (J.FXE[ev.type] && J.FXE[ev.type].name) || ev.type; }
     badge.textContent = `${icon} ${label}`;
   }
+  const timeInput = $('evTimeInput');
+  if (timeInput && document.activeElement !== timeInput) timeInput.value = ev.t.toFixed(3);
   const timeVal = $('evTimeVal');
   if (timeVal) timeVal.textContent = ev.t.toFixed(2) + 's';
   const amp = $('evAmp'), ampVal = $('evAmpVal');
@@ -38339,6 +38337,52 @@ function syncFxModeUI() {
     ? (isZh ? '模式: 纯手动掌控' : 'モード: 手動のみ')
     : (isZh ? '模式: 混合(自动+手动)' : 'モード: 混合');
   btn.classList.toggle('accent', isMan);
+}
+
+/* Screen FX mode is UI state only; toggling never changes the project. */
+function setScreenFxMode(on) {
+  if (S.exporting || S.tap) return;
+  const activeTab = document.querySelector('.tabs button[aria-selected="true"]');
+  if (on && !S.screenFxMode) S.beforeFxTab = activeTab && activeTab.dataset.tab;
+  S.screenFxMode = on;
+  const targetTab = document.querySelector('.tabs button[data-tab="' + (on ? 'fx' : (S.beforeFxTab && S.beforeFxTab !== 'fx' ? S.beforeFxTab : 'style')) + '"]');
+  if (targetTab) targetTab.click();
+  $('app').classList.toggle('screen-fx-mode', on);
+  $('btnShotMode').setAttribute('aria-pressed', String(!on));
+  $('btnScreenFxMode').setAttribute('aria-pressed', String(on));
+  $('btnShotMode').classList.toggle('accent', !on);
+  $('btnScreenFxMode').classList.toggle('accent', on);
+  closeCutPick();
+  if (!on) { S.selectedEvent = null; hideEventInspector(); }
+  syncFxModeUI(); sizeViewport(); S.need = true;
+}
+let screenFxListSignature = '';
+function renderScreenFxEvents() {
+  const box = $('fxEventList'); if (!box || !S.screenFxMode) return;
+  const events = S.plan.events || [];
+  const signature = JSON.stringify(events) + '|' + (S.selectedEvent && S.selectedEvent.id);
+  if (signature === screenFxListSignature) return;
+  screenFxListSignature = signature;
+  box.replaceChildren();
+  if (!events.length) { box.textContent = '暂无动效，可在当前播放时间添加。'; return; }
+  events.forEach(ev => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost';
+    b.textContent = ev.t.toFixed(2) + 's · ' + ((J.FXE[ev.type] || {}).name || ev.type) + (ev.manual ? '' : ' · 自动');
+    b.setAttribute('aria-pressed', String(!!S.selectedEvent && S.selectedEvent.id === ev.id && !!ev.id));
+    b.addEventListener('click', () => {
+      if (S.exporting || S.tap) return;
+      pause();
+      // Bake the existing plan before editing an automatic event so replan cannot duplicate it.
+      if (!ev.manual) {
+        pushEdit(); remember(); J.bakeEvents(S.project, S.plan); replan(); commit(); flushSave(); syncFxModeUI();
+      }
+      const selected = ev.manual ? (S.project.events || []).find(e => e.id === ev.id) :
+        (S.project.events || []).find(e => e.type === ev.type && Math.abs(e.t - ev.t) < 0.001);
+      if (!selected) return;
+      S.selectedEvent = selected; updateEventInspector(selected); seek(selected.t); renderScreenFxEvents();
+    });
+    box.appendChild(b);
+  });
 }
 
 /* ---------------- keep the playing line in view (the list scrolls inside its column) ---------------- */
@@ -39279,42 +39323,6 @@ function renderLines() {
     }
   }
   const ov = S.project.overrides, R = exportRangeLines();
-  const layoutOpts = '<option value="">자동</option>' + J.LAYOUT_ORDER.map(k => {
-    const d = J.LAYOUTS[k];
-    if (!d) return '';
-    const code = d.code ? `[${d.code}] ` : '';
-    return `<option value="${k}">${code}${d.name}</option>`;
-  }).join('');
-  // layout menus hold only their current choice until they are used: a long song has hundreds of them
-  // (with ~180 options each, building them all made every replan slow)
-  const lazyLay = (sel, v) => {
-    const d = v && J.LAYOUTS[v];
-    const code = d && d.code ? `[${d.code}] ` : '';
-    sel.innerHTML = '<option value="">자동</option>' + (d ? `<option value="${v}">${code}${d.name}</option>` : '');
-    sel.value = v || '';
-    const fill = () => { if (sel.dataset.full) return; const cur = sel.value; sel.innerHTML = layoutOpts; sel.value = cur; sel.dataset.full = '1'; };
-    for (const ev of ['pointerdown', 'mousedown', 'focus', 'keydown', 'touchstart']) sel.addEventListener(ev, fill, { capture: true, passive: true });
-  };
-  const lazyFont = (sel, v, autoLabel = '폰트: 자동') => {
-    const curDef = v && J.FONTS && J.FONTS[v];
-    const curLbl = curDef ? (curDef.label || curDef.name || v) : v;
-    sel.innerHTML = `<option value="">${autoLabel}</option>` + (v && curLbl ? `<option value="${v}">${escapeHtml(curLbl)}</option>` : '');
-    sel.value = v || '';
-    const fill = () => {
-      if (sel.dataset.full) return;
-      const cur = sel.value;
-      const dynFontOpts = `<option value="">${autoLabel}</option>` + Object.keys(J.FONTS || {}).map(k => {
-        const f = J.FONTS[k];
-        const lbl = f ? (f.label || f.name || k) : k;
-        return `<option value="${k}">${escapeHtml(lbl)}</option>`;
-      }).join('');
-      sel.innerHTML = dynFontOpts;
-      sel.value = cur;
-      sel.dataset.full = '1';
-    };
-    for (const ev of ['pointerdown', 'mousedown', 'focus', 'keydown', 'touchstart']) sel.addEventListener(ev, fill, { capture: true, passive: true });
-  };
-  const cutOpts = '<option value="">컷: 자동</option>' + [1, 2, 3, 4, 5, 6].map(n => `<option value="${n}">컷: ${n}</option>`).join('');
   S.plan.lines.forEach((ln, i) => {
     const o = ov[i] || {};
     const li = document.createElement('li'); li.className = 'ln' + (ln.interlude ? ' is-inter' : '') + (R && i >= R.from && i <= R.to ? ' in-range' : '');
@@ -39325,22 +39333,13 @@ function renderLines() {
       <span class="txt" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
       <div class="meta"><span class="cuts"></span>
       <span class="tools">
-        <button class="icon ghost edit" title="이 줄의 가사 고치기" aria-label="${i + 1}줄 가사 고치기">${ICON.pen}</button>
-        ${ln.interlude ? '' : `<select class="ncut" aria-label="${i + 1}줄의 컷 수">${cutOpts}</select>`}
-        ${ln.interlude ? '' : `<select class="lay pro-only" aria-label="레이아웃 선택"></select>`}
-        ${ln.interlude ? '' : `<select class="font-sel pro-only" aria-label="폰트 지정"></select>`}
+        
         <button class="icon ghost tapfrom" title="이 줄부터 탭으로 동기화 다시 하기" aria-label="${i + 1}줄부터 탭">${ICON.tap}</button>
         <button class="icon ghost rng" title="내보낼 범위로 지정(Shift+클릭으로 범위 확장)" aria-pressed="${R && i >= R.from && i <= R.to ? 'true' : 'false'}" aria-label="${i + 1}줄을 내보낼 범위로">${ICON.range}</button>
         <button class="icon ghost dice" title="이 줄 다시 추첨">${ICON.dice}</button>
         <button class="icon ghost lock" title="이 줄의 구성 잠금" aria-pressed="${o.lock ? 'true' : 'false'}">${ICON.lock}</button>
       </span></div>`;
     const q = sel => li.querySelector(sel);
-    if (q('.lay')) lazyLay(q('.lay'), o.layout || '');
-    if (q('.font-sel')) {
-      lazyFont(q('.font-sel'), o.font || '', '폰트: 자동');
-      if (o.font) q('.font-sel').classList.add('is-forced');
-    }
-    if (q('.ncut')) q('.ncut').value = o.cuts ? String(o.cuts) : '';
     q('.time').addEventListener('wheel', e => {
       e.preventDefault();
       const step = e.shiftKey ? 0.1 : 0.05;
@@ -39376,12 +39375,7 @@ function renderLines() {
       } else delete S.project.timing.lineTimes[i];
       replan();
     });
-    q('.txt').addEventListener('click', () => seek(ln.start + 0.001));
     q('.txt').addEventListener('dblclick', () => editLine(li, ln));
-    q('.edit').addEventListener('click', () => editLine(li, ln));
-    if (q('.lay')) q('.lay').addEventListener('change', e => { remember(); preserveOtherLines(i); setOv(i, { layout: e.target.value || undefined, savedCuts: undefined }); replan(); commit(); });
-    if (q('.font-sel')) q('.font-sel').addEventListener('change', e => { remember(); preserveOtherLines(i); setOv(i, { font: e.target.value || undefined, savedCuts: undefined }); replan(); commit(); });
-    if (q('.ncut')) q('.ncut').addEventListener('change', e => { remember(); preserveOtherLines(i); setOv(i, { cuts: +e.target.value || undefined, single: undefined, savedCuts: undefined }); replan(); commit(); seek(ln.start + 0.001); });
     q('.tapfrom').addEventListener('click', () => startTap(i));
     q('.rng').addEventListener('click', e => setExportRange(i, e.shiftKey));
     if (q('.dice')) q('.dice').addEventListener('click', () => {
@@ -39421,27 +39415,11 @@ function renderLines() {
           : ((o.cutTech && o.cutTech[0] && o.cutTech[0].scheme != null) ? o.cutTech[0].scheme : null);
         const isSchForced = forcedSch != null && forcedSch !== '';
 
-        const schSel = document.createElement('select');
-        schSel.className = 'cut-sch pro-only' + (isSchForced ? ' is-forced' : '');
-        schSel.setAttribute('aria-label', `${i + 1}행 간주의 배색`);
-        schSel.dataset.k = '0';
-        let schOpts = `<option value="">자동 (${curSchIdx + 1})</option>`;
-        for (let s = 0; s < nSchemes; s++) schOpts += `<option value="${s}">배색 ${s + 1}</option>`;
-        schSel.innerHTML = schOpts;
-        schSel.value = isSchForced ? String(forcedSch) : '';
-        const schTitle = (isSchForced ? groupName('scheme', curSchIdx) : `자동 (${curSchIdx + 1})`);
-        schSel.title = schTitle;
-        schSel.style.borderColor = curSch.accent || curSch.fg || 'var(--line2)';
-        schSel.addEventListener('pointerdown', () => seek(interCut.start + 0.001));
-        schSel.addEventListener('change', e => {
-          remember();
-          setCutScheme(i, 0, e.target.value);
-          replan();
-          commit();
-          seek(interCut.start + 0.001);
-        });
+        const schTitle = groupName('scheme', curSchIdx);
 
-        const swatch = document.createElement('span');
+        const swatch = document.createElement('button');
+        swatch.type = 'button';
+        swatch.setAttribute('aria-label', schTitle + ' →');
         swatch.className = 'cut-sch-swatch pro-only' + (isSchForced ? ' is-forced' : '');
         swatch.title = schTitle;
         swatch.style.background = curSch.bg || '#000';
@@ -39449,45 +39427,27 @@ function renderLines() {
         swatch.innerHTML = `<i style="background:${curSch.fg || '#fff'}"></i><i style="background:${curSch.accent || curSch.fg || '#fff'}"></i>`;
         swatch.addEventListener('click', () => {
           seek(interCut.start + 0.001);
-          toggleCutPick('scheme', interCut, 0);
+          remember();
+          setCutScheme(i, 0, String((curSchIdx + 1) % nSchemes));
+          replan();
+          commit();
+          seek(interCut.start + 0.001);
         });
 
         const pair = document.createElement('div');
         pair.className = 'cut-pair' + (isSchForced ? ' is-forced' : '');
         pair.dataset.k = '0';
-        pair.append(b, swatch, schSel);
+        pair.append(b, swatch);
         cutsEl.appendChild(pair);
       }
     } else {
       S.plan.cuts.filter(c => c.line === i && J.LAYOUTS[c.layout] && !J.LAYOUTS[c.layout].special).forEach((c, k) => {
         const forced = o.cutLayouts && o.cutLayouts[k];
-        const sel = document.createElement('select');
+        const sel = document.createElement('span');
         sel.className = 'cut-lay pro-only' + (forced ? ' is-forced' : '');
-        lazyLay(sel, forced || c.layout);
+        sel.textContent = J.LAYOUTS[c.layout].name;
         sel.title = `${c.text}｜${J.ENTER[c.enter].name} → ${J.EXIT[c.exit].name}`;
-        sel.setAttribute('aria-label', `${i + 1}행 ${k + 1}번째 컷의 레이아웃`);
-        sel.addEventListener('pointerdown', () => seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05)));
-        sel.addEventListener('change', e => { remember(); setCutLayout(i, k, e.target.value); replan(); commit(); seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05)); });
         sel.dataset.k = String(k);
-
-        const forcedFont = (o.cutFonts && o.cutFonts[k])
-          || ((o.cutTech && (o.cutTech[k] || o.cutTech[String(k)])) ? (o.cutTech[k] || o.cutTech[String(k)]).font : null);
-        const isFontForced = forcedFont != null && forcedFont !== '';
-
-        const fontSel = document.createElement('select');
-        fontSel.className = 'cut-font pro-only' + (isFontForced ? ' is-forced' : '');
-        fontSel.setAttribute('aria-label', `${i + 1}행 ${k + 1}번째 컷의 폰트`);
-        fontSel.dataset.k = String(k);
-        lazyFont(fontSel, forcedFont || '', '폰트: 자동');
-        fontSel.title = `${c.text}｜` + (isFontForced ? groupName('font', forcedFont) : '폰트: 자동');
-        fontSel.addEventListener('pointerdown', () => seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05)));
-        fontSel.addEventListener('change', e => {
-          remember();
-          setCutFont(i, k, e.target.value);
-          replan();
-          commit();
-          seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
-        });
 
         const st = (S.plan && S.plan.style) || J.resolveStyle(S.project);
         const schemes = (st && st.schemes) || [];
@@ -39499,30 +39459,11 @@ function renderLines() {
           : ((o.cutTech && o.cutTech[k] && o.cutTech[k].scheme != null) ? o.cutTech[k].scheme : null);
         const isSchForced = forcedSch != null && forcedSch !== '';
 
-        const schSel = document.createElement('select');
-        schSel.className = 'cut-sch pro-only' + (isSchForced ? ' is-forced' : '');
-        schSel.setAttribute('aria-label', `${i + 1}행 ${k + 1}번째 컷의 배색`);
-        schSel.dataset.k = String(k);
+        const schTitle = groupName('scheme', curSchIdx);
 
-        let schOpts = `<option value="">자동 (${curSchIdx + 1})</option>`;
-        for (let s = 0; s < nSchemes; s++) {
-          schOpts += `<option value="${s}">배색 ${s + 1}</option>`;
-        }
-        schSel.innerHTML = schOpts;
-        schSel.value = isSchForced ? String(forcedSch) : '';
-        const schTitle = `${c.text}｜` + (isSchForced ? groupName('scheme', curSchIdx) : `자동 (${curSchIdx + 1})`);
-        schSel.title = schTitle;
-        schSel.style.borderColor = curSch.accent || curSch.fg || 'var(--line2)';
-        schSel.addEventListener('pointerdown', () => seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05)));
-        schSel.addEventListener('change', e => {
-          remember();
-          setCutScheme(i, k, e.target.value);
-          replan();
-          commit();
-          seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
-        });
-
-        const swatch = document.createElement('span');
+        const swatch = document.createElement('button');
+        swatch.type = 'button';
+        swatch.setAttribute('aria-label', schTitle + ' →');
         swatch.className = 'cut-sch-swatch pro-only' + (isSchForced ? ' is-forced' : '');
         swatch.title = schTitle;
         swatch.style.background = curSch.bg || '#000';
@@ -39530,11 +39471,15 @@ function renderLines() {
         swatch.innerHTML = `<i style="background:${curSch.fg || '#fff'}"></i><i style="background:${curSch.accent || curSch.fg || '#fff'}"></i>`;
         swatch.addEventListener('click', () => {
           seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
-          toggleCutPick('scheme', c, k);
+          remember();
+          setCutScheme(i, k, String((curSchIdx + 1) % nSchemes));
+          replan();
+          commit();
+          seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
         });
 
         const pair = document.createElement('div');
-        pair.className = 'cut-pair' + (forced || isSchForced || isFontForced ? ' is-forced' : '');
+        pair.className = 'cut-pair' + (forced || isSchForced ? ' is-forced' : '');
         pair.dataset.k = String(k);
 
         // 컷の開始時刻 (詳細モード): the first cut starts with the line; the others can be typed (empty = automatic)
@@ -39586,14 +39531,18 @@ function renderLines() {
           rollCutSlot(i, k);
         });
 
-        pair.append(sel, fontSel, swatch, schSel, rollBtn);
+        pair.append(sel, swatch, rollBtn);
         cutsEl.appendChild(pair);
       });
     }
-    // スマホ: a row is one line of text; tapping it opens its tools (and jumps there)
+    // Select from the whole card; embedded controls keep their own actions.
     if (S.openLine === i) li.classList.add('open');
     li.addEventListener('click', e => {
-      if (S.mode !== 'mobile' || e.target.closest('button, select, input, .cuts')) return;
+      if (e.target.closest('button, select, input, textarea, a')) return;
+      const pair = e.target.closest('.cut-pair');
+      const cut = pair && S.plan.cuts.filter(c => c.line === i && J.LAYOUTS[c.layout] && !J.LAYOUTS[c.layout].special)[+pair.dataset.k];
+      seek((cut ? cut.start : ln.start) + 0.001);
+      if (S.mode !== 'mobile' || pair) return;
       const was = li.classList.contains('open');
       S.lineEls.forEach(x => x.classList.remove('open'));
       if (!was) { li.classList.add('open'); S.openLine = i; } else S.openLine = -1;
@@ -39897,11 +39846,15 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp
 function drawStyleGrid() {
   const g = $('styleGrid');
   if (!g.children.length) {
-    J.STYLE_ORDER.forEach(k => {
-      const b = document.createElement('button'); b.className = 'stile'; b.dataset.k = k;
+    J.STYLE_ORDER.filter(k => k !== 'custom').forEach(k => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'stile'; b.dataset.k = k;
       b.title = J.STYLES[k].desc;
       b.innerHTML = `<canvas width="192" height="108"></canvas><span>${J.STYLES[k].name}</span><span class="badges">${setBadges(J.STYLES[k])}</span>`;
-      b.addEventListener('click', () => { pushEdit(); remember(); clearSavedCuts(); S.project.style = k; S.project.colors.enabled = false; syncUI(); replan(); commit(); });
+      b.addEventListener('click', () => {
+        copyPresetToCustom(k);
+        $('styleTemplates').hidden = true;
+        $('btnStyleTemplates').setAttribute('aria-expanded', 'false');
+      });
       g.appendChild(b);
     });
   }
@@ -40492,6 +40445,12 @@ function renderCustSwitches(cs) {
 }
 
 function bindCustomStyleEvents() {
+  $('btnStyleTemplates').addEventListener('click', () => {
+    const panel = $('styleTemplates');
+    panel.hidden = !panel.hidden;
+    $('btnStyleTemplates').setAttribute('aria-expanded', String(!panel.hidden));
+    if (!panel.hidden) { drawStyleGrid(); loadThumbFonts(); }
+  });
   document.querySelectorAll('.cust-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       custActiveTab = btn.dataset.custTab;
@@ -41448,7 +41407,7 @@ function bind() {
   tl.addEventListener('pointerdown', e => {
     tl.setPointerCapture(e.pointerId);
     if (S.tap || S.exporting) return;
-    const evHit = tlEventAt(e);
+    const evHit = null; // FX events are no longer exposed in the timeline.
     if (evHit) {
       pushEdit();
       remember();
@@ -41530,7 +41489,7 @@ function bind() {
     }
     if (TL.drag >= 0) { const ev = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => tlDragTo(TL.drag, ev)); return; }
     if (drag) { timelineSeek(e); return; }
-    const evHit = tlEventAt(e);
+    const evHit = null; // FX events are no longer exposed in the timeline.
     if (evHit) {
       TL.hoverEvent = evHit.ev;
       TL.hover = -1;
@@ -41575,44 +41534,21 @@ function bind() {
   $('tapBack').addEventListener('click', tapBack);
   bindRangeUI();
 
-  // FX toolbar buttons
-  const btnGlitch = $('btnAddGlitch');
-  if (btnGlitch) btnGlitch.addEventListener('click', () => addManualTimelineEvent('glitch'));
-  const btnFlash = $('btnAddFlash');
-  if (btnFlash) btnFlash.addEventListener('click', () => addManualTimelineEvent('flash'));
-  const btnShake = $('btnAddShake');
-  if (btnShake) btnShake.addEventListener('click', () => addManualTimelineEvent('shake'));
-
-  const btnFxMore = $('btnFxMore');
-  const fxDropMenu = $('fxDropdownMenu');
-  if (btnFxMore && fxDropMenu) {
-    btnFxMore.addEventListener('click', e => {
-      e.stopPropagation();
-      fxDropMenu.hidden = !fxDropMenu.hidden;
-    });
-    fxDropMenu.querySelectorAll('.fx-menu-item').forEach(item => {
-      item.addEventListener('click', e => {
-        e.stopPropagation();
-        fxDropMenu.hidden = true;
-        const t = item.dataset.type;
-        if (t) addManualTimelineEvent(t);
-      });
-    });
+  $('btnShotMode').addEventListener('click', () => setScreenFxMode(false));
+  $('btnScreenFxMode').addEventListener('click', () => setScreenFxMode(true));
+  const effectTypes = Object.keys(J.FXE);
+  for (const id of ['fxAddType', 'evInspType']) {
+    const select = $(id);
+    effectTypes.forEach(type => { const option = document.createElement('option'); option.value = type; option.textContent = J.FXE[type].name || type; select.appendChild(option); });
   }
-  document.addEventListener('click', e => {
-    const wrap = $('fxDropdownWrap');
-    const menu = $('fxDropdownMenu');
-    if (menu && !menu.hidden && wrap && !wrap.contains(e.target)) {
-      menu.hidden = true;
-    }
+  $('btnAddScreenFx').addEventListener('click', () => addManualTimelineEvent($('fxAddType').value));
+  $('btnFxModeToggle').addEventListener('click', toggleFxEventMode);
+  $('btnBakeFx').addEventListener('click', bakeAutoEvents);
+  $('btnClearFx').addEventListener('click', clearAllEvents);
+  $('evTimeInput').addEventListener('change', e => {
+    if (!S.selectedEvent || !Number.isFinite(e.target.valueAsNumber)) return;
+    nudgeSelectedEventTime(e.target.valueAsNumber - S.selectedEvent.t);
   });
-
-  const btnModeToggle = $('btnFxModeToggle');
-  if (btnModeToggle) btnModeToggle.addEventListener('click', () => toggleFxEventMode());
-  const btnBake = $('btnBakeFx');
-  if (btnBake) btnBake.addEventListener('click', () => bakeAutoEvents());
-  const btnClear = $('btnClearFx');
-  if (btnClear) btnClear.addEventListener('click', () => clearAllEvents());
 
   // Event Inspector bindings
   const evTypeSel = $('evInspType');
@@ -41635,7 +41571,11 @@ function bind() {
     const valEl = $('evAmpVal'); if (valEl) valEl.textContent = val.toFixed(1) + 'x';
     replanSoon(100);
   });
-  if (evAmp) evAmp.addEventListener('change', () => { pushEdit(); commit(); flushSave(); });
+  if (evAmp) {
+    evAmp.addEventListener('pointerdown', prepareEdit);
+    evAmp.addEventListener('focus', prepareEdit);
+    evAmp.addEventListener('change', () => { commit(); flushSave(); });
+  }
   const evDur = $('evDur');
   if (evDur) evDur.addEventListener('input', e => {
     if (!S.selectedEvent) return;
@@ -41646,7 +41586,11 @@ function bind() {
     const valEl = $('evDurVal'); if (valEl) valEl.textContent = val.toFixed(2) + 's';
     replanSoon(100);
   });
-  if (evDur) evDur.addEventListener('change', () => { pushEdit(); commit(); flushSave(); });
+  if (evDur) {
+    evDur.addEventListener('pointerdown', prepareEdit);
+    evDur.addEventListener('focus', prepareEdit);
+    evDur.addEventListener('change', () => { commit(); flushSave(); });
+  }
   const evNudgeBack = $('evNudgeBack');
   if (evNudgeBack) evNudgeBack.addEventListener('click', () => nudgeSelectedEventTime(-0.05));
   const evNudgeFwd = $('evNudgeFwd');
@@ -41886,7 +41830,7 @@ const TOUR = [
   { t: () => $('audioFile').closest('label') || $('audioFile'), title: '2. 음원 불러오기', text: 'mp3 등을 불러오면 비트를 감지해 컷 전환을 맞춥니다. 음원이 없어도 만들 수 있습니다. ‘탭으로 싱크’로 각 줄의 시작을 맞출 수도 있습니다.' },
   { t: () => $('btnOmakaseBig'), title: '3. 자동으로 만들기', text: '스타일·분위기·움직임·배색·구성을 한 번에 정합니다. 누를 때마다 다른 안이 나오고, ‘◀ 이전’으로 돌아갈 수 있습니다.' },
   { t: () => $('btnPlay'), title: '4. 재생해서 확인하기', text: '재생해서 확인해 보세요. 아래 타임라인에서는 줄 구분을 드래그해서 옮길 수 있습니다(＋−로 확대/축소).' },
-  { t: () => $('lineList'), title: '5. 마음에 걸리는 줄만 고치기', text: '줄마다 가사 고치기(✎), 컷 수 정하기, 이 줄부터 탭 다시 하기(◎), 이 줄만 다시 만들기(주사위)를 할 수 있습니다.' },
+  { t: () => $('lineList'), title: '5. 気になる줄 だけ直す', text: '줄 ごとに、歌詞をダブルクリックして直す、この줄 からタップし直す（◎）、この줄 だけ作り直す（サイコロ）ができます。' },
   { t: () => $('eMP4').closest('.easy-sec') || $('eMP4'), title: '6. 내보내기', text: '화면비(세로 9:16 등)와 해상도를 골라 MP4로 내보냅니다. ‘내보낼 범위’로 고른 줄만 내보낼 수도 있습니다.' },
 ];
 const TR = { i: -1 };

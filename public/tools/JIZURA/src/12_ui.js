@@ -6,6 +6,30 @@
 if (!document.getElementById('app')) return;          // engine-only pages (tests)
 if (J.initEffectCodes) J.initEffectCodes();
 const $ = id => document.getElementById(id);
+// Editor appearance is independent of project colours and exported frames.
+const uiThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+let uiThemeSaved = null;
+try { uiThemeSaved = localStorage.getItem('jizura.uiTheme.v1'); } catch (_) {}
+if (!['light', 'dark'].includes(uiThemeSaved)) uiThemeSaved = null;
+function applyUiTheme(theme) {
+  document.documentElement.dataset.uiTheme = theme;
+  const button = $('btnUiTheme');
+  if (!button) return;
+  const lang = document.documentElement.lang;
+  const words = lang.startsWith('zh') ? ['日间', '黑夜'] : lang === 'ja' ? ['昼間', '夜間'] : ['Day', 'Night'];
+  button.textContent = words.join(' / ');
+  button.setAttribute('aria-pressed', String(theme === 'dark'));
+  button.title = `${words[theme === 'dark' ? 1 : 0]} → ${words[theme === 'dark' ? 0 : 1]}`;
+}
+applyUiTheme(uiThemeSaved || (uiThemeMedia.matches ? 'dark' : 'light'));
+$('btnUiTheme')?.addEventListener('click', () => {
+  uiThemeSaved = document.documentElement.dataset.uiTheme === 'dark' ? 'light' : 'dark';
+  applyUiTheme(uiThemeSaved);
+  try { localStorage.setItem('jizura.uiTheme.v1', uiThemeSaved); } catch (_) {}
+});
+uiThemeMedia.addEventListener('change', event => {
+  if (!uiThemeSaved) applyUiTheme(event.matches ? 'dark' : 'light');
+});
 const LS_KEY = 'jizura.project.v1';
 const LS_HIST_KEY = 'jizura.undoHistory.v1';
 const PERSIST_UNDO_MAX = 10;
@@ -263,7 +287,7 @@ function fixedLayout() { return !!(FIXED_MQ && FIXED_MQ.matches) && document.doc
 function sizeViewport() {
   const vp = $('viewport'), c = $('view');
   const ar = S.plan.W / S.plan.H;
-  let cssW = vp.clientWidth || 800, cssH = cssW / ar;
+  let cssW = S.screenFxMode ? Math.max(1, (vp.clientWidth - 10) / 2) : (vp.clientWidth || 800), cssH = cssW / ar;
   // fixed workspace: the viewport gets whatever height is left under the header / above the transport and timeline
   const maxH = fixedLayout() ? Math.max(160, vp.clientHeight - 2) : Math.max(220, window.innerHeight * 0.68);
   if (cssH > maxH) { cssH = maxH; cssW = cssH * ar; }
@@ -271,6 +295,8 @@ function sizeViewport() {
   const pw = Math.round(Math.min(S.plan.W, cssW * dpr)), ph = Math.round(pw / ar);
   if (c.width !== pw || c.height !== ph) { c.width = pw; c.height = ph; }
   c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
+  const base = $('viewNoFx');
+  if (base && S.screenFxMode) { base.width = pw; base.height = ph; base.style.width = cssW + 'px'; base.style.height = cssH + 'px'; }
   S.need = true;
 }
 // preview only: dotted outline of the centre that 中央を空ける keeps free (never in exports)
@@ -286,6 +312,13 @@ function draw() {
   const c = $('view'), ctx = c.getContext('2d');
   const t0 = performance.now();
   S.renderer.frame(ctx, S.plan, S.t, { scale: c.width / S.plan.W, fast: S.playing && S.slow });
+  if (S.screenFxMode) {
+    const b = $('viewNoFx'), bx = b.getContext('2d');
+    // Same renderer and clock preserve cached textures and all non-event styling.
+    S.renderer.frame(bx, S.plan, S.t, { scale: b.width / S.plan.W, fast: S.playing && S.slow, noEvents: true });
+    if (S.plan.centerFree) drawCenterGuide(bx, b.width / S.plan.W);
+    renderScreenFxEvents();
+  }
   if (S.plan.centerFree) drawCenterGuide(ctx, c.width / S.plan.W);
   const dt = performance.now() - t0;
   S.slow = S.playing ? (dt > 30 ? true : dt < 14 ? false : S.slow) : false;
@@ -381,8 +414,7 @@ function drawTimeline() {
   for (const b of beats) { if (b < off) continue; if (b > off + vd) break; x.fillRect(Math.round(X(b)), h - 6 * dpr, 1, 6 * dpr); }
 
   const yLines = 19 * dpr;
-  const yFx0 = 20 * dpr, yFx1 = 43 * dpr;
-  const top = 45 * dpr, bot = h - 8 * dpr;
+  const top = 21 * dpr, bot = h - 8 * dpr;
 
   const R = exportRange();
   if (R) { x.fillStyle = 'rgba(245,165,12,0.10)'; x.fillRect(X(R.t0), 0, X(R.t1) - X(R.t0), h); }
@@ -414,81 +446,6 @@ function drawTimeline() {
     x.fillStyle = on ? '#f5a50c' : '#8e8a94'; x.fillText(String(ln.index + 1).padStart(2, '0') + (ln.interlude ? ' 間奏' : ''), lx + 4 * dpr, 14 * dpr);
   }
 
-  // ---------- FX Events Track (画面动效轨道) ----------
-  x.fillStyle = 'rgba(255,255,255,0.02)';
-  x.fillRect(0, yFx0, w, yFx1 - yFx0);
-  x.fillStyle = 'rgba(255,255,255,0.07)';
-  x.fillRect(0, yFx1, w, 1 * dpr);
-  x.fillStyle = 'rgba(236,231,225,0.3)';
-  x.font = `bold ${8 * dpr}px monospace`;
-  x.fillText('FX', 3 * dpr, yFx0 + 15 * dpr);
-
-  const fxEvents = S.plan.events || [];
-  for (let i = 0; i < fxEvents.length; i++) {
-    const ev = fxEvents[i];
-    const ex0 = X(ev.t);
-    const edur = ev.dur || (ev.type === 'flash' ? 3 / 24 : ev.type === 'shake' ? 0.3 : 0.15);
-    const ex1 = Math.max(ex0 + 16 * dpr, X(ev.t + edur));
-    if (ex1 < 0 || ex0 > w) continue;
-
-    const isSel = S.selectedEvent && (S.selectedEvent.id === ev.id || (Math.abs(S.selectedEvent.t - ev.t) < 0.001 && S.selectedEvent.type === ev.type));
-    const isHov = TL.hoverEvent && (TL.hoverEvent.id === ev.id || (Math.abs(TL.hoverEvent.t - ev.t) < 0.001 && TL.hoverEvent.type === ev.type));
-
-    // Style colors by type
-    let fill = 'rgba(217, 70, 239, 0.28)', stroke = '#d946ef', textCol = '#f5d0fe', icon = '⚡', label = 'Glitch';
-    if (ev.type === 'flash' || ev.type === 'bloomFlash') {
-      fill = 'rgba(254, 240, 138, 0.35)'; stroke = '#fef08a'; textCol = '#ffffff'; icon = '✦'; label = 'Flash';
-    } else if (ev.type === 'shake') {
-      fill = 'rgba(249, 115, 22, 0.30)'; stroke = '#f97316'; textCol = '#fed7aa'; icon = '〰'; label = 'Shake';
-    } else if (ev.type === 'chroma' || ev.type === 'radialChroma') {
-      fill = 'rgba(6, 182, 212, 0.28)'; stroke = '#06b6d4'; textCol = '#cffafe'; icon = '◈'; label = 'Chroma';
-    } else if (ev.type === 'zoom') {
-      fill = 'rgba(99, 102, 241, 0.28)'; stroke = '#6366f1'; textCol = '#e0e7ff'; icon = '◎'; label = 'Zoom';
-    } else if (ev.type === 'invert') {
-      fill = 'rgba(16, 185, 129, 0.28)'; stroke = '#10b981'; textCol = '#d1fae5'; icon = '◐'; label = 'Invert';
-    } else if (ev.type === 'mosaic') {
-      fill = 'rgba(20, 184, 166, 0.28)'; stroke = '#14b8a6'; textCol = '#ccfbf1'; icon = '☷'; label = 'Mosaic';
-    } else if (ev.type === 'slice') {
-      fill = 'rgba(236, 72, 153, 0.28)'; stroke = '#ec4899'; textCol = '#fce7f3'; icon = '⚡'; label = 'Slice';
-    } else if (ev.type === 'block') {
-      fill = 'rgba(168, 85, 247, 0.28)'; stroke = '#a855f7'; textCol = '#f3e8ff'; icon = '▦'; label = 'Block';
-    } else {
-      fill = 'rgba(139, 92, 246, 0.28)'; stroke = '#8b5cf6'; textCol = '#ede9fe'; icon = '★'; label = (J.FXE[ev.type] && J.FXE[ev.type].name) || ev.type;
-    }
-
-    const pillH = 17 * dpr, pillY = yFx0 + 3 * dpr, pillW = Math.max(16 * dpr, ex1 - ex0);
-    x.save();
-    x.fillStyle = isHov ? fill.replace('0.28', '0.45').replace('0.35', '0.55').replace('0.30', '0.50') : fill;
-    x.strokeStyle = isSel ? '#f5a50c' : stroke;
-    x.lineWidth = isSel ? 2.5 * dpr : (ev.manual ? 1.5 * dpr : 1 * dpr);
-    if (!ev.manual) x.setLineDash([3 * dpr, 2 * dpr]);
-    else x.setLineDash([]);
-
-    x.beginPath();
-    if (x.roundRect) x.roundRect(ex0, pillY, pillW, pillH, 4 * dpr);
-    else x.rect(ex0, pillY, pillW, pillH);
-    x.fill();
-    x.stroke();
-
-    if (ev.manual) {
-      x.fillStyle = isSel ? '#f5a50c' : stroke;
-      x.beginPath(); x.arc(ex0 + 4 * dpr, pillY + 4 * dpr, 2 * dpr, 0, Math.PI * 2); x.fill();
-    }
-    if (isSel) {
-      x.fillStyle = '#f5a50c';
-      x.fillRect(ex0 + pillW - 3 * dpr, pillY + 3 * dpr, 2 * dpr, pillH - 6 * dpr);
-    }
-    x.fillStyle = textCol;
-    x.font = `${9 * dpr}px sans-serif`;
-    x.beginPath(); x.rect(ex0, pillY, pillW - 2 * dpr, pillH); x.clip();
-    if (pillW > 38 * dpr) {
-      x.fillText(`${icon} ${label}`, ex0 + (ev.manual ? 8 * dpr : 4 * dpr), pillY + 12 * dpr);
-    } else {
-      x.fillText(icon, ex0 + (ev.manual ? 7 * dpr : 3 * dpr), pillY + 12 * dpr);
-    }
-    x.restore();
-  }
-
   // overview & loop & playhead
   if (TL.z > 1) {
     x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(0, h - 2 * dpr, w, 2 * dpr);
@@ -516,31 +473,6 @@ function tlHandleAt(ev) {
   let best = -1, bd = 8;
   for (const ln of S.plan.lines) { const d = Math.abs((ln.start - off) / vd * r.width - (ev.clientX - r.left)); if (d < bd) { bd = d; best = ln.index; } }
   return best;
-}
-/* the FX event under pointer (middle band: 20px - 44px) */
-function tlEventAt(ev) {
-  const c = $('timeline'), r = c.getBoundingClientRect(), { vd, off } = tlView();
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const my = (ev.clientY - r.top) * dpr;
-  const mx = (ev.clientX - r.left) * dpr;
-  const w = c.width;
-  const X = t => (t - off) / vd * w;
-  const yFx0 = 20 * dpr, yFx1 = 44 * dpr;
-
-  if (my < yFx0 || my > yFx1) return null;
-
-  const events = S.plan.events || [];
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i];
-    const ex0 = X(e.t);
-    const edur = e.dur || (e.type === 'flash' ? 3 / 24 : e.type === 'shake' ? 0.3 : 0.15);
-    const ex1 = Math.max(ex0 + 16 * dpr, X(e.t + edur));
-    if (mx >= ex0 - 4 * dpr && mx <= ex1 + 4 * dpr) {
-      const edge = Math.abs(mx - ex1) <= 7 * dpr ? 'right' : 'body';
-      return { ev: e, edge, ex0, ex1 };
-    }
-  }
-  return null;
 }
 function tlDragTo(i, ev) {
   let t = tlTime(ev);
@@ -576,6 +508,8 @@ function updateEventInspector(ev) {
     else { icon = '★'; label = (J.FXE[ev.type] && J.FXE[ev.type].name) || ev.type; }
     badge.textContent = `${icon} ${label}`;
   }
+  const timeInput = $('evTimeInput');
+  if (timeInput && document.activeElement !== timeInput) timeInput.value = ev.t.toFixed(3);
   const timeVal = $('evTimeVal');
   if (timeVal) timeVal.textContent = ev.t.toFixed(2) + 's';
   const amp = $('evAmp'), ampVal = $('evAmpVal');
@@ -729,6 +663,52 @@ function syncFxModeUI() {
     ? (isZh ? '模式: 纯手动掌控' : 'モード: 手動のみ')
     : (isZh ? '模式: 混合(自动+手动)' : 'モード: 混合');
   btn.classList.toggle('accent', isMan);
+}
+
+/* Screen FX mode is UI state only; toggling never changes the project. */
+function setScreenFxMode(on) {
+  if (S.exporting || S.tap) return;
+  const activeTab = document.querySelector('.tabs button[aria-selected="true"]');
+  if (on && !S.screenFxMode) S.beforeFxTab = activeTab && activeTab.dataset.tab;
+  S.screenFxMode = on;
+  const targetTab = document.querySelector('.tabs button[data-tab="' + (on ? 'fx' : (S.beforeFxTab && S.beforeFxTab !== 'fx' ? S.beforeFxTab : 'style')) + '"]');
+  if (targetTab) targetTab.click();
+  $('app').classList.toggle('screen-fx-mode', on);
+  $('btnShotMode').setAttribute('aria-pressed', String(!on));
+  $('btnScreenFxMode').setAttribute('aria-pressed', String(on));
+  $('btnShotMode').classList.toggle('accent', !on);
+  $('btnScreenFxMode').classList.toggle('accent', on);
+  closeCutPick();
+  if (!on) { S.selectedEvent = null; hideEventInspector(); }
+  syncFxModeUI(); sizeViewport(); S.need = true;
+}
+let screenFxListSignature = '';
+function renderScreenFxEvents() {
+  const box = $('fxEventList'); if (!box || !S.screenFxMode) return;
+  const events = S.plan.events || [];
+  const signature = JSON.stringify(events) + '|' + (S.selectedEvent && S.selectedEvent.id);
+  if (signature === screenFxListSignature) return;
+  screenFxListSignature = signature;
+  box.replaceChildren();
+  if (!events.length) { box.textContent = '暂无动效，可在当前播放时间添加。'; return; }
+  events.forEach(ev => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost';
+    b.textContent = ev.t.toFixed(2) + 's · ' + ((J.FXE[ev.type] || {}).name || ev.type) + (ev.manual ? '' : ' · 自动');
+    b.setAttribute('aria-pressed', String(!!S.selectedEvent && S.selectedEvent.id === ev.id && !!ev.id));
+    b.addEventListener('click', () => {
+      if (S.exporting || S.tap) return;
+      pause();
+      // Bake the existing plan before editing an automatic event so replan cannot duplicate it.
+      if (!ev.manual) {
+        pushEdit(); remember(); J.bakeEvents(S.project, S.plan); replan(); commit(); flushSave(); syncFxModeUI();
+      }
+      const selected = ev.manual ? (S.project.events || []).find(e => e.id === ev.id) :
+        (S.project.events || []).find(e => e.type === ev.type && Math.abs(e.t - ev.t) < 0.001);
+      if (!selected) return;
+      S.selectedEvent = selected; updateEventInspector(selected); seek(selected.t); renderScreenFxEvents();
+    });
+    box.appendChild(b);
+  });
 }
 
 /* ---------------- keep the playing line in view (the list scrolls inside its column) ---------------- */
@@ -1669,42 +1649,6 @@ function renderLines() {
     }
   }
   const ov = S.project.overrides, R = exportRangeLines();
-  const layoutOpts = '<option value="">自動</option>' + J.LAYOUT_ORDER.map(k => {
-    const d = J.LAYOUTS[k];
-    if (!d) return '';
-    const code = d.code ? `[${d.code}] ` : '';
-    return `<option value="${k}">${code}${d.name}</option>`;
-  }).join('');
-  // layout menus hold only their current choice until they are used: a long song has hundreds of them
-  // (with ~180 options each, building them all made every replan slow)
-  const lazyLay = (sel, v) => {
-    const d = v && J.LAYOUTS[v];
-    const code = d && d.code ? `[${d.code}] ` : '';
-    sel.innerHTML = '<option value="">自動</option>' + (d ? `<option value="${v}">${code}${d.name}</option>` : '');
-    sel.value = v || '';
-    const fill = () => { if (sel.dataset.full) return; const cur = sel.value; sel.innerHTML = layoutOpts; sel.value = cur; sel.dataset.full = '1'; };
-    for (const ev of ['pointerdown', 'mousedown', 'focus', 'keydown', 'touchstart']) sel.addEventListener(ev, fill, { capture: true, passive: true });
-  };
-  const lazyFont = (sel, v, autoLabel = 'フォント 自動') => {
-    const curDef = v && J.FONTS && J.FONTS[v];
-    const curLbl = curDef ? (curDef.label || curDef.name || v) : v;
-    sel.innerHTML = `<option value="">${autoLabel}</option>` + (v && curLbl ? `<option value="${v}">${escapeHtml(curLbl)}</option>` : '');
-    sel.value = v || '';
-    const fill = () => {
-      if (sel.dataset.full) return;
-      const cur = sel.value;
-      const dynFontOpts = `<option value="">${autoLabel}</option>` + Object.keys(J.FONTS || {}).map(k => {
-        const f = J.FONTS[k];
-        const lbl = f ? (f.label || f.name || k) : k;
-        return `<option value="${k}">${escapeHtml(lbl)}</option>`;
-      }).join('');
-      sel.innerHTML = dynFontOpts;
-      sel.value = cur;
-      sel.dataset.full = '1';
-    };
-    for (const ev of ['pointerdown', 'mousedown', 'focus', 'keydown', 'touchstart']) sel.addEventListener(ev, fill, { capture: true, passive: true });
-  };
-  const cutOpts = '<option value="">カット 自動</option>' + [1, 2, 3, 4, 5, 6].map(n => `<option value="${n}">カット ${n}</option>`).join('');
   S.plan.lines.forEach((ln, i) => {
     const o = ov[i] || {};
     const li = document.createElement('li'); li.className = 'ln' + (ln.interlude ? ' is-inter' : '') + (R && i >= R.from && i <= R.to ? ' in-range' : '');
@@ -1715,22 +1659,13 @@ function renderLines() {
       <span class="txt" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
       <div class="meta"><span class="cuts"></span>
       <span class="tools">
-        <button class="icon ghost edit" title="この行の歌詞を直す" aria-label="${i + 1}行目の歌詞を直す">${ICON.pen}</button>
-        ${ln.interlude ? '' : `<select class="ncut" aria-label="${i + 1}行目のカット数">${cutOpts}</select>`}
-        ${ln.interlude ? '' : `<select class="lay pro-only" aria-label="レイアウト指定"></select>`}
-        ${ln.interlude ? '' : `<select class="font-sel pro-only" aria-label="フォント指定"></select>`}
+        
         <button class="icon ghost tapfrom" title="この行からタップで同期し直す" aria-label="${i + 1}行目からタップ">${ICON.tap}</button>
         <button class="icon ghost rng" title="書き出す範囲にする（Shift+クリックで範囲を広げる）" aria-pressed="${R && i >= R.from && i <= R.to ? 'true' : 'false'}" aria-label="${i + 1}行目を書き出す範囲に">${ICON.range}</button>
         <button class="icon ghost dice" title="この行を再抽選">${ICON.dice}</button>
         <button class="icon ghost lock" title="この行の構成をロック" aria-pressed="${o.lock ? 'true' : 'false'}">${ICON.lock}</button>
       </span></div>`;
     const q = sel => li.querySelector(sel);
-    if (q('.lay')) lazyLay(q('.lay'), o.layout || '');
-    if (q('.font-sel')) {
-      lazyFont(q('.font-sel'), o.font || '', 'フォント 自動');
-      if (o.font) q('.font-sel').classList.add('is-forced');
-    }
-    if (q('.ncut')) q('.ncut').value = o.cuts ? String(o.cuts) : '';
     q('.time').addEventListener('wheel', e => {
       e.preventDefault();
       const step = e.shiftKey ? 0.1 : 0.05;
@@ -1766,12 +1701,7 @@ function renderLines() {
       } else delete S.project.timing.lineTimes[i];
       replan();
     });
-    q('.txt').addEventListener('click', () => seek(ln.start + 0.001));
     q('.txt').addEventListener('dblclick', () => editLine(li, ln));
-    q('.edit').addEventListener('click', () => editLine(li, ln));
-    if (q('.lay')) q('.lay').addEventListener('change', e => { remember(); preserveOtherLines(i); setOv(i, { layout: e.target.value || undefined, savedCuts: undefined }); replan(); commit(); });
-    if (q('.font-sel')) q('.font-sel').addEventListener('change', e => { remember(); preserveOtherLines(i); setOv(i, { font: e.target.value || undefined, savedCuts: undefined }); replan(); commit(); });
-    if (q('.ncut')) q('.ncut').addEventListener('change', e => { remember(); preserveOtherLines(i); setOv(i, { cuts: +e.target.value || undefined, single: undefined, savedCuts: undefined }); replan(); commit(); seek(ln.start + 0.001); });
     q('.tapfrom').addEventListener('click', () => startTap(i));
     q('.rng').addEventListener('click', e => setExportRange(i, e.shiftKey));
     if (q('.dice')) q('.dice').addEventListener('click', () => {
@@ -1811,27 +1741,11 @@ function renderLines() {
           : ((o.cutTech && o.cutTech[0] && o.cutTech[0].scheme != null) ? o.cutTech[0].scheme : null);
         const isSchForced = forcedSch != null && forcedSch !== '';
 
-        const schSel = document.createElement('select');
-        schSel.className = 'cut-sch pro-only' + (isSchForced ? ' is-forced' : '');
-        schSel.setAttribute('aria-label', `${i + 1}行目 間奏の配色`);
-        schSel.dataset.k = '0';
-        let schOpts = `<option value="">自動 (${curSchIdx + 1})</option>`;
-        for (let s = 0; s < nSchemes; s++) schOpts += `<option value="${s}">配色 ${s + 1}</option>`;
-        schSel.innerHTML = schOpts;
-        schSel.value = isSchForced ? String(forcedSch) : '';
-        const schTitle = (isSchForced ? groupName('scheme', curSchIdx) : `自動 (${curSchIdx + 1})`);
-        schSel.title = schTitle;
-        schSel.style.borderColor = curSch.accent || curSch.fg || 'var(--line2)';
-        schSel.addEventListener('pointerdown', () => seek(interCut.start + 0.001));
-        schSel.addEventListener('change', e => {
-          remember();
-          setCutScheme(i, 0, e.target.value);
-          replan();
-          commit();
-          seek(interCut.start + 0.001);
-        });
+        const schTitle = groupName('scheme', curSchIdx);
 
-        const swatch = document.createElement('span');
+        const swatch = document.createElement('button');
+        swatch.type = 'button';
+        swatch.setAttribute('aria-label', schTitle + ' →');
         swatch.className = 'cut-sch-swatch pro-only' + (isSchForced ? ' is-forced' : '');
         swatch.title = schTitle;
         swatch.style.background = curSch.bg || '#000';
@@ -1839,45 +1753,27 @@ function renderLines() {
         swatch.innerHTML = `<i style="background:${curSch.fg || '#fff'}"></i><i style="background:${curSch.accent || curSch.fg || '#fff'}"></i>`;
         swatch.addEventListener('click', () => {
           seek(interCut.start + 0.001);
-          toggleCutPick('scheme', interCut, 0);
+          remember();
+          setCutScheme(i, 0, String((curSchIdx + 1) % nSchemes));
+          replan();
+          commit();
+          seek(interCut.start + 0.001);
         });
 
         const pair = document.createElement('div');
         pair.className = 'cut-pair' + (isSchForced ? ' is-forced' : '');
         pair.dataset.k = '0';
-        pair.append(b, swatch, schSel);
+        pair.append(b, swatch);
         cutsEl.appendChild(pair);
       }
     } else {
       S.plan.cuts.filter(c => c.line === i && J.LAYOUTS[c.layout] && !J.LAYOUTS[c.layout].special).forEach((c, k) => {
         const forced = o.cutLayouts && o.cutLayouts[k];
-        const sel = document.createElement('select');
+        const sel = document.createElement('span');
         sel.className = 'cut-lay pro-only' + (forced ? ' is-forced' : '');
-        lazyLay(sel, forced || c.layout);
+        sel.textContent = J.LAYOUTS[c.layout].name;
         sel.title = `${c.text}｜${J.ENTER[c.enter].name} → ${J.EXIT[c.exit].name}`;
-        sel.setAttribute('aria-label', `${i + 1}行目 カット${k + 1}のレイアウト`);
-        sel.addEventListener('pointerdown', () => seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05)));
-        sel.addEventListener('change', e => { remember(); setCutLayout(i, k, e.target.value); replan(); commit(); seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05)); });
         sel.dataset.k = String(k);
-
-        const forcedFont = (o.cutFonts && o.cutFonts[k])
-          || ((o.cutTech && (o.cutTech[k] || o.cutTech[String(k)])) ? (o.cutTech[k] || o.cutTech[String(k)]).font : null);
-        const isFontForced = forcedFont != null && forcedFont !== '';
-
-        const fontSel = document.createElement('select');
-        fontSel.className = 'cut-font pro-only' + (isFontForced ? ' is-forced' : '');
-        fontSel.setAttribute('aria-label', `${i + 1}行目 カット${k + 1}のフォント`);
-        fontSel.dataset.k = String(k);
-        lazyFont(fontSel, forcedFont || '', 'フォント 自動');
-        fontSel.title = `${c.text}｜` + (isFontForced ? groupName('font', forcedFont) : 'フォント 自動');
-        fontSel.addEventListener('pointerdown', () => seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05)));
-        fontSel.addEventListener('change', e => {
-          remember();
-          setCutFont(i, k, e.target.value);
-          replan();
-          commit();
-          seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
-        });
 
         const st = (S.plan && S.plan.style) || J.resolveStyle(S.project);
         const schemes = (st && st.schemes) || [];
@@ -1889,30 +1785,11 @@ function renderLines() {
           : ((o.cutTech && o.cutTech[k] && o.cutTech[k].scheme != null) ? o.cutTech[k].scheme : null);
         const isSchForced = forcedSch != null && forcedSch !== '';
 
-        const schSel = document.createElement('select');
-        schSel.className = 'cut-sch pro-only' + (isSchForced ? ' is-forced' : '');
-        schSel.setAttribute('aria-label', `${i + 1}行目 カット${k + 1}の配色`);
-        schSel.dataset.k = String(k);
+        const schTitle = groupName('scheme', curSchIdx);
 
-        let schOpts = `<option value="">自動 (${curSchIdx + 1})</option>`;
-        for (let s = 0; s < nSchemes; s++) {
-          schOpts += `<option value="${s}">配色 ${s + 1}</option>`;
-        }
-        schSel.innerHTML = schOpts;
-        schSel.value = isSchForced ? String(forcedSch) : '';
-        const schTitle = `${c.text}｜` + (isSchForced ? groupName('scheme', curSchIdx) : `自動 (${curSchIdx + 1})`);
-        schSel.title = schTitle;
-        schSel.style.borderColor = curSch.accent || curSch.fg || 'var(--line2)';
-        schSel.addEventListener('pointerdown', () => seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05)));
-        schSel.addEventListener('change', e => {
-          remember();
-          setCutScheme(i, k, e.target.value);
-          replan();
-          commit();
-          seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
-        });
-
-        const swatch = document.createElement('span');
+        const swatch = document.createElement('button');
+        swatch.type = 'button';
+        swatch.setAttribute('aria-label', schTitle + ' →');
         swatch.className = 'cut-sch-swatch pro-only' + (isSchForced ? ' is-forced' : '');
         swatch.title = schTitle;
         swatch.style.background = curSch.bg || '#000';
@@ -1920,11 +1797,15 @@ function renderLines() {
         swatch.innerHTML = `<i style="background:${curSch.fg || '#fff'}"></i><i style="background:${curSch.accent || curSch.fg || '#fff'}"></i>`;
         swatch.addEventListener('click', () => {
           seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
-          toggleCutPick('scheme', c, k);
+          remember();
+          setCutScheme(i, k, String((curSchIdx + 1) % nSchemes));
+          replan();
+          commit();
+          seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
         });
 
         const pair = document.createElement('div');
-        pair.className = 'cut-pair' + (forced || isSchForced || isFontForced ? ' is-forced' : '');
+        pair.className = 'cut-pair' + (forced || isSchForced ? ' is-forced' : '');
         pair.dataset.k = String(k);
 
         // カットの開始時刻 (詳細モード): the first cut starts with the line; the others can be typed (empty = automatic)
@@ -1976,14 +1857,18 @@ function renderLines() {
           rollCutSlot(i, k);
         });
 
-        pair.append(sel, fontSel, swatch, schSel, rollBtn);
+        pair.append(sel, swatch, rollBtn);
         cutsEl.appendChild(pair);
       });
     }
-    // スマホ: a row is one line of text; tapping it opens its tools (and jumps there)
+    // Select from the whole card; embedded controls keep their own actions.
     if (S.openLine === i) li.classList.add('open');
     li.addEventListener('click', e => {
-      if (S.mode !== 'mobile' || e.target.closest('button, select, input, .cuts')) return;
+      if (e.target.closest('button, select, input, textarea, a')) return;
+      const pair = e.target.closest('.cut-pair');
+      const cut = pair && S.plan.cuts.filter(c => c.line === i && J.LAYOUTS[c.layout] && !J.LAYOUTS[c.layout].special)[+pair.dataset.k];
+      seek((cut ? cut.start : ln.start) + 0.001);
+      if (S.mode !== 'mobile' || pair) return;
       const was = li.classList.contains('open');
       S.lineEls.forEach(x => x.classList.remove('open'));
       if (!was) { li.classList.add('open'); S.openLine = i; } else S.openLine = -1;
@@ -2287,11 +2172,15 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp
 function drawStyleGrid() {
   const g = $('styleGrid');
   if (!g.children.length) {
-    J.STYLE_ORDER.forEach(k => {
-      const b = document.createElement('button'); b.className = 'stile'; b.dataset.k = k;
+    J.STYLE_ORDER.filter(k => k !== 'custom').forEach(k => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'stile'; b.dataset.k = k;
       b.title = J.STYLES[k].desc;
       b.innerHTML = `<canvas width="192" height="108"></canvas><span>${J.STYLES[k].name}</span><span class="badges">${setBadges(J.STYLES[k])}</span>`;
-      b.addEventListener('click', () => { pushEdit(); remember(); clearSavedCuts(); S.project.style = k; S.project.colors.enabled = false; syncUI(); replan(); commit(); });
+      b.addEventListener('click', () => {
+        copyPresetToCustom(k);
+        $('styleTemplates').hidden = true;
+        $('btnStyleTemplates').setAttribute('aria-expanded', 'false');
+      });
       g.appendChild(b);
     });
   }
@@ -2882,6 +2771,12 @@ function renderCustSwitches(cs) {
 }
 
 function bindCustomStyleEvents() {
+  $('btnStyleTemplates').addEventListener('click', () => {
+    const panel = $('styleTemplates');
+    panel.hidden = !panel.hidden;
+    $('btnStyleTemplates').setAttribute('aria-expanded', String(!panel.hidden));
+    if (!panel.hidden) { drawStyleGrid(); loadThumbFonts(); }
+  });
   document.querySelectorAll('.cust-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       custActiveTab = btn.dataset.custTab;
@@ -3838,7 +3733,7 @@ function bind() {
   tl.addEventListener('pointerdown', e => {
     tl.setPointerCapture(e.pointerId);
     if (S.tap || S.exporting) return;
-    const evHit = tlEventAt(e);
+    const evHit = null; // FX events are no longer exposed in the timeline.
     if (evHit) {
       pushEdit();
       remember();
@@ -3920,7 +3815,7 @@ function bind() {
     }
     if (TL.drag >= 0) { const ev = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => tlDragTo(TL.drag, ev)); return; }
     if (drag) { timelineSeek(e); return; }
-    const evHit = tlEventAt(e);
+    const evHit = null; // FX events are no longer exposed in the timeline.
     if (evHit) {
       TL.hoverEvent = evHit.ev;
       TL.hover = -1;
@@ -3965,44 +3860,21 @@ function bind() {
   $('tapBack').addEventListener('click', tapBack);
   bindRangeUI();
 
-  // FX toolbar buttons
-  const btnGlitch = $('btnAddGlitch');
-  if (btnGlitch) btnGlitch.addEventListener('click', () => addManualTimelineEvent('glitch'));
-  const btnFlash = $('btnAddFlash');
-  if (btnFlash) btnFlash.addEventListener('click', () => addManualTimelineEvent('flash'));
-  const btnShake = $('btnAddShake');
-  if (btnShake) btnShake.addEventListener('click', () => addManualTimelineEvent('shake'));
-
-  const btnFxMore = $('btnFxMore');
-  const fxDropMenu = $('fxDropdownMenu');
-  if (btnFxMore && fxDropMenu) {
-    btnFxMore.addEventListener('click', e => {
-      e.stopPropagation();
-      fxDropMenu.hidden = !fxDropMenu.hidden;
-    });
-    fxDropMenu.querySelectorAll('.fx-menu-item').forEach(item => {
-      item.addEventListener('click', e => {
-        e.stopPropagation();
-        fxDropMenu.hidden = true;
-        const t = item.dataset.type;
-        if (t) addManualTimelineEvent(t);
-      });
-    });
+  $('btnShotMode').addEventListener('click', () => setScreenFxMode(false));
+  $('btnScreenFxMode').addEventListener('click', () => setScreenFxMode(true));
+  const effectTypes = Object.keys(J.FXE);
+  for (const id of ['fxAddType', 'evInspType']) {
+    const select = $(id);
+    effectTypes.forEach(type => { const option = document.createElement('option'); option.value = type; option.textContent = J.FXE[type].name || type; select.appendChild(option); });
   }
-  document.addEventListener('click', e => {
-    const wrap = $('fxDropdownWrap');
-    const menu = $('fxDropdownMenu');
-    if (menu && !menu.hidden && wrap && !wrap.contains(e.target)) {
-      menu.hidden = true;
-    }
+  $('btnAddScreenFx').addEventListener('click', () => addManualTimelineEvent($('fxAddType').value));
+  $('btnFxModeToggle').addEventListener('click', toggleFxEventMode);
+  $('btnBakeFx').addEventListener('click', bakeAutoEvents);
+  $('btnClearFx').addEventListener('click', clearAllEvents);
+  $('evTimeInput').addEventListener('change', e => {
+    if (!S.selectedEvent || !Number.isFinite(e.target.valueAsNumber)) return;
+    nudgeSelectedEventTime(e.target.valueAsNumber - S.selectedEvent.t);
   });
-
-  const btnModeToggle = $('btnFxModeToggle');
-  if (btnModeToggle) btnModeToggle.addEventListener('click', () => toggleFxEventMode());
-  const btnBake = $('btnBakeFx');
-  if (btnBake) btnBake.addEventListener('click', () => bakeAutoEvents());
-  const btnClear = $('btnClearFx');
-  if (btnClear) btnClear.addEventListener('click', () => clearAllEvents());
 
   // Event Inspector bindings
   const evTypeSel = $('evInspType');
@@ -4025,7 +3897,11 @@ function bind() {
     const valEl = $('evAmpVal'); if (valEl) valEl.textContent = val.toFixed(1) + 'x';
     replanSoon(100);
   });
-  if (evAmp) evAmp.addEventListener('change', () => { pushEdit(); commit(); flushSave(); });
+  if (evAmp) {
+    evAmp.addEventListener('pointerdown', prepareEdit);
+    evAmp.addEventListener('focus', prepareEdit);
+    evAmp.addEventListener('change', () => { commit(); flushSave(); });
+  }
   const evDur = $('evDur');
   if (evDur) evDur.addEventListener('input', e => {
     if (!S.selectedEvent) return;
@@ -4036,7 +3912,11 @@ function bind() {
     const valEl = $('evDurVal'); if (valEl) valEl.textContent = val.toFixed(2) + 's';
     replanSoon(100);
   });
-  if (evDur) evDur.addEventListener('change', () => { pushEdit(); commit(); flushSave(); });
+  if (evDur) {
+    evDur.addEventListener('pointerdown', prepareEdit);
+    evDur.addEventListener('focus', prepareEdit);
+    evDur.addEventListener('change', () => { commit(); flushSave(); });
+  }
   const evNudgeBack = $('evNudgeBack');
   if (evNudgeBack) evNudgeBack.addEventListener('click', () => nudgeSelectedEventTime(-0.05));
   const evNudgeFwd = $('evNudgeFwd');
@@ -4276,7 +4156,7 @@ const TOUR = [
   { t: () => $('audioFile').closest('label') || $('audioFile'), title: '2. 曲を読み込む', text: 'mp3 などを読み込むと拍を検出して、カットの切り替わりを合わせます。曲がなくても作れます。「タップで同期」で行の頭を合わせることもできます。' },
   { t: () => $('btnOmakaseBig'), title: '3. おまかせで作る', text: 'スタイル・雰囲気・動き・配色・構成をまるごと決めます。押すたびに別の案になり、「◀ 前の案」で戻れます。' },
   { t: () => $('btnPlay'), title: '4. 再生して確認する', text: '再生して見てみましょう。下のタイムラインでは、行の区切りをドラッグして動かせます（＋−で拡大）。' },
-  { t: () => $('lineList'), title: '5. 気になる行だけ直す', text: '行ごとに、歌詞を直す（✎）、カット数を決める、この行からタップし直す（◎）、この行だけ作り直す（サイコロ）ができます。' },
+  { t: () => $('lineList'), title: '5. 気になる行だけ直す', text: '行ごとに、歌詞をダブルクリックして直す、この行からタップし直す（◎）、この行だけ作り直す（サイコロ）ができます。' },
   { t: () => $('eMP4').closest('.easy-sec') || $('eMP4'), title: '6. 書き出す', text: '画面比（縦長 9:16 など）と解像度を選んで MP4 を書き出します。「書き出す範囲」で選んだ行だけを書き出すこともできます。' },
 ];
 const TR = { i: -1 };

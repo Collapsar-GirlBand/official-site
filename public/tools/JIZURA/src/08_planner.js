@@ -554,34 +554,17 @@ J.plan = (project, audio) => {
     const visEnd = Math.min(e, s + Math.max(3.6, n * 0.5 + 1.2));
     const D = visEnd - s;
     plan.lines.push({ index: li, src: ln.src, lrc: ln.lrc, text: ln.text, start: s, end: e, visEnd, note: ln.note, impact: ln.impact, emph: ln.emph, chunks: null, seed: lineSeed });
-    const chunks = ln.manual || (plan.lang === 'en' ? J.phraseChunks(J.chunkText(ln.text)) : J.chunkText(ln.text));
+    // Slash boundaries are authoritative: one lyric unit per non-empty segment.
+    // Timing, density, overrides and recap heuristics must never change this count.
+    const chunks = ln.manual || [ln.text];
     plan.lines[li].chunks = chunks;
-    const L = J.lerp(1.3, 0.5, fx.density);
-    let nC = Math.round(D / L);
-    const maxC = chunks.length + (chunks.length >= 2 && D > 2.0 ? 1 : 0);
-    nC = J.clamp(nC, 1, Math.max(1, maxC));
     const ovAny = Object.keys(ov).some(k2 => !['lock', 'lockedSeed', 'seed', 'cutTech', 'cutLayouts', 'cutSchemes', 'cutQuiet', 'cutTime'].includes(k2));
     const kime = !!(U && U.kime.has(li) && !ov.cuts);
-    if (ov.single || kime) nC = 1;
-    if (zones) nC = Math.max(1, Math.min(nC, Math.floor(chunks.length / 2)));   // 中央を空ける: each cut is split in two, so keep ≥ 2 words per cut
-    // カット数の指定 (per line): exactly that many cuts — chunks are split further when the line has fewer
-    const fixedN = ov.cuts > 0 ? Math.min(12, ov.cuts | 0) : 0;
-    let chunks2 = chunks;
-    if (fixedN) { nC = fixedN; chunks2 = splitToCount(chunks, fixedN); }
-    // groups of chunks
-    let groups;
-    const nG = Math.min(nC, chunks2.length);
-    if (nG <= 1) groups = [ln.text];
-    else groups = partition(chunks2, nG).map(g => J.joinWords(g));
-    const recap = !fixedN && nC > groups.length && groups.length >= 2;
-    let units = groups.map(g => ({ text: g, w: [...g].length + 1.6 }));
-    if (recap) units.push({ text: ln.text, w: (units.reduce((a, u) => a + u.w, 0) / units.length) * 1.25, recap: true });
+    const units = chunks.map(g => ({ text: g, w: [...g].length + 1.6 }));
     // a locked or saved line keeps its own cuts too (the cut count would otherwise follow the 細かさ slider or おまかせ)
     const savedSource = (ov.lock && Array.isArray(ov.lockedCuts)) ? ov.lockedCuts : (ov.savedCuts && Array.isArray(ov.savedCuts) ? ov.savedCuts : null);
     // Older snapshots may include an automatically inserted gap card. It is not a lyric unit.
     const cutsSource = savedSource && savedSource.filter(c => c && c.layout !== 'interlude');
-    if (cutsSource && cutsSource.length && cutsSource.every(c => c && typeof c.utext === 'string' && ln.text.includes(c.utext.trim())))
-      units = cutsSource.map(c => ({ text: c.utext, w: [...c.utext].length + 1.6, recap: !!c.recap }));
     const tot = units.reduce((a, u) => a + u.w, 0);
     // ロック/保存: a locked or saved line keeps exactly what it showed when it was locked/saved (layouts, motion, decorations, colours,
     // accents) — rerolling other lines changes the shared "recently used" state, so the seed alone is not enough
@@ -612,6 +595,7 @@ J.plan = (project, audio) => {
     let lineBg = (lockSpecs && lockSpecs[0] && lockSpecs[0].bg !== undefined) ? (J.BG[lockSpecs[0].bg] ? lockSpecs[0].bg : 'none') : (ov.bg && J.BG[ov.bg] ? ov.bg : pickBg(rng, st, en, fx, bgHistory));
     bgHistory.push(lineBg);
     let lineBgP = (lockSpecs && lockSpecs[0] && lockSpecs[0].bgP) ? lockSpecs[0].bgP : (J.BG[lineBg] && J.BG[lineBg].plan ? J.BG[lineBg].plan(rng, st) : {});
+    let lineLabels = null;
     units.forEach((u, k) => {
       const cs = bounds[k], ce = bounds[k + 1], dur = ce - cs;
       const halves = zones ? splitHalf(u.text, plan.lang) : null;               // 中央を空ける: 「花が」｜「咲いた」
@@ -690,6 +674,26 @@ J.plan = (project, audio) => {
         bg = LS.bg && J.BG[LS.bg] ? LS.bg : 'none'; if (bg !== 'none') { lineBg = bg; lineBgP = LS.bgP || {}; }
         inDur = LS.inDur; outDur = LS.outDur;
       }
+      // Share the line's default labels before applying any per-cut manual choices.
+      // Keep layout parameters specific to each segment's text and duration.
+      if (!lineLabels) {
+        lineLabels = { layout, enter, exit, hold, treat, cam, bg, scheme: sch,
+          font: (ov.font && J.FONTS[ov.font]) ? ov.font : (tech.font
+            ? LD.plan(J.rng(J.h(lineSeed, 0, 97)), { text: txt, n: nn, W: LW, H: LH, dur }, st).font
+            : (params && params.font)),
+          decor: decor.map(d => d.id), bgP: lineBgP };
+      } else {
+        ({ layout, enter, exit, hold, treat, cam, bg } = lineLabels);
+        sch = lineLabels.scheme;
+        LD = J.LAYOUTS[layout];
+        params = LD.plan(J.rng(J.h(lineSeed, k, 97)), { text: txt, n: nn, W: LW, H: LH, dur }, cutSt);
+        decor = lineLabels.decor.map(id => decorParams(J.rng(J.h(lineSeed, k, 98)), id));
+        treatP = J.TREAT[treat].plan ? J.TREAT[treat].plan(J.rng(J.h(lineSeed, k, 99)), st) : {};
+        camP = J.CAMERA[cam].plan ? J.CAMERA[cam].plan(J.rng(J.h(lineSeed, k, 100)), st) : {};
+        lineBgP = lineLabels.bgP;
+      }
+      if (tech.font === undefined && lineLabels.font && J.FONTS[lineLabels.font]) cutFont = lineLabels.font;
+      [inDur, outDur] = durs(enter, exit);
       // このカットだけの指定: applied on top of the draw with its own random stream, so changing one cut never
       // shifts the other cuts (history below keeps what was drawn, as if nothing had been changed here)
       const drawn = { layout, enter, exit, hold, treat, cam, decor: decor.map(d => d.id) };
@@ -742,7 +746,8 @@ J.plan = (project, audio) => {
       const joinSaved = { enter, inDur, prevExit: prevCut && prevCut.exit, prevOut: prevCut && prevCut.outDur };
       // a locked line keeps its own exit: the next (unlocked) line may not replace it with a transition / morph
       const prevLockedOther = prevCut && prevCut.line !== li && !LS && ((project.overrides || {})[prevCut.line] || {}).lock;
-      const canTrans = prevCut && Math.abs(prevCut.end - cs) < 0.06 && dur > 0.5 && !prevLockedOther;
+      const canTrans = prevCut && Math.abs(prevCut.end - cs) < 0.06 && dur > 0.5 && !prevLockedOther
+        && !!((ov.trans && ov.trans !== 'none') || (tech.trans && tech.trans !== 'none'));
       // 統一感: モーフ — the next part of the same line grows out of this one (shared characters glide, the rest melts)
       if (LS) {                                       // locked: the same join as before, when the cuts still touch
         if (canTrans && LS.morph) { morph = { dur: LS.morph.dur }; prevCut.exit = 'cut'; prevCut.outDur = 0; }

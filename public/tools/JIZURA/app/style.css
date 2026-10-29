@@ -115,6 +115,7 @@ button.tap { font: 700 18px/1 var(--mono); letter-spacing: 0.2em; padding: 16px;
 /* line list */
 #lineList { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .ln { display: grid; grid-template-columns: 22px 66px minmax(0, 1fr); gap: 4px 6px; align-items: center; padding: 6px; border: 1px solid transparent; border-radius: var(--r); }
+.ln { cursor: pointer; }
 .ln:hover { background: var(--raised); }
 .ln.cur { border-color: var(--line2); background: var(--raised); }
 .ln .no { font: 500 11px var(--mono); color: var(--faint); text-align: right; }
@@ -171,7 +172,7 @@ button.play { width: 40px; height: 34px; padding: 0; font-size: 14px; }
 .ln.is-inter .txt { color: var(--muted); font-style: italic; }
 .ln .txt-edit { width: 100%; padding: 3px 6px; font-size: 13px; }
 .ln .tools .icon[aria-pressed=true] { color: var(--amber); }
-#timeline { width: 100%; height: 84px; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 0; cursor: pointer; touch-action: none; }
+#timeline { width: 100%; height: 60px; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 0; cursor: pointer; touch-action: none; }
 .tl-fx-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; background: #141418; border: 1px solid var(--line); border-bottom: none; border-radius: var(--r) var(--r) 0 0; font-size: 11px; flex-wrap: wrap; }
 .tl-fx-actions, .tl-fx-modes { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .tl-fx-label { color: var(--muted); font-size: 11px; font-weight: 600; margin-right: 2px; }
@@ -817,3 +818,91 @@ button.small.primary { padding: 4px 12px; }
   font-size: 13px;
   color: var(--muted);
 }
+
+.ln .cuts span.cut-lay { font-size: 11px; color: var(--muted); padding: 2px 4px; }
+
+/* Compact custom style controls and opt-in template previews. */
+.custom-sec { margin-top: 0; }
+.custom-sec > .sec-h { flex-wrap: wrap; gap: 8px; }
+.custom-sec > .sec-h > .row { flex-wrap: wrap; }
+#styleTemplates { margin-bottom: 12px; }
+.custom-help { margin-bottom: 10px; }
+.custom-help > summary { cursor: pointer; width: fit-content; list-style: none; }
+.custom-help > summary::-webkit-details-marker { display: none; }
+.custom-help-copy { color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+/* Keep the current-cut controls neutral; amber marks interaction only. */
+#cutInfo .chip {
+  border-color: var(--line2);
+  color: var(--text);
+  background: var(--raised);
+}
+#cutInfo .chip-code {
+  color: var(--text);
+  background: var(--raised2);
+}
+#cutInfo button.chip:hover:not(:disabled) {
+  border-color: var(--muted);
+  background: var(--raised2);
+}
+#cutInfo button.chip.is-forced { border-color: var(--muted); }
+#cutInfo button.chip[aria-pressed=true] {
+  border-color: var(--amber);
+  background: var(--raised2);
+}
+#cutInfo .cut-action-btn:hover:not(:disabled) {
+  border-color: var(--muted);
+  color: var(--text);
+}
+
+/* Editor day/night palettes. Canvas previews retain their project colours. */
+:root[data-ui-theme="light"] {
+  color-scheme: light;
+  --ink: #f2f4f7;
+  --panel: #ffffff;
+  --raised: #f0f3f7;
+  --raised2: #e3e9f0;
+  --line: #d7dee7;
+  --line2: #bdc8d6;
+  --text: #202c3b;
+  --muted: #536479;
+  --faint: #66758a;
+  --amber: #a85b00;
+  --cyan: #00786e;
+  --rose: #b32d61;
+  --danger: #c12d42;
+}
+:root[data-ui-theme="light"] button.primary,
+:root[data-ui-theme="light"] .lang-switch [aria-current=page] { color: #fff; }
+:root[data-ui-theme="light"] button.primary:hover { background: #8e4d00; }
+:root[data-ui-theme="light"] .toast,
+:root[data-ui-theme="light"] .overlay-msg,
+:root[data-ui-theme="light"] .drop-overlay-box { background: var(--panel); color: var(--text); }
+:root[data-ui-theme="light"] .bias-chip[data-w="3"],
+:root[data-ui-theme="light"] .fx-menu-item:hover,
+:root[data-ui-theme="light"] .btn-fx-add:hover,
+:root[data-ui-theme="light"] #btnAddFlash:hover { color: var(--text); }
+:root[data-ui-theme="light"] .fx-menu-item:hover { background: var(--raised2); }
+:root[data-ui-theme="light"] .brand .mark { text-shadow: -1px -1px 0 #84d4c8, 1px 1px 0 #f1c785; }
+#btnUiTheme { line-height: 1.5; }
+.usage-steps { padding-left: 1.6em; line-height: 1.8; }
+.usage-steps li + li { margin-top: 6px; }
+
+/* Screen effects workspace: one clock, two previews. */
+.fx-only { display: none !important; }
+.screen-fx-mode .fx-only { display: block !important; }
+.screen-fx-mode #cutInfo, .screen-fx-mode #cutPick { display: none !important; }
+.screen-fx-mode .viewport { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 26px; }
+.screen-fx-mode #view { grid-column: 1; grid-row: 1; }
+.screen-fx-mode .compare-base { grid-column: 2; grid-row: 1; min-width: 0; }
+.compare-label { position: absolute; left: 10px; top: 5px; color: var(--muted); font-size: 11px; }
+.compare-base > .compare-label { left: calc(50% + 8px); }
+.screen-fx-panel { border: 1px solid var(--line); padding: 10px; border-radius: var(--r); }
+.screen-fx-panel p { font-size: 11px; margin: 0 0 8px; }
+.fx-event-list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 110px; overflow: auto; margin-top: 8px; }
+.fx-event-list button { font-size: 11px; }
+.screen-fx-panel .event-inspector { margin-top: 8px; flex-wrap: wrap; }
+.screen-fx-panel .event-inspector[hidden] { display: none; }
+.screen-fx-panel input[type=number] { width: 90px; }
+
+#app:not(.screen-fx-mode) [data-tab="fx"], #app:not(.screen-fx-mode) [data-pane="fx"] { display: none !important; }
