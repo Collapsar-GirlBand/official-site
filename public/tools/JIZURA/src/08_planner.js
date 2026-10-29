@@ -34,6 +34,7 @@ J.defaultProject = () => ({
   timing: { bpm: 0, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineScale: 1 },
   eventMode: 'auto',              // 画面动效事件模式: 'auto' (自动随机+手动) | 'manual' (纯手动掌控，关闭随机黑盒)
   events: [],                     // 手动放置在时间轴上的动效事件: [{ id, t, type, amp, dur, manual: true }]
+  eventOverrides: {},             // individual automatic-event edits/tombstones; selection never bakes the plan
   titleCard: true,                // 标题卡默认自动插入（用户可一键删除）
   autoInterlude: true,            // 间奏卡默认自动插入（用户可一键删除）
   interludeFillMode: 'ambient',   // 间奏卡删除后的替代模式: 'ambient'(留白呼吸) | 'extend'(上一句延长)
@@ -927,6 +928,17 @@ J.plan = (project, audio) => {
     if (c.layout === 'interlude') { c.params = Object.assign({}, c.params, { showTitle: false }); return; }   // no lyric: the whole frame
     c.zone = zoneOf(c.line);
   });
+  // Stable identity follows the owning cut, effect and occurrence, not its timestamp.
+  const eventSlots = new Map();
+  plan.events = plan.events.flatMap(e => {
+    const owner = evOwner.get(e);
+    const key = (owner ? owner.line + ':' + owner.index : 'free') + ':' + e.type;
+    const slot = eventSlots.get(key) || 0; eventSlots.set(key, slot + 1);
+    const id = 'auto:' + key + ':' + slot;
+    const patch = (project.eventOverrides || {})[id];
+    if (patch && patch.deleted) return [];
+    return [Object.assign(e, patch || {}, { id, sourceId: id, manual: false })];
+  });
   // manual timeline events placed by user
   if (Array.isArray(project.events)) {
     for (const ue of project.events) {
@@ -938,6 +950,7 @@ J.plan = (project, audio) => {
           amp: ue.amp != null ? +ue.amp : 1,
           dur: ue.dur != null ? +ue.dur : (ue.type === 'flash' ? 3 / 24 : ue.type === 'shake' ? 0.3 : 0.15),
           manual: true,
+          disabled: !!ue.disabled,
         });
       }
     }
@@ -950,18 +963,21 @@ J.plan = (project, audio) => {
 
 J.bakeEvents = (project, plan) => {
   project.eventMode = 'manual';
+  project.eventOverrides = {};
   project.events = (plan.events || []).map((e, idx) => ({
-    id: e.id || ('ev_' + idx + '_' + Math.random().toString(36).slice(2, 7)),
+    id: e.manual && e.id ? e.id : ('ev_baked_' + idx + '_' + Math.random().toString(36).slice(2, 7)),
     t: +e.t.toFixed(3),
     type: e.type || 'glitch',
     amp: +(e.amp != null ? e.amp : 1).toFixed(2),
     dur: +(e.dur != null ? e.dur : (e.type === 'flash' ? 3 / 24 : e.type === 'shake' ? 0.3 : 0.15)).toFixed(3),
     manual: true,
+    disabled: !!e.disabled,
   }));
 };
 
 J.clearEvents = (project) => {
   project.events = [];
+  project.eventOverrides = {};
 };
 
 /* ---------- 統一感 (unify): the conventions of a hand-made lyric video ----------

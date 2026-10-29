@@ -79,6 +79,7 @@ function refreshLoopHold(t) {
   S.loopHold = (S.loop === 'line' || S.loop === 'cut') ? loopRange(t != null ? t : S.t) : null;
 }
 function activeLoopRange() {
+  if (S.fxLoop && S.selectedEvent) return { start: Math.max(0, S.selectedEvent.t - 0.3), end: Math.min(S.plan.duration, S.selectedEvent.t + S.selectedEvent.dur + 0.4) };
   if ((S.loop === 'line' || S.loop === 'cut') && S.loopHold) return S.loopHold;
   return loopRange(S.t);
 }
@@ -151,8 +152,16 @@ function mergeProject(p) {
     type: e.type || 'glitch',
     amp: e.amp != null ? +e.amp : 1,
     dur: e.dur != null ? +e.dur : 0.15,
-    manual: true
+    manual: true, disabled: !!e.disabled
   })) : [];
+  o.eventOverrides = {};
+  for (const [id, e] of Object.entries((p && p.eventOverrides) || {})) {
+    if (!id.startsWith('auto:') || !e || typeof e !== 'object') continue;
+    const patch = { deleted: !!e.deleted, disabled: !!e.disabled };
+    for (const k of ['t', 'amp', 'dur']) if (Number.isFinite(e[k])) patch[k] = Math.max(0, e[k]);
+    if (J.FXE[e.type]) patch.type = e.type;
+    o.eventOverrides[id] = patch;
+  }
   o.locks = { tech: {}, params: {} };
   // project files are untrusted: only plain keys may be locked, and only on (never a value we did not write)
   for (const [g, on] of Object.entries((p && p.locks && p.locks.tech) || {})) if (on === true && /^[\w-]+$/.test(g)) o.locks.tech[g] = true;
@@ -225,13 +234,15 @@ function audioLike() {
 }
 /* 自動判定のとき、判定結果を言語欄の横に出す */
 function langNote() {
-  const el = $('langNote'); if (!el) return;
-  el.textContent = (S.project.lang || 'auto') === 'auto' ? '→ ' + J.LANG_LABEL[J.resolveLang(S.project)] : '';
   if (langNote.last !== undefined && langNote.last !== J.lang) { try { renderFontRoles(); } catch (e) {} }   // font menus show the language's faces
   langNote.last = J.lang;
 }
 function replan() {
   S.plan = J.plan(S.project, audioLike());
+  if (S.selectedEvent) {
+    S.selectedEvent = S.plan.events.find(e => e.id === S.selectedEvent.id) || null;
+    if (S.selectedEvent) updateEventInspector(S.selectedEvent); else hideEventInspector();
+  }
   // lines locked in older projects (seed only): take a snapshot now, so from here on they stay exactly as they are
   for (const [i, o] of Object.entries(S.project.overrides || {})) if (o && o.lock && !Array.isArray(o.lockedCuts)) { const snap = J.lineSnapshot(S.plan, +i); if (snap) o.lockedCuts = snap; }
   langNote();
@@ -295,7 +306,7 @@ function fixedLayout() { return !!(FIXED_MQ && FIXED_MQ.matches) && document.doc
 function sizeViewport() {
   const vp = $('viewport'), c = $('view');
   const ar = S.plan.W / S.plan.H;
-  let cssW = S.screenFxMode ? Math.max(1, (vp.clientWidth - 10) / 2) : (vp.clientWidth || 800), cssH = cssW / ar;
+  let cssW = S.screenFxMode && S.fxCompare ? Math.max(1, (vp.clientWidth - 10) / 2) : (vp.clientWidth || 800), cssH = cssW / ar;
   // fixed workspace: the viewport gets whatever height is left under the header / above the transport and timeline
   const maxH = fixedLayout() ? Math.max(160, vp.clientHeight - 2) : Math.max(220, window.innerHeight * 0.68);
   if (cssH > maxH) { cssH = maxH; cssW = cssH * ar; }
@@ -304,7 +315,7 @@ function sizeViewport() {
   if (c.width !== pw || c.height !== ph) { c.width = pw; c.height = ph; }
   c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
   const base = $('viewNoFx');
-  if (base && S.screenFxMode) { base.width = pw; base.height = ph; base.style.width = cssW + 'px'; base.style.height = cssH + 'px'; }
+  if (base && S.screenFxMode && S.fxCompare) { base.width = pw; base.height = ph; base.style.width = cssW + 'px'; base.style.height = cssH + 'px'; }
   S.need = true;
 }
 // preview only: dotted outline of the centre that 中央を空ける keeps free (never in exports)
@@ -319,14 +330,14 @@ function drawCenterGuide(ctx, k) {
 function draw() {
   const c = $('view'), ctx = c.getContext('2d');
   const t0 = performance.now();
-  S.renderer.frame(ctx, S.plan, S.t, { scale: c.width / S.plan.W, fast: S.playing && S.slow });
-  if (S.screenFxMode) {
+  S.renderer.frame(ctx, S.plan, S.t, { scale: c.width / S.plan.W, fast: S.playing && S.slow, noEvents: !!(S.screenFxMode && S.fxBypass) });
+  if (S.screenFxMode && S.fxCompare) {
     const b = $('viewNoFx'), bx = b.getContext('2d');
     // Same renderer and clock preserve cached textures and all non-event styling.
     S.renderer.frame(bx, S.plan, S.t, { scale: b.width / S.plan.W, fast: S.playing && S.slow, noEvents: true });
     if (S.plan.centerFree) drawCenterGuide(bx, b.width / S.plan.W);
-    renderScreenFxEvents();
   }
+  if (S.screenFxMode) renderScreenFxEvents();
   if (S.plan.centerFree) drawCenterGuide(ctx, c.width / S.plan.W);
   const dt = performance.now() - t0;
   S.slow = S.playing ? (dt > 30 ? true : dt < 14 ? false : S.slow) : false;
@@ -340,7 +351,7 @@ function tick(now) {
     let t = Math.max(0, S.audio ? AP.time() : (now - S.t0) / 1000 * playRate());
     const range = activeLoopRange();
     if (t >= range.end - 1e-3) {
-      if (S.loop && !S.tap) { seek(range.start); t = range.start; }
+      if ((S.fxLoop || S.loop) && !S.tap) { seek(range.start); t = range.start; }
       else { pause(); t = Math.min(t, S.plan.duration - 1e-3); if (S.tap) stopTap(); }
     }
     S.t = t; S.need = true;
@@ -372,6 +383,8 @@ function play() {
   S.playing = true; $('btnPlay').textContent = '❚❚'; $('btnPlay').setAttribute('aria-label', '一時停止');
 }
 function pause() {
+  S.fxLoop = false;
+  if ($('evPreview')) $('evPreview').setAttribute('aria-pressed', 'false');
   S.playing = false; AP.stop();
   $('btnPlay').textContent = '▶'; $('btnPlay').setAttribute('aria-label', '再生'); S.need = true;
 }
@@ -405,6 +418,8 @@ function followTlPlayhead() {
 }
 function drawTimeline() {
   const c = $('timeline'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const fxRects = S.screenFxMode ? fxTimelineRects(c.clientWidth) : [];
+  c.style.height = S.screenFxMode ? (76 + Math.max(1, ...fxRects.map(r => r.lane + 1)) * 26) + 'px' : '';
   const w = Math.max(10, Math.round(c.clientWidth * dpr)), h = Math.max(10, Math.round(c.clientHeight * dpr));
   if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
   let { D, vd, off } = tlView();
@@ -422,7 +437,7 @@ function drawTimeline() {
   for (const b of beats) { if (b < off) continue; if (b > off + vd) break; x.fillRect(Math.round(X(b)), h - 6 * dpr, 1, 6 * dpr); }
 
   const yLines = 19 * dpr;
-  const top = 21 * dpr, bot = h - 8 * dpr;
+  const top = 21 * dpr, bot = S.screenFxMode ? 48 * dpr : h - 8 * dpr;
 
   const R = exportRange();
   if (R) { x.fillStyle = 'rgba(245,165,12,0.10)'; x.fillRect(X(R.t0), 0, X(R.t1) - X(R.t0), h); }
@@ -438,6 +453,23 @@ function drawTimeline() {
       x.fillStyle = 'rgba(236,231,225,0.85)'; x.font = `${10 * dpr}px ${getComputedStyle(document.body).getPropertyValue('--mono') || 'monospace'}`;
       x.save(); x.beginPath(); x.rect(x0, top, x1 - x0 - 3, bot - top); x.clip();
       x.fillText(TL.z > 3 && cut.text ? cut.text : ((J.LAYOUTS[cut.layout] || {}).name || cut.layout), x0 + 5 * dpr, top + 13 * dpr); x.restore();
+    }
+  }
+
+  if (S.screenFxMode) {
+    x.font = `${10 * dpr}px sans-serif`; x.fillStyle = '#8e8a94';
+    x.fillText('画面动效 · 拖动移动 / 右边缘调时长', 6 * dpr, 61 * dpr);
+    for (const r of fxRects) {
+      const selected = S.selectedEvent && S.selectedEvent.id === r.ev.id;
+      x.fillStyle = r.ev.disabled ? '#303039' : selected ? '#b98016' : r.ev.manual ? '#235a58' : '#393453';
+      x.fillRect(r.x * dpr, r.y * dpr, r.w * dpr, 22 * dpr);
+      x.strokeStyle = selected ? '#f5a50c' : '#777281';
+      x.strokeRect(r.x * dpr, r.y * dpr, r.w * dpr, 22 * dpr);
+      x.save(); x.beginPath(); x.rect(r.x * dpr, r.y * dpr, r.w * dpr, 22 * dpr); x.clip();
+      x.fillStyle = '#ece7e1';
+      x.fillText((r.ev.disabled ? '○ ' : '') + fxName(r.ev.type), (r.x + 4) * dpr, (r.y + 15) * dpr);
+      x.restore(); x.fillStyle = selected ? '#f5a50c' : '#8e8a94';
+      x.fillRect((r.x + r.w - 3) * dpr, (r.y + 5) * dpr, 2 * dpr, 12 * dpr);
     }
   }
 
@@ -471,7 +503,7 @@ function tlTime(ev) {
   const r = $('timeline').getBoundingClientRect(), { vd, off } = tlView();
   return off + J.clamp((ev.clientX - r.left) / r.width, 0, 1) * vd;
 }
-function timelineSeek(ev) { seek(tlTime(ev)); }
+function timelineSeek(ev) { if (S.fxLoop) pause(); seek(tlTime(ev)); }
 /* the line whose start handle is under the pointer (top band, <= 20px) */
 function tlHandleAt(ev) {
   const c = $('timeline'), r = c.getBoundingClientRect(), { vd, off } = tlView();
@@ -502,6 +534,11 @@ function updateEventInspector(ev) {
   const p = $('eventInspector');
   if (!p || !ev) return;
   p.hidden = false;
+  $('fxSelectionHint').hidden = true;
+  $('evSource').textContent = ev.manual ? '手动事件 · 仅编辑这一条' : (S.project.eventOverrides || {})[ev.id] ? '自动事件 · 已局部修改' : '自动事件 · 原始生成值';
+  $('evReset').hidden = !!ev.manual;
+  $('evReset').disabled = !(S.project.eventOverrides || {})[ev.id];
+  $('evDisable').textContent = ev.disabled ? '启用' : '禁用';
   const typeSel = $('evInspType');
   if (typeSel) typeSel.value = ev.type || 'glitch';
   const badge = $('evInspBadge');
@@ -514,7 +551,7 @@ function updateEventInspector(ev) {
     else if (ev.type === 'invert') { icon = '◐'; label = 'Invert 反转'; }
     else if (ev.type === 'mosaic') { icon = '☷'; label = 'Mosaic 马赛克'; }
     else { icon = '★'; label = (J.FXE[ev.type] && J.FXE[ev.type].name) || ev.type; }
-    badge.textContent = `${icon} ${label}`;
+    badge.textContent = `${icon} ${fxName(ev.type)}`;
   }
   const timeInput = $('evTimeInput');
   if (timeInput && document.activeElement !== timeInput) timeInput.value = ev.t.toFixed(3);
@@ -523,89 +560,127 @@ function updateEventInspector(ev) {
   const amp = $('evAmp'), ampVal = $('evAmpVal');
   const a = ev.amp != null ? ev.amp : 1.0;
   if (amp) amp.value = a;
-  if (ampVal) ampVal.textContent = a.toFixed(1) + 'x';
+  if (ampVal) ampVal.textContent = a.toFixed(2) + '×';
   const dur = $('evDur'), durVal = $('evDurVal');
   const d = ev.dur != null ? ev.dur : 0.15;
-  if (dur) dur.value = d;
-  if (durVal) durVal.textContent = d.toFixed(2) + 's';
+  if (dur) { dur.min = 1 / S.plan.fps; dur.step = 1 / S.plan.fps; dur.max = Math.max(5, d); dur.value = d; }
+  if (durVal) durVal.textContent = d.toFixed(2) + 's · ' + Math.round(d * S.plan.fps) + ' 帧';
 }
 
 function hideEventInspector() {
   const p = $('eventInspector');
   if (p) p.hidden = true;
+  S.fxLoop = false;
+  if ($('evPreview')) $('evPreview').setAttribute('aria-pressed', 'false');
+  if ($('fxSelectionHint')) $('fxSelectionHint').hidden = false;
 }
 
-function addManualTimelineEvent(type) {
-  if (S.exporting || S.tap) return;
-  pushEdit();
-  remember();
-  if (!S.project.events) S.project.events = [];
-  let t = +S.t.toFixed(3);
-  if (S.plan.beats && S.plan.beats.length) {
-    let bt = null, bd = 0.12;
-    for (const b of S.plan.beats) {
-      const d = Math.abs(b - t);
-      if (d < bd) { bd = d; bt = b; }
-      if (b > t + 0.2) break;
-    }
-    if (bt != null) t = +bt.toFixed(3);
+function fxName(type) {
+  const names = { glitch: '复合故障', slice: '切片故障', block: '块状故障', invert: '反相', flash: '短闪', zoom: '缩放模糊', mosaic: '马赛克', shake: '轻震', chroma: '色散' };
+  return names[type] || (J.FXE[type] || {}).name || type;
+}
+function fxDefaultDuration(type) {
+  return type === 'flash' ? 3 / 24 : type === 'shake' ? 0.35 : ((J.FXE[type] || {}).dur || 6) / 24;
+}
+function snapFxTime(t, free, allowEnd = false) {
+  if (!free && S.project.timing.snap) {
+    let distance = 0.12, best = t;
+    for (const b of S.plan.beats || []) if (Math.abs(b - t) < distance) { distance = Math.abs(b - t); best = b; }
+    t = best;
   }
-  const defaultDur = type === 'flash' ? +(3 / 24).toFixed(3) : type === 'shake' ? 0.35 : 0.15;
-  const newEv = {
-    id: 'ev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
-    t: t,
-    type: type,
-    amp: 1.0,
-    dur: defaultDur,
-    manual: true
-  };
-  S.project.events.push(newEv);
-  S.selectedEvent = newEv;
-  replan();
-  commit();
-  flushSave();
-  seek(t);
-  updateEventInspector(newEv);
-  drawTimeline();
-  const name = (J.FXE[type] && J.FXE[type].name) || type;
-  const l = (document.documentElement.lang || '').toLowerCase();
-  const isZh = l.startsWith('zh');
-  toast(isZh ? `已在 ${t.toFixed(2)}s 放置动效：${name}` : `${t.toFixed(2)}秒に ${name} を配置しました`);
+  return +J.clamp(t, 0, Math.max(0, S.plan.duration - (allowEnd ? 0 : 1 / S.plan.fps))).toFixed(6);
 }
-
+function selectFxEvent(ev) {
+  pause(); S.selectedEvent = ev;
+  if (ev) { updateEventInspector(ev); seek(Math.min(S.plan.duration - 0.001, ev.t + ev.dur * 0.25)); }
+  else hideEventInspector();
+  S.need = true; drawTimeline(); renderScreenFxEvents();
+}
+function editableFxEvent() {
+  const ev = S.selectedEvent;
+  if (!ev) return null;
+  if (ev.manual) return (S.project.events || []).find(e => e.id === ev.id);
+  const patches = S.project.eventOverrides || (S.project.eventOverrides = {});
+  return patches[ev.id] || (patches[ev.id] = { t: ev.t, type: ev.type, amp: ev.amp, dur: ev.dur, disabled: !!ev.disabled });
+}
+function changeFxEvent(values) {
+  if (S.exporting || S.tap || !S.selectedEvent) return;
+  Object.assign(editableFxEvent(), values);
+  Object.assign(S.selectedEvent, values);
+}
+function finishFxEdit() {
+  clearTimeout(replanTimer); replan(); commit(); flushSave();
+}
+function addManualTimelineEvent(type, at = S.t, free = false) {
+  if (S.exporting || S.tap || !J.FXE[type]) return;
+  pushEdit(); remember(); pause();
+  const t = snapFxTime(at, free);
+  const ev = { id: 'ev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6), t, type, amp: 1, dur: Math.min(fxDefaultDuration(type), S.plan.duration - t), manual: true };
+  (S.project.events || (S.project.events = [])).push(ev);
+  S.selectedEvent = ev; finishFxEdit(); selectFxEvent(S.selectedEvent);
+  toast('已添加 ' + fxName(type) + ' · ' + t.toFixed(2) + 's');
+}
 function deleteSelectedEvent() {
-  if (!S.selectedEvent) return;
-  pushEdit();
-  remember();
-  const id = S.selectedEvent.id;
-  if (S.project.events) {
-    S.project.events = S.project.events.filter(x => x.id !== id && !(Math.abs(x.t - S.selectedEvent.t) < 0.001 && x.type === S.selectedEvent.type));
-  }
-  S.selectedEvent = null;
-  hideEventInspector();
-  replan();
-  commit();
-  flushSave();
-  drawTimeline();
-  const l = (document.documentElement.lang || '').toLowerCase();
-  const isZh = l.startsWith('zh');
-  toast(isZh ? '已删除该动效事件' : '効果イベントを削除しました');
+  if (S.exporting || S.tap || !S.selectedEvent) return;
+  pushEdit(); remember();
+  const ev = S.selectedEvent;
+  if (ev.manual) S.project.events = (S.project.events || []).filter(e => e.id !== ev.id);
+  else (S.project.eventOverrides || (S.project.eventOverrides = {}))[ev.id] = { deleted: true };
+  selectFxEvent(null); finishFxEdit();
 }
-
 function nudgeSelectedEventTime(delta) {
-  if (!S.selectedEvent) return;
-  pushEdit();
-  remember();
-  let newT = +J.clamp(S.selectedEvent.t + delta, 0, S.plan.duration).toFixed(3);
-  S.selectedEvent.t = newT;
-  const pe = (S.project.events || []).find(x => x.id === S.selectedEvent.id);
-  if (pe) pe.t = newT;
-  seek(newT);
-  replan();
-  commit();
-  flushSave();
-  updateEventInspector(S.selectedEvent);
-  drawTimeline();
+  if (S.exporting || S.tap || !S.selectedEvent) return;
+  pushEdit(); remember();
+  const t = snapFxTime(S.selectedEvent.t + delta, true);
+  changeFxEvent({ t, dur: Math.min(S.selectedEvent.dur, S.plan.duration - t) });
+  finishFxEdit(); seek(t);
+}
+function fxTimelineRects(width) {
+  const { vd, off } = tlView(), lanes = [];
+  return (S.plan.events || []).map(ev => {
+    const x = (ev.t - off) / vd * width, w = Math.max(12, ev.dur / vd * width);
+    let lane = lanes.findIndex(end => end + 3 <= x);
+    if (lane < 0) lane = lanes.length;
+    lanes[lane] = x + w;
+    return { ev, x, w, lane, y: 68 + lane * 26 };
+  }).filter(r => r.x + r.w >= 0 && r.x <= width);
+}
+function fxEventAt(e) {
+  if (!S.screenFxMode) return null;
+  const bounds = $('timeline').getBoundingClientRect(), px = e.clientX - bounds.left, py = e.clientY - bounds.top;
+  const r = fxTimelineRects(bounds.width).find(r => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + 22);
+  return r ? { ev: r.ev, edge: px >= r.x + r.w - 6 ? 'right' : 'move' } : null;
+}
+function renderFxLibrary() {
+  const grid = $('fxLibraryGrid'); grid.replaceChildren();
+  const query = $('fxSearch').value.trim().toLowerCase(), category = $('fxCategory').value;
+  const categoryOf = k => /glitch|slice|block|chroma|mosaic|noise|rgb|scan/i.test(k) ? 'glitch' : /flash|shake|zoom|impact|pulse/i.test(k) ? 'impact' : 'light';
+  for (const type of J.FXE_ORDER) {
+    if (!J.FXE[type] || category !== 'all' && categoryOf(type) !== category || query && !(fxName(type) + ' ' + type).toLowerCase().includes(query)) continue;
+    const card = document.createElement('button'); card.type = 'button'; card.className = 'fx-card'; card.draggable = true;
+    card.title = '预览 ' + fxName(type) + '；点击添加到播放头';
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 144;
+    const label = document.createElement('span'); label.textContent = fxName(type);
+    const hint = document.createElement('small'); hint.textContent = '＋ 添加 · ' + type;
+    card.append(cv, label, hint); grid.append(card);
+    paintTechCanvas(cv, 'fx', type, 0.1);
+    let frame = 0, started = 0;
+    const stop = () => { cancelAnimationFrame(frame); frame = 0; };
+    const start = () => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || frame) return;
+      started = performance.now();
+      const animate = now => {
+        if (!S.screenFxMode || !cv.isConnected || document.hidden || S.exporting) { stop(); return; }
+        paintTechCanvas(cv, 'fx', type, ((now - started) / 1000) % 1.05); frame = requestAnimationFrame(animate);
+      };
+      frame = requestAnimationFrame(animate);
+    };
+    card.addEventListener('pointerenter', start); card.addEventListener('pointerleave', stop);
+    card.addEventListener('focus', start); card.addEventListener('blur', stop);
+    card.addEventListener('click', () => addManualTimelineEvent(type));
+    card.addEventListener('dragstart', e => { stop(); e.dataTransfer.setData('application/x-jizura-fx', type); e.dataTransfer.effectAllowed = 'copy'; });
+  }
+  if (!grid.childElementCount) grid.textContent = '没有匹配的动效，试试其他分类或关键词。';
 }
 
 function bakeAutoEvents() {
@@ -676,19 +751,23 @@ function syncFxModeUI() {
 /* Screen FX mode is UI state only; toggling never changes the project. */
 function setScreenFxMode(on) {
   if (S.exporting || S.tap) return;
-  const activeTab = document.querySelector('.tabs button[aria-selected="true"]');
-  if (on && !S.screenFxMode) S.beforeFxTab = activeTab && activeTab.dataset.tab;
-  S.screenFxMode = on;
-  const targetTab = document.querySelector('.tabs button[data-tab="' + (on ? 'fx' : (S.beforeFxTab && S.beforeFxTab !== 'fx' ? S.beforeFxTab : 'style')) + '"]');
-  if (targetTab) targetTab.click();
+  pause(); S.screenFxMode = on; S.fxBypass = false;
   $('app').classList.toggle('screen-fx-mode', on);
+  $('app').classList.toggle('fx-compare', !!(on && S.fxCompare));
   $('btnShotMode').setAttribute('aria-pressed', String(!on));
   $('btnScreenFxMode').setAttribute('aria-pressed', String(on));
+  $('btnFxBypass').setAttribute('aria-pressed', 'false');
+  $('btnFxBypass').textContent = '旁路动效';
   $('btnShotMode').classList.toggle('accent', !on);
   $('btnScreenFxMode').classList.toggle('accent', on);
-  closeCutPick();
-  if (!on) { S.selectedEvent = null; hideEventInspector(); }
-  syncFxModeUI(); sizeViewport(); S.need = true;
+  closeCutPick(); selectFxEvent(null);
+  if (on) {
+    const pane = document.querySelector('[data-pane="fx"]');
+    $('fxGlobalControls').appendChild(pane); pane.hidden = false;
+    $('fxSnap').checked = !!S.project.timing.snap;
+    renderFxLibrary();
+  }
+  syncFxModeUI(); sizeViewport(); drawTimeline(); S.need = true;
 }
 let screenFxListSignature = '';
 function renderScreenFxEvents() {
@@ -696,25 +775,13 @@ function renderScreenFxEvents() {
   const events = S.plan.events || [];
   const signature = JSON.stringify(events) + '|' + (S.selectedEvent && S.selectedEvent.id);
   if (signature === screenFxListSignature) return;
-  screenFxListSignature = signature;
-  box.replaceChildren();
-  if (!events.length) { box.textContent = '暂无动效，可在当前播放时间添加。'; return; }
+  screenFxListSignature = signature; box.replaceChildren();
+  if (!events.length) { box.textContent = '暂无动效，从左侧效果库添加，或在全片设置中开启自动生成。'; return; }
   events.forEach(ev => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost';
-    b.textContent = ev.t.toFixed(2) + 's · ' + ((J.FXE[ev.type] || {}).name || ev.type) + (ev.manual ? '' : ' · 自动');
-    b.setAttribute('aria-pressed', String(!!S.selectedEvent && S.selectedEvent.id === ev.id && !!ev.id));
-    b.addEventListener('click', () => {
-      if (S.exporting || S.tap) return;
-      pause();
-      // Bake the existing plan before editing an automatic event so replan cannot duplicate it.
-      if (!ev.manual) {
-        pushEdit(); remember(); J.bakeEvents(S.project, S.plan); replan(); commit(); flushSave(); syncFxModeUI();
-      }
-      const selected = ev.manual ? (S.project.events || []).find(e => e.id === ev.id) :
-        (S.project.events || []).find(e => e.type === ev.type && Math.abs(e.t - ev.t) < 0.001);
-      if (!selected) return;
-      S.selectedEvent = selected; updateEventInspector(selected); seek(selected.t); renderScreenFxEvents();
-    });
+    b.textContent = ev.t.toFixed(2) + 's · ' + fxName(ev.type) + ' · ' + (ev.disabled ? '已禁用' : ev.manual ? '手动' : (S.project.eventOverrides || {})[ev.id] ? '已修改' : '自动');
+    b.setAttribute('aria-pressed', String(!!S.selectedEvent && S.selectedEvent.id === ev.id));
+    b.addEventListener('click', () => { if (!S.exporting && !S.tap) selectFxEvent(ev); });
     box.appendChild(b);
   });
 }
@@ -1663,7 +1730,7 @@ function renderLines() {
     const manual = S.project.timing.lineTimes && S.project.timing.lineTimes[i] != null;
     const label = ln.interlude ? `〔間奏${ln.secs ? ' ' + ln.secs + '秒' : ''}〕` : ln.text;
     li.innerHTML = `<span class="no">${String(i + 1).padStart(2, '0')}</span>
-      <input class="time mono" type="number" step="0.01" min="0" value="${ln.start.toFixed(2)}" title="開始（秒）${manual ? '・手動' : '・自動'}" aria-label="${i + 1}行目の開始秒" style="${manual ? 'border-color:var(--cyan)' : ''}">
+      <input class="time cut-time mono" type="number" step="0.01" min="0" value="${ln.start.toFixed(2)}" title="開始（秒）${manual ? '・手動' : '・自動'}" aria-label="${i + 1}行目の開始秒" style="${manual ? 'border-color:var(--cyan)' : ''}">
       <span class="txt" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
       <div class="meta"><span class="cuts"></span>
       <span class="tools">
@@ -1771,7 +1838,7 @@ function renderLines() {
         const pair = document.createElement('div');
         pair.className = 'cut-pair' + (isSchForced ? ' is-forced' : '');
         pair.dataset.k = '0';
-        pair.append(b, swatch);
+        pair.append(q('.time'), b, swatch);
         cutsEl.appendChild(pair);
       }
     } else {
@@ -1817,7 +1884,9 @@ function renderLines() {
         pair.dataset.k = String(k);
 
         // カットの開始時刻 (詳細モード): the first cut starts with the line; the others can be typed (empty = automatic)
-        if (k > 0) {
+        if (k === 0) {
+          pair.append(q('.time'));
+        } else {
           const tIn = document.createElement('input');
           const own = o.cutTime && o.cutTime[k] != null;
           tIn.type = 'number'; tIn.step = '0.01'; tIn.min = '0'; tIn.className = 'cut-time pro-only mono' + (own ? ' is-forced' : '');
@@ -1967,6 +2036,7 @@ function prepareEdit() {
 function applySnap(snapStr) {
   const o = typeof snapStr === 'string' ? JSON.parse(snapStr) : snapStr;
   const proj = o.project || (o.lyrics !== undefined ? (o.style ? o : Object.assign({}, S.project, o)) : o);
+  if (S.selectedEvent) { pause(); S.selectedEvent = null; hideEventInspector(); }
   S.project = mergeProject(proj);
 
   fontKey = '';
@@ -2051,7 +2121,7 @@ async function resetAll() {
   S.project = mergeProject(null); S.project.lyrics = '';
   S.audio = null; if ($('audioFile')) $('audioFile').value = '';
   if (J.forgetSong) await J.forgetSong();
-  $('audioName').textContent = audioNameDefault;
+  if ($('audioName')) $('audioName').textContent = audioNameDefault;
   TL.z = 1; TL.off = 0;
   $('lyrics').value = ''; fontKey = '';
   syncUI(); replan(); commit(); updateEditBtns(); flushSave(); seek(0);
@@ -3507,17 +3577,13 @@ function updateTap() {
 function syncUI() {
   $('songTitle').value = S.project.title || ''; $('songArtist').value = S.project.artist || '';
   $('lyrics').value = S.project.lyrics;
-  $('bpm').value = S.project.timing.bpm > 0 ? S.project.timing.bpm : '';
-  $('bpm').placeholder = S.audio ? `自動 ${S.audio.bpm}` : 'なし';
-  $('offset').value = S.project.timing.offset ?? 0.4;
-  $('lineScale').value = S.project.timing.lineScale ?? 1;
   $('snap').checked = !!S.project.timing.snap;
   document.querySelectorAll('.wa-toggle').forEach(el => { el.checked = S.project.wa !== false; });
   document.querySelectorAll('.extra-toggle').forEach(el => { el.checked = S.project.extra === true; });
   for (const set of J.SET_ORDER) document.querySelectorAll('.' + set + '-toggle').forEach(el => { el.checked = J.setOn(S.project, set); });
   document.querySelectorAll('.unify-toggle').forEach(el => { el.checked = S.project.unify === true; });
   document.querySelectorAll('.typeset-toggle').forEach(el => { el.checked = S.project.typeset === true; });
-  $('lyricLang').value = J.LANG_LABEL[S.project.lang] ? S.project.lang : 'auto'; langNote();
+  langNote();
   document.querySelectorAll('.themeSel').forEach(el => { el.value = J.THEMES[S.project.themeId] ? S.project.themeId : ''; });
   renderFontRoles(); renderColors(); renderFx(); renderTech(); syncOut(); drawStyleGrid(); renderCustomStyle(); syncFxModeUI();
 }
@@ -3527,13 +3593,6 @@ function bind() {
   $('lyrics').addEventListener('focus', prepareEdit);
   $('lyrics').addEventListener('input', e => { S.project.lyrics = e.target.value; replanSoon(260); });
   $('lyrics').addEventListener('blur', () => { flushSave(); updateEditBtns(); });
-  $('lyricLang').addEventListener('change', e => {
-    pushEdit();
-    remember();
-    S.project.lang = e.target.value; replan(); renderFontRoles(); commit(); flushSave();
-    const l = J.resolveLang(S.project);
-    toast((S.project.lang === 'auto' ? '歌詞の言語：自動判定 → ' : '歌詞の言語：') + J.LANG_LABEL[l]);
-  });
   $('songTitle').addEventListener('focus', prepareEdit);
   $('songTitle').addEventListener('input', e => { S.project.title = e.target.value; replanSoon(300); });
   $('songTitle').addEventListener('blur', () => { flushSave(); updateEditBtns(); });
@@ -3541,12 +3600,7 @@ function bind() {
   $('songArtist').addEventListener('input', e => { S.project.artist = e.target.value; replanSoon(300); });
   $('songArtist').addEventListener('blur', () => { flushSave(); updateEditBtns(); });
   $('btnSyntax').addEventListener('click', e => { const s = $('syntax'); s.hidden = !s.hidden; e.target.setAttribute('aria-expanded', String(!s.hidden)); });
-  $('bpm').addEventListener('change', e => { pushEdit(); S.project.timing.bpm = Math.max(0, parseFloat(e.target.value) || 0); replan(); });
-  $('offset').addEventListener('change', e => { pushEdit(); S.project.timing.offset = Math.max(0, parseFloat(e.target.value) || 0); replan(); });
-  $('lineScale').addEventListener('change', e => { pushEdit(); S.project.timing.lineScale = J.clamp(parseFloat(e.target.value) || 1, 0.3, 4); replan(); });
   $('snap').addEventListener('change', e => { pushEdit(); S.project.timing.snap = e.target.checked; replan(); });
-  $('btnResetTimes').addEventListener('click', () => { pushEdit(); S.project.timing.lineTimes = {}; replan(); });
-  $('audioFile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) loadAudioFile(f); });
   /* 全画面ドラッグ＆ドロップ（音声ファイルなど） */
   const dropOverlay = $('dropOverlay');
   let dragDepth = 0, dropHideTimer = 0;
@@ -3728,52 +3782,24 @@ function bind() {
     });
   }
   const sc = $('scrub');
-  sc.addEventListener('input', () => { S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
+  sc.addEventListener('input', () => { if (S.fxLoop) pause(); S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
   sc.addEventListener('change', () => { S.scrubbing = false; });
   const tl = $('timeline');
   let drag = false, raf = 0;
   tl.addEventListener('pointerdown', e => {
     tl.setPointerCapture(e.pointerId);
     if (S.tap || S.exporting) return;
-    const evHit = null; // FX events are no longer exposed in the timeline.
+    const evHit = fxEventAt(e);
     if (evHit) {
-      pushEdit();
-      remember();
-      pause();
-      S.selectedEvent = evHit.ev;
-      if (!evHit.ev.manual || !S.project.events.some(x => x.id === evHit.ev.id)) {
-        if (!S.project.events) S.project.events = [];
-        evHit.ev.id = evHit.ev.id || ('ev_' + Math.random().toString(36).slice(2, 9));
-        evHit.ev.manual = true;
-        const exists = S.project.events.find(x => x.id === evHit.ev.id);
-        if (!exists) {
-          S.project.events.push({
-            id: evHit.ev.id,
-            t: +evHit.ev.t.toFixed(3),
-            type: evHit.ev.type,
-            amp: +(evHit.ev.amp != null ? evHit.ev.amp : 1).toFixed(2),
-            dur: +(evHit.ev.dur != null ? evHit.ev.dur : 0.15).toFixed(3),
-            manual: true,
-          });
-        }
-      }
-      TL.dragEvent = {
-        ev: evHit.ev,
-        edge: evHit.edge,
-        origT: evHit.ev.t,
-        origDur: evHit.ev.dur || (evHit.ev.type === 'flash' ? 3 / 24 : evHit.ev.type === 'shake' ? 0.3 : 0.15),
-        startX: e.clientX,
-      };
-      seek(evHit.ev.t);
-      updateEventInspector(evHit.ev);
-      drawTimeline();
+      selectFxEvent(evHit.ev);
+      TL.dragEvent = { ev: evHit.ev, edge: evHit.edge, origT: evHit.ev.t, origDur: evHit.ev.dur, startX: e.clientX, changed: false };
       return;
     }
     const h = tlHandleAt(e);
     if (h >= 0) { pushEdit(); TL.drag = h; pause(); tl.style.cursor = 'ew-resize'; return; }
     const r = tl.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
     const my = (e.clientY - r.top) * dpr;
-    if (my >= 20 * dpr && my <= 44 * dpr) {
+    if (my >= 20 * dpr) {
       S.selectedEvent = null;
       hideEventInspector();
       drawTimeline();
@@ -3782,42 +3808,24 @@ function bind() {
   });
   tl.addEventListener('pointermove', e => {
     if (TL.dragEvent) {
-      const { vd } = tlView();
-      const r = tl.getBoundingClientRect();
-      const dt = ((e.clientX - TL.dragEvent.startX) / r.width) * vd;
-      const curEv = TL.dragEvent.ev;
-      if (TL.dragEvent.edge === 'right') {
-        let newDur = Math.max(0.04, TL.dragEvent.origDur + dt);
-        newDur = +newDur.toFixed(3);
-        curEv.dur = newDur;
-        const pe = (S.project.events || []).find(x => x.id === curEv.id);
-        if (pe) pe.dur = newDur;
-        updateEventInspector(curEv);
-        drawTimeline();
+      if (S.exporting || S.tap) return;
+      const dragEv = TL.dragEvent, r = tl.getBoundingClientRect(), { vd } = tlView();
+      if (!dragEv.changed && Math.abs(e.clientX - dragEv.startX) < 3) return;
+      if (!dragEv.changed) { pushEdit(); remember(); dragEv.changed = true; }
+      const dt = (e.clientX - dragEv.startX) / r.width * vd;
+      if (dragEv.edge === 'right') {
+        const end = snapFxTime(dragEv.origT + dragEv.origDur + dt, e.shiftKey, true);
+        changeFxEvent({ dur: J.clamp(end - dragEv.origT, 1 / S.plan.fps, S.plan.duration - dragEv.origT) });
       } else {
-        let newT = TL.dragEvent.origT + dt;
-        if (!e.shiftKey && S.plan.beats && S.plan.beats.length) {
-          let bt = null, bd = 0.12;
-          for (const b of S.plan.beats) {
-            const d = Math.abs(b - newT);
-            if (d < bd) { bd = d; bt = b; }
-            if (b > newT + 0.2) break;
-          }
-          if (bt != null) newT = bt;
-        }
-        newT = +J.clamp(newT, 0, S.plan.duration).toFixed(3);
-        curEv.t = newT;
-        const pe = (S.project.events || []).find(x => x.id === curEv.id);
-        if (pe) pe.t = newT;
-        seek(newT);
-        updateEventInspector(curEv);
-        drawTimeline();
+        const t = Math.min(snapFxTime(dragEv.origT + dt, e.shiftKey), Math.max(0, S.plan.duration - dragEv.origDur));
+        changeFxEvent({ t }); seek(t);
       }
+      updateEventInspector(S.selectedEvent); drawTimeline(); S.need = true;
       return;
     }
     if (TL.drag >= 0) { const ev = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => tlDragTo(TL.drag, ev)); return; }
     if (drag) { timelineSeek(e); return; }
-    const evHit = null; // FX events are no longer exposed in the timeline.
+    const evHit = fxEventAt(e);
     if (evHit) {
       TL.hoverEvent = evHit.ev;
       TL.hover = -1;
@@ -3832,10 +3840,8 @@ function bind() {
   });
   const endDrag = () => {
     if (TL.dragEvent) {
-      TL.dragEvent = null;
-      replan();
-      commit();
-      flushSave();
+      const changed = TL.dragEvent.changed; TL.dragEvent = null;
+      if (changed) finishFxEdit();
       drawTimeline();
     }
     if (TL.drag >= 0) { TL.drag = -1; flushSave(); renderLines(); drawTimeline(); }
@@ -3864,76 +3870,66 @@ function bind() {
 
   $('btnShotMode').addEventListener('click', () => setScreenFxMode(false));
   $('btnScreenFxMode').addEventListener('click', () => setScreenFxMode(true));
-  const effectTypes = Object.keys(J.FXE);
-  for (const id of ['fxAddType', 'evInspType']) {
-    const select = $(id);
-    effectTypes.forEach(type => { const option = document.createElement('option'); option.value = type; option.textContent = J.FXE[type].name || type; select.appendChild(option); });
+  for (const type of J.FXE_ORDER) {
+    const option = document.createElement('option'); option.value = type; option.textContent = fxName(type); $('evInspType').appendChild(option);
   }
-  $('btnAddScreenFx').addEventListener('click', () => addManualTimelineEvent($('fxAddType').value));
+  $('fxSearch').addEventListener('input', renderFxLibrary);
+  $('fxCategory').addEventListener('change', renderFxLibrary);
+  $('btnFxCompare').addEventListener('click', () => {
+    S.fxCompare = !S.fxCompare; $('app').classList.toggle('fx-compare', S.fxCompare);
+    $('btnFxCompare').setAttribute('aria-pressed', String(S.fxCompare)); sizeViewport(); S.need = true;
+  });
+  $('btnFxBypass').addEventListener('click', () => {
+    S.fxBypass = !S.fxBypass; $('btnFxBypass').setAttribute('aria-pressed', String(S.fxBypass));
+    $('btnFxBypass').textContent = S.fxBypass ? '动效已旁路 · 点击恢复' : '旁路动效'; S.need = true;
+  });
+  $('fxSnap').addEventListener('change', e => {
+    pushEdit(); S.project.timing.snap = e.target.checked; $('snap').checked = e.target.checked; replan(); flushSave();
+  });
+  tl.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('application/x-jizura-fx') && S.screenFxMode) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  tl.addEventListener('drop', e => {
+    const type = e.dataTransfer.getData('application/x-jizura-fx');
+    if (S.screenFxMode && J.FXE[type]) { e.preventDefault(); addManualTimelineEvent(type, tlTime(e), e.shiftKey); }
+  });
   $('btnFxModeToggle').addEventListener('click', toggleFxEventMode);
   $('btnBakeFx').addEventListener('click', bakeAutoEvents);
   $('btnClearFx').addEventListener('click', clearAllEvents);
-  $('evTimeInput').addEventListener('change', e => {
-    if (!S.selectedEvent || !Number.isFinite(e.target.valueAsNumber)) return;
-    nudgeSelectedEventTime(e.target.valueAsNumber - S.selectedEvent.t);
+  $('evTimeInput').addEventListener('change', e => { if (S.selectedEvent && Number.isFinite(e.target.valueAsNumber)) nudgeSelectedEventTime(e.target.valueAsNumber - S.selectedEvent.t); });
+  $('evInspType').addEventListener('change', e => {
+    if (!S.selectedEvent || S.exporting || S.tap) return;
+    pushEdit(); remember(); changeFxEvent({ type: e.target.value, amp: 1, dur: Math.min(fxDefaultDuration(e.target.value), S.plan.duration - S.selectedEvent.t) }); finishFxEdit();
+  });
+  for (const [id, key] of [['evAmp', 'amp'], ['evDur', 'dur']]) {
+    const input = $(id); let editing = false;
+    input.addEventListener('input', () => {
+      if (!S.selectedEvent || S.exporting || S.tap) return;
+      if (!editing) { pushEdit(); remember(); editing = true; }
+      const val = key === 'dur' ? J.clamp(+input.value, 1 / S.plan.fps, S.plan.duration - S.selectedEvent.t) : +input.value;
+      changeFxEvent({ [key]: val }); updateEventInspector(S.selectedEvent); S.need = true;
+    });
+    input.addEventListener('change', () => { if (editing) { editing = false; finishFxEdit(); } });
+  }
+  $('evNudgeBack').addEventListener('click', () => nudgeSelectedEventTime(-1 / S.plan.fps));
+  $('evNudgeFwd').addEventListener('click', () => nudgeSelectedEventTime(1 / S.plan.fps));
+  $('evDelete').addEventListener('click', deleteSelectedEvent);
+  $('evClose').addEventListener('click', () => selectFxEvent(null));
+  $('evDisable').addEventListener('click', () => { if (S.selectedEvent && !S.exporting && !S.tap) { pushEdit(); remember(); changeFxEvent({ disabled: !S.selectedEvent.disabled }); finishFxEdit(); } });
+  $('evReset').addEventListener('click', () => {
+    if (!S.selectedEvent || S.selectedEvent.manual || S.exporting || S.tap) return;
+    pushEdit(); remember(); delete S.project.eventOverrides[S.selectedEvent.id]; finishFxEdit();
+  });
+  $('evDuplicate').addEventListener('click', () => {
+    if (!S.selectedEvent || S.exporting || S.tap) return;
+    const original = { ...S.selectedEvent }; addManualTimelineEvent(original.type);
+    changeFxEvent({ amp: original.amp, dur: Math.min(original.dur, S.plan.duration - S.selectedEvent.t), disabled: !!original.disabled }); finishFxEdit();
+  });
+  $('evPreview').addEventListener('click', () => {
+    if (!S.selectedEvent || S.exporting || S.tap) return;
+    if (S.fxLoop) pause();
+    else { S.fxLoop = true; seek(activeLoopRange().start); play(); $('evPreview').setAttribute('aria-pressed', 'true'); }
   });
 
-  // Event Inspector bindings
-  const evTypeSel = $('evInspType');
-  if (evTypeSel) evTypeSel.addEventListener('change', e => {
-    if (!S.selectedEvent) return;
-    pushEdit(); remember();
-    S.selectedEvent.type = e.target.value;
-    const pe = (S.project.events || []).find(x => x.id === S.selectedEvent.id);
-    if (pe) pe.type = e.target.value;
-    updateEventInspector(S.selectedEvent);
-    replan(); commit(); flushSave(); drawTimeline();
-  });
-  const evAmp = $('evAmp');
-  if (evAmp) evAmp.addEventListener('input', e => {
-    if (!S.selectedEvent) return;
-    const val = +e.target.value;
-    S.selectedEvent.amp = val;
-    const pe = (S.project.events || []).find(x => x.id === S.selectedEvent.id);
-    if (pe) pe.amp = val;
-    const valEl = $('evAmpVal'); if (valEl) valEl.textContent = val.toFixed(1) + 'x';
-    replanSoon(100);
-  });
-  if (evAmp) {
-    evAmp.addEventListener('pointerdown', prepareEdit);
-    evAmp.addEventListener('focus', prepareEdit);
-    evAmp.addEventListener('change', () => { commit(); flushSave(); });
-  }
-  const evDur = $('evDur');
-  if (evDur) evDur.addEventListener('input', e => {
-    if (!S.selectedEvent) return;
-    const val = +e.target.value;
-    S.selectedEvent.dur = val;
-    const pe = (S.project.events || []).find(x => x.id === S.selectedEvent.id);
-    if (pe) pe.dur = val;
-    const valEl = $('evDurVal'); if (valEl) valEl.textContent = val.toFixed(2) + 's';
-    replanSoon(100);
-  });
-  if (evDur) {
-    evDur.addEventListener('pointerdown', prepareEdit);
-    evDur.addEventListener('focus', prepareEdit);
-    evDur.addEventListener('change', () => { commit(); flushSave(); });
-  }
-  const evNudgeBack = $('evNudgeBack');
-  if (evNudgeBack) evNudgeBack.addEventListener('click', () => nudgeSelectedEventTime(-0.05));
-  const evNudgeFwd = $('evNudgeFwd');
-  if (evNudgeFwd) evNudgeFwd.addEventListener('click', () => nudgeSelectedEventTime(0.05));
-  const evDelete = $('evDelete');
-  if (evDelete) evDelete.addEventListener('click', () => deleteSelectedEvent());
-  const evClose = $('evClose');
-  if (evClose) evClose.addEventListener('click', () => { S.selectedEvent = null; hideEventInspector(); drawTimeline(); });
-  const evPreview = $('evPreview');
-  if (evPreview) evPreview.addEventListener('click', () => {
-    if (!S.selectedEvent) return;
-    seek(Math.max(0, S.selectedEvent.t - 0.2));
-    if (!S.playing) play();
-    setTimeout(() => { if (S.playing) pause(); }, (S.selectedEvent.dur + 0.5) * 1000);
-  });
+
   document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
     document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
     document.querySelectorAll('.tabpane').forEach(p => { p.hidden = p.dataset.pane !== b.dataset.tab; });
@@ -4049,23 +4045,13 @@ function bind() {
   dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close ? dlg.close() : dlg.removeAttribute('open'); });   // click on the backdrop
   $('btnSave').addEventListener('click', () => J.saveFile(baseName() + '.jizura.json', JSON.stringify(Object.assign({}, S.project, { appVersion: '@VERSION@' }), null, 1)));
   $('btnAE').addEventListener('click', () => J.saveFile(baseName() + rangeSuffix() + '_ae.json', JSON.stringify(J.planForAE(S.plan, S.project, exportRange()), null, 1)));
-  audioNameDefault = $('audioName').textContent;
-  $('btnClearLyrics').addEventListener('click', clearLyrics);
+  audioNameDefault = $('audioName')?.textContent || '';
   document.querySelectorAll('.themeSel').forEach(el => el.addEventListener('change', () => {
     pushEdit();
     S.project.themeId = J.THEMES[el.value] ? el.value : null;
     document.querySelectorAll('.themeSel').forEach(x => { x.value = el.value; });
     flushSave();
   }));
-  $('fileLrc').addEventListener('change', async e => {
-    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-    if (f.size > 2e6) { toast('LRC ファイルが大きすぎます'); return; }
-    let text = '';
-    try { const buf = await f.arrayBuffer(); try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e2) { text = new TextDecoder('shift_jis').decode(buf); } }
-    catch (err) { toast('LRC を読み込めませんでした'); return; }
-    if (S.project.lyrics.trim() && !window.confirm('今の歌詞を LRC の内容に置き換えます（行ごとの時刻・指定・書き出す範囲も消えます。「元に戻す」で戻せます）。よろしいですか？')) return;
-    loadLrc(text);
-  });
   ['btnLRC', 'eLRC'].forEach(id => $(id).addEventListener('click', saveLrc));
   $('btnReset').addEventListener('click', () => {
     const dlg = $('resetDlg');
@@ -4118,7 +4104,7 @@ function bind() {
     else if (e.altKey && e.code === 'KeyV') { e.preventDefault(); pasteCutStyleToCurrent(false); }
     else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && !e.ctrlKey && !e.metaKey && !typing && !S.tap) {
       e.preventDefault();
-      const step = e.shiftKey ? 0.1 : 0.05;
+      const step = S.selectedEvent ? (e.shiftKey ? 10 : 1) / S.plan.fps : e.shiftKey ? 0.1 : 0.05;
       if (S.selectedEvent) {
         nudgeSelectedEventTime(e.code === 'BracketRight' ? step : -step);
       } else {
@@ -4137,25 +4123,25 @@ function bind() {
 let audioSeq = 0;
 async function loadAudioFile(f, restored) {
   const my = ++audioSeq;                      // only the latest choice may win (an earlier, slower analysis is dropped)
-  $('audioName').textContent = '解析中…';
+  if ($('audioName')) $('audioName').textContent = '解析中…';
   try {
     pause();
     const a = await J.analyzeAudio(f);
     if (my !== audioSeq) return false;
     S.audio = a;
-    $('audioName').textContent = `${f.name}（${J.fmtTime(S.audio.duration)}・約${S.audio.bpm}BPM）` + (restored ? '・前回の曲' : '');
+    if ($('audioName')) $('audioName').textContent = `${f.name}（${J.fmtTime(S.audio.duration)}・約${S.audio.bpm}BPM）` + (restored ? '・前回の曲' : '');
     S.project.audioName = f.name;
     if (!restored && J.saveSong) J.saveSong(f);             // kept in this browser: a reload does not drop the song from exports
     S.project.timing.snap = true;
     syncUI(); replan();
     return true;
-  } catch (err) { if (my !== audioSeq) return false; $('audioName').textContent = '読み込めませんでした: ' + err.message; S.audio = null; return false; }
+  } catch (err) { if (my !== audioSeq) return false; if ($('audioName')) $('audioName').textContent = '読み込めませんでした: ' + err.message; S.audio = null; return false; }
 }
 
 /* ---------------- かんたんモードの案内ツアー ---------------- */
 const TOUR = [
   { t: () => $('lyrics'), title: '1. 歌詞を入れる', text: '1行が1フレーズになります。空行で少し間が空き、[間奏 8] と書くと8秒の間奏（背景と装飾だけ）になります。' },
-  { t: () => $('audioFile').closest('label') || $('audioFile'), title: '2. 曲を読み込む', text: 'mp3 などを読み込むと拍を検出して、カットの切り替わりを合わせます。曲がなくても作れます。「タップで同期」で行の頭を合わせることもできます。' },
+  { t: () => $('btnTap'), title: '2. 曲を読み込む', text: 'mp3 などを読み込むと拍を検出して、カットの切り替わりを合わせます。曲がなくても作れます。「タップで同期」で行の頭を合わせることもできます。' },
   { t: () => $('btnOmakaseBig'), title: '3. おまかせで作る', text: 'スタイル・雰囲気・動き・配色・構成をまるごと決めます。押すたびに別の案になり、「◀ 前の案」で戻れます。' },
   { t: () => $('btnPlay'), title: '4. 再生して確認する', text: '再生して見てみましょう。下のタイムラインでは、行の区切りをドラッグして動かせます（＋−で拡大）。' },
   { t: () => $('lineList'), title: '5. 気になる行だけ直す', text: '行ごとに、歌詞をダブルクリックして直す、この行からタップし直す（◎）、この行だけ作り直す（サイコロ）ができます。' },

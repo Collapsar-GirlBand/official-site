@@ -93,7 +93,7 @@ class Renderer {
     }
     // ---------- camera & chroma amounts ----------
     const u = H / 1080;
-    const events = opt.noEvents ? [] : plan.events;
+    const events = opt.noEvents ? [] : plan.events.filter(e => !e.disabled && e.amp !== 0);
     let spike = 0, shake = 0, beatPulse = 0;
     for (let i = 0; i < events.length; i++) {
       const ev = events[i]; if (ev.t > t) break;
@@ -463,7 +463,7 @@ class Renderer {
   post(ctx, plan, t, tq, step, sc, scale, opt, allowFilter) {
     const cw = ctx.canvas.width, ch = ctx.canvas.height;
     const fx = plan.fx, st = plan.style;
-    const active = (opt.noEvents ? [] : plan.events).filter(ev => t >= ev.t && t < ev.t + Math.max(ev.dur, 1 / plan.fps));
+    const active = (opt.noEvents ? [] : plan.events).filter(ev => !ev.disabled && ev.amp !== 0 && t >= ev.t && t < ev.t + Math.max(ev.dur, 1 / plan.fps));
     const needScratch = active.some(ev => ['slice', 'block', 'glitch', 'zoom', 'mosaic'].includes(ev.type) || (J.FXE[ev.type] && J.FXE[ev.type].scratch)) || (!opt.fast && (st.glow || 0) > 0);
     const S = needScratch ? this.ensure(this.scratch, cw, ch) : null;
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);

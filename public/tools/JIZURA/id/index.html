@@ -145,17 +145,17 @@ button.tap { font: 700 18px/1 var(--mono); letter-spacing: 0.2em; padding: 16px;
 
 /* line list */
 #lineList { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.ln { display: grid; grid-template-columns: 22px 66px minmax(0, 1fr); gap: 4px 6px; align-items: center; padding: 6px; border: 1px solid transparent; border-radius: var(--r); }
+.ln { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 6px; align-items: center; padding: 6px; border: 1px solid transparent; border-radius: var(--r); }
 .ln { cursor: pointer; }
 .ln:hover { background: var(--raised); }
 .ln.cur { border-color: var(--line2); background: var(--raised); }
 .ln .no { font: 500 11px var(--mono); color: var(--faint); text-align: right; }
 .ln .time { width: 100%; padding: 3px 5px; font-size: 12px; }
-.ln .txt { grid-column: 2 / -1; grid-row: 2; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; cursor: pointer; }
-.ln .meta { grid-column: 2 / -1; grid-row: 3; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap; }
+.ln .txt { grid-column: 2 / -1; grid-row: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; cursor: pointer; }
+.ln .meta { grid-column: 2 / -1; grid-row: 2; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap; }
 .ln .tools { display: flex; gap: 4px; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 .ln .tools select { padding: 2px 4px; font-size: 11px; max-width: 92px; width: auto; }
-.ln .cuts { display: flex; gap: 4px; flex-wrap: wrap; min-width: 0; flex: 1 1 140px; }
+.ln .cuts { display: grid; grid-auto-rows: minmax(28px, auto); gap: 4px; min-width: 0; flex: 1 1 140px; }
 .ln .cuts span { font-size: 10px; padding: 1px 6px; border-radius: 2px; border: 1px solid var(--line2); color: var(--muted); cursor: pointer; }
 .ln .cuts span:hover { color: var(--text); border-color: var(--amber); }
 .ln .cuts select.cut-lay { font-size: 10px; padding: 1px 4px; max-width: 112px; border: 1px solid var(--line2); border-radius: 2px; background: var(--raised); color: var(--text); }
@@ -764,7 +764,6 @@ button.small.primary { padding: 4px 12px; }
 #app.is-mobile .sec.fold > :not(.sec-h) { display: none !important; }
 /* lines: one compact row each, tap to open its tools */
 #app.is-mobile .ln { grid-template-columns: 22px minmax(0, 1fr); padding: 8px 6px; }
-#app.is-mobile .ln .time { display: none; }
 #app.is-mobile .ln .meta { display: none; grid-column: 1 / -1; }
 #app.is-mobile .ln.open .meta { display: block; }
 #app.is-mobile .ln .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -776,7 +775,7 @@ button.small.primary { padding: 4px 12px; }
 #app.is-mobile button.play { flex: none; width: 44px; }
 
 /* カットの開始時刻 (詳細モード) and the cut playing now */
-.ln .cut-pair { display: inline-flex; min-width: 0; gap: 3px; align-items: center; border-radius: 3px; padding: 1px 2px; }
+.ln .cut-pair { display: grid; grid-template-columns: 64px minmax(112px, 112px) 20px 26px; width: fit-content; min-width: 0; gap: 4px; align-items: center; border-radius: 3px; padding: 1px 2px; }
 .ln .cut-pair.playing { background: rgba(245, 165, 12, 0.12); }
 .ln .cut-time { width: 64px; font-size: 11px; padding: 2px 4px; }
 .ln .cut-time.is-forced { border-color: var(--amber); }
@@ -922,24 +921,74 @@ button.small.primary { padding: 4px 12px; }
 .usage-steps { padding-left: 1.6em; line-height: 1.8; }
 .usage-steps li + li { margin-top: 6px; }
 
-/* Screen effects workspace: one clock, two previews. */
+/* Screen effects workspace: a large preview, local inspector and editable event lanes. */
 .fx-only { display: none !important; }
 .screen-fx-mode .fx-only { display: block !important; }
 .screen-fx-mode #cutInfo, .screen-fx-mode #cutPick { display: none !important; }
-.screen-fx-mode .viewport { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 26px; }
-.screen-fx-mode #view { grid-column: 1; grid-row: 1; }
-.screen-fx-mode .compare-base { grid-column: 2; grid-row: 1; min-width: 0; }
+.compare-only { display: none !important; }
+.screen-fx-mode.fx-compare .compare-only { display: block !important; }
+.screen-fx-mode.fx-compare .viewport { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 30px; }
+.screen-fx-mode.fx-compare #view { grid-column: 1; grid-row: 1; }
+.screen-fx-mode.fx-compare .compare-base { grid-column: 2; grid-row: 1; min-width: 0; }
 .compare-label { position: absolute; left: 10px; top: 5px; color: var(--muted); font-size: 11px; }
 .compare-base > .compare-label { left: calc(50% + 8px); }
-.screen-fx-panel { border: 1px solid var(--line); padding: 10px; border-radius: var(--r); }
+.screen-fx-panel { border: 1px solid var(--line); padding: 10px; border-radius: var(--r); flex-shrink: 0; }
 .screen-fx-panel p { font-size: 11px; margin: 0 0 8px; }
-.fx-event-list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 110px; overflow: auto; margin-top: 8px; }
+.fx-event-list { display: flex; flex-direction: column; gap: 5px; max-height: 160px; overflow: auto; margin-top: 8px; }
 .fx-event-list button { font-size: 11px; }
 .screen-fx-panel .event-inspector { margin-top: 8px; flex-wrap: wrap; }
 .screen-fx-panel .event-inspector[hidden] { display: none; }
 .screen-fx-panel input[type=number] { width: 90px; }
 
 #app:not(.screen-fx-mode) [data-tab="fx"], #app:not(.screen-fx-mode) [data-pane="fx"] { display: none !important; }
+.screen-fx-mode .col-left > :not(.fx-library), .screen-fx-mode .col-right > :not(.fx-inspector-shell) { display: none !important; }
+.fx-library, .fx-inspector-shell { padding: 18px 14px; }
+.fx-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.fx-library h2, .fx-inspector-shell h2 { font-size: 14px; letter-spacing: .06em; color: var(--text); }
+.fx-library p, .fx-inspector-shell p { font-size: 12px; line-height: 1.7; }
+#fxSearch, #fxCategory { width: 100%; margin-bottom: 8px; padding: 9px; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r); }
+.fx-library-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.fx-card { padding: 0; overflow: hidden; text-align: left; white-space: normal; background: var(--raised); }
+.fx-card canvas { width: 100%; display: block; aspect-ratio: 16/9; background: #14141a; }
+.fx-card span, .fx-card small { display: block; padding: 7px 9px 0; }
+.fx-card small { padding-top: 3px; padding-bottom: 9px; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.fx-card:hover, .fx-card:focus-visible { border-color: var(--amber); }
+.fx-inspector-shell .event-inspector { flex-direction: column; align-items: stretch; border: 1px solid var(--line); border-radius: var(--r); padding: 14px; margin: 18px 0; font-size: 12px; background: var(--raised); }
+.fx-inspector-shell .event-inspector label { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.fx-inspector-shell .event-inspector input[type=range] { width: 100%; }
+.fx-inspector-shell .event-inspector input[type=number], .fx-inspector-shell .event-inspector select { max-width: 160px; }
+.fx-inspector-shell .row { gap: 6px; }
+.fx-inspector-shell button { font-size: 12px; padding: 7px 9px; }
+#fxGlobalSettings { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 20px; }
+#fxGlobalSettings summary, .screen-fx-panel summary { cursor: pointer; font-size: 12px; color: var(--muted); padding-block: 8px; }
+#app.screen-fx-mode #fxGlobalControls .tabpane { display: block !important; padding: 12px 0; }
+#app.screen-fx-mode #timeline { display: block; flex-shrink: 0; min-height: 102px; }
+#app.screen-fx-mode .transport .themeSel, #app.screen-fx-mode #btnOmakase { display: none; }
+#app.screen-fx-mode .col-stage { overflow-y: auto; }
+#app.screen-fx-mode .viewport { flex-shrink: 0; }
+@media (max-width: 1180px) {
+  #app.screen-fx-mode .work { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); }
+  #app.screen-fx-mode .col-stage { grid-column: 2; grid-row: 1; }
+  #app.screen-fx-mode .col-right { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  #app.screen-fx-mode .work { display: flex; flex-direction: column; }
+  #app.screen-fx-mode .col-stage { order: 0; }
+  #app.screen-fx-mode.is-mobile .col-stage { position: relative; top: auto; }
+  #app.screen-fx-mode .col-right { order: 1; }
+  #app.screen-fx-mode .col-left { order: 2; }
+  #app.screen-fx-mode .viewport { position: relative; top: auto; min-height: 0; }
+  #app.screen-fx-mode .event-inspector:not([hidden]) { display: flex; }
+  #app.screen-fx-mode .fx-library-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #app.screen-fx-mode .fx-event-list { max-height: 200px; }
+  #app.screen-fx-mode .tl-bar { display: flex; }
+  #app.screen-fx-mode .tl-hint { display: none; }
+}
+
+/* Compact lyrics toolbar. */
+.lyrics-heading { gap: 8px; flex-wrap: wrap; }
+.lyrics-tools { align-items: center; flex-wrap: wrap; }
+.lyrics-snap { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
 
 </style>
 </head>
@@ -981,6 +1030,13 @@ button.small.primary { padding: 4px 12px; }
   <main class="work">
     <!-- ================= left: lyrics & timing ================= -->
     <section class="col col-left" aria-label="Lirik dan timing">
+      <section class="fx-library fx-only" aria-label="动效库">
+        <div class="fx-heading"><h2>动效库</h2><span class="muted">预览后添加</span></div>
+        <input id="fxSearch" type="search" placeholder="搜索名称或效果代码" aria-label="搜索动效">
+        <select id="fxCategory" aria-label="动效分类"><option value="all">全部效果</option><option value="impact">重拍强调</option><option value="glitch">数字故障</option><option value="light">光感与其他</option></select>
+        <p class="muted">悬停或聚焦预览，点击添加；也可拖到动效轨。</p>
+        <div id="fxLibraryGrid" class="fx-library-grid"></div>
+      </section>
       <div id="tapPanel" class="tapbox" hidden>
           <div class="hint">Tekan <span class="kbd">Space</span> atau tombol saat tiap baris dimulai. Kepencet? Tekan <span class="kbd">Backspace</span> atau “Batalkan ketukan”. Untuk mengulang dari baris tertentu, tekan ◎ di daftar baris.Jika satu baris punya beberapa cut, tekan <span class="kbd">Tab</span> saat cut harus berganti untuk menyesuaikan waktu cut di baris itu juga.</div>
           <div class="tap-opts"><label>Kecepatan <select id="tapRate" aria-label="Kecepatan putar saat mengetuk"><option value="1">1×</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option></select></label><label><input type="checkbox" id="tapCount"> Hitung mundur</label></div>
@@ -990,9 +1046,8 @@ button.small.primary { padding: 4px 12px; }
           <button id="tapStop" class="ghost">Selesai</button>
       </div>
       <div class="sec">
-        <div class="sec-h"><h2>Lirik</h2><span class="sec-btns"><label class="file ghost small" title="Muat file LRC (lirik dengan cap waktu) untuk mengganti lirik sekarang (Urungkan mengembalikannya)">Muat LRC<input id="fileLrc" type="file" accept=".lrc,.txt,text/plain"></label><button id="btnClearLyrics" class="ghost small" title="Hapus lirik beserta waktu per baris, pengaturan per baris, dan rentang ekspor (bisa dikembalikan dengan Urungkan atau Ctrl+Z)">Hapus lirik</button><button id="btnSyntax" class="ghost small" aria-expanded="false">Sintaks</button></span></div>
+        <div class="sec-h lyrics-heading"><h2>Lirik</h2><span class="sec-btns lyrics-tools"><button id="btnTap" class="ghost small" title="Ketuk di awal setiap baris sambil lagu diputar">Sinkronkan ke ketukan</button><button id="btnSyntax" class="ghost small" aria-expanded="false">Sintaks</button><label class="lyrics-snap"><input id="snap" type="checkbox"> Ikuti ketukan</label></span></div>
         <textarea id="lyrics" rows="9" spellcheck="false" aria-label="Lirik (satu frasa per baris)"></textarea>
-        <label class="lang-row">Bahasa lirik<select id="lyricLang"><option value="auto">Deteksi otomatis</option><option value="ja">日本語</option><option value="zh-Hant">繁體中文</option><option value="zh-Hans">简体中文</option><option value="ko">한국어</option><option value="en">English</option></select><span id="langNote" class="muted"></span></label>
         <div id="syntax" class="syntax" hidden>
           <ul>
             <li>Satu frasa per baris. Baris kosong memberi jeda singkat.</li>
@@ -1008,24 +1063,6 @@ button.small.primary { padding: 4px 12px; }
       </div>
 
       <div class="sec">
-        <div class="sec-h"><h2>Audio dan timing</h2></div>
-        <div id="audioName" class="muted audio-name">Tidak ada audio. Impor lagu untuk mendeteksi ketukan dan menyesuaikan cut.</div>
-        <div class="row">
-          <label class="file" title="MP3, WAV, M4A, dan lainnya">Impor audio<input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"></label>
-          <button id="btnTap" title="Ketuk di awal setiap baris sambil lagu diputar">Sinkronkan ke ketukan</button>
-        </div>
-        <div class="fields pro-only">
-          <label class="field">BPM<input id="bpm" type="number" min="0" max="300" step="0.1" placeholder="Otomatis"></label>
-          <label class="field">Mulai (dtk)<input id="offset" type="number" min="0" step="0.05"></label>
-          <label class="field">Durasi baris<input id="lineScale" type="number" min="0.4" max="3" step="0.05"></label>
-        </div>
-        <div class="row pro-only">
-          <label class="row" style="gap:6px"><input id="snap" type="checkbox"> Ikuti ketukan</label>
-          <button id="btnResetTimes" class="ghost small">Hapus timing manual</button>
-        </div>
-      </div>
-
-      <div class="sec">
         <div class="sec-h"><h2>Baris dan cut</h2><span class="sec-btns"><button id="btnRestoreCards" class="ghost small" title="削除したタイトルカードや間奏カードを元に戻す" hidden>カード復元</button></span><span id="linesInfo" class="muted mono"></span></div>
         <ol id="lineList"></ol>
       </div>
@@ -1035,9 +1072,11 @@ button.small.primary { padding: 4px 12px; }
     <section class="col col-stage" aria-label="Pratinjau">
       <div class="row stage-mode" role="group" aria-label="编辑模式">
         <button type="button" id="btnShotMode" class="accent" aria-pressed="true">镜头编辑</button>
-        <button type="button" id="btnScreenFxMode" class="ghost" aria-pressed="false">画面动效 · 对比</button>
+        <button type="button" id="btnScreenFxMode" class="ghost" aria-pressed="false">画面动效</button>
+        <button type="button" id="btnFxCompare" class="ghost fx-only" aria-pressed="false">并排对比</button>
+        <button type="button" id="btnFxBypass" class="ghost fx-only" aria-pressed="false">旁路动效</button>
       </div>
-      <div class="viewport" id="viewport"><span class="compare-label fx-only">加画面动效</span><div class="compare-base fx-only"><span class="compare-label">无画面动效</span><canvas id="viewNoFx" width="1280" height="720" aria-label="无时间点动效的同步预览"></canvas></div><canvas id="view" width="1280" height="720"></canvas><div id="viewMsg" class="overlay-msg" hidden></div><div id="keyBadge" class="key-badge" hidden></div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div></div>
+      <div class="viewport" id="viewport"><span class="compare-label compare-only">最终画面</span><div class="compare-base compare-only"><span class="compare-label">原画面 · 不含时间点动效</span><canvas id="viewNoFx" width="1280" height="720" aria-label="无时间点动效的同步预览"></canvas></div><canvas id="view" width="1280" height="720"></canvas><div id="viewMsg" class="overlay-msg" hidden></div><div id="keyBadge" class="key-badge" hidden></div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div></div>
       <div class="transport">
         <button id="btnPlay" class="play" aria-label="Putar">▶</button>
         <span id="timeNow" class="tc">0.00</span><span class="tc muted">/</span><span id="timeDur" class="tc muted">0.00</span>
@@ -1056,26 +1095,12 @@ button.small.primary { padding: 4px 12px; }
           <button id="tlFit" class="ghost small" title="Tampilkan seluruh lagu">Semua</button>
         </span>
       </div>
-      <canvas id="timeline" aria-label="Timeline (klik untuk berpindah, drag marker baris untuk menyesuaikan)"></canvas>
+      <canvas id="timeline" tabindex="0" aria-label="时间轴：点击定位，拖动动效移动，拖动右边缘调整时长，左右方括号按帧微移"></canvas>
       <section class="screen-fx-panel fx-only" aria-label="画面动效编辑">
-        <p class="muted">两侧同步播放，仅对比时间点动效；布局、字体、镜头运动、转场及基础质感保持一致。</p>
-        <div class="row">
-          <select id="fxAddType" aria-label="添加动效类型"></select>
-          <button type="button" id="btnAddScreenFx" class="accent">在当前时间添加</button>
-          <button type="button" id="btnFxModeToggle" class="ghost"></button>
-          <button type="button" id="btnBakeFx" class="ghost">转为手动编辑</button>
-          <button type="button" id="btnClearFx" class="ghost">清空动效</button>
-        </div>
+        <div class="row"><strong>画面动效轨</strong><label><input id="fxSnap" type="checkbox" checked> 吸附拍点</label><span class="muted">拖动移动 · 右边缘调时长 · Shift 临时取消吸附</span></div>
+        <details><summary>事件列表 · 精确选择</summary>
         <div id="fxEventList" class="fx-event-list" role="group" aria-label="动效事件"></div>
-        <div class="event-inspector" id="eventInspector" hidden>
-          <span id="evInspBadge"></span>
-          <label>类型 <select id="evInspType"></select></label>
-          <label>时间（秒）<input id="evTimeInput" type="number" min="0" step="0.01"></label>
-          <button type="button" id="evNudgeBack" class="ghost">−0.05s</button><span id="evTimeVal" class="mono"></span><button type="button" id="evNudgeFwd" class="ghost">+0.05s</button>
-          <label>强度 <input id="evAmp" type="range" min="0.2" max="2.5" step="0.1"><span id="evAmpVal"></span></label>
-          <label>时长 <input id="evDur" type="range" min="0.04" max="1.5" step="0.02"><span id="evDurVal"></span></label>
-          <button type="button" id="evDelete" class="ghost">删除动效</button><button type="button" id="evClose" class="ghost">收起</button>
-        </div>
+        </details>
       </section>
       <div class="cutinfo" id="cutInfo"></div>
       <div id="cutPick" class="cut-pick pro-only" hidden>
@@ -1095,6 +1120,25 @@ button.small.primary { padding: 4px 12px; }
 
     <!-- ================= right: look & output ================= -->
     <section class="col col-right" aria-label="Gaya dan ekspor">
+      <section class="fx-inspector-shell fx-only" aria-label="所选动效参数">
+        <h2>所选动效</h2><p id="fxSelectionHint" class="muted">点击轨道上的动效查看参数；修改只作用于这一条。</p>
+        <div class="event-inspector" id="eventInspector" hidden>
+          <strong id="evInspBadge"></strong><span id="evSource" class="muted"></span>
+          <label>类型 <select id="evInspType"></select></label>
+          <label>起点（秒）<input id="evTimeInput" type="number" min="0" step="0.01"></label>
+          <div class="row"><button type="button" id="evNudgeBack" class="ghost">−1 帧</button><span id="evTimeVal" class="mono"></span><button type="button" id="evNudgeFwd" class="ghost">+1 帧</button></div>
+          <label>强度 <span id="evAmpVal"></span><input id="evAmp" type="range" min="0" max="2.5" step="0.05"></label>
+          <label>时长 <span id="evDurVal"></span><input id="evDur" type="range" min="0.04" max="5" step="0.01"></label>
+          <button type="button" id="evPreview" class="accent" aria-pressed="false">循环预览所选</button>
+          <div class="row"><button type="button" id="evDisable" class="ghost">禁用</button><button type="button" id="evDuplicate" class="ghost">复制到播放头</button></div>
+          <button type="button" id="evReset" class="ghost">恢复自动值</button>
+          <div class="row"><button type="button" id="evDelete" class="ghost">删除动效</button><button type="button" id="evClose" class="ghost">取消选择</button></div>
+        </div>
+        <details id="fxGlobalSettings"><summary>全片风格与自动生成</summary><p class="muted">以下设置作用于全片。查看或修改单条自动事件不会关闭其他自动事件。</p>
+          <div class="row"><button type="button" id="btnFxModeToggle" class="ghost"></button><button type="button" id="btnBakeFx" class="ghost">全片转为手动</button><button type="button" id="btnClearFx" class="ghost">清空全片动效</button></div>
+          <div id="fxGlobalControls"></div>
+        </details>
+      </section>
       <div id="easyPanel" class="easy" hidden>
         <div class="easy-hero">
           <button id="btnOmakaseBig" class="omakase">Buat variasi</button>
@@ -4336,6 +4380,7 @@ J.defaultProject = () => ({
   timing: { bpm: 0, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineScale: 1 },
   eventMode: 'auto',              // 画面动效事件模式: 'auto' (自动随机+手动) | 'manual' (纯手动掌控，关闭随机黑盒)
   events: [],                     // 手动放置在时间轴上的动效事件: [{ id, t, type, amp, dur, manual: true }]
+  eventOverrides: {},             // individual automatic-event edits/tombstones; selection never bakes the plan
   titleCard: true,                // 标题卡默认自动插入（用户可一键删除）
   autoInterlude: true,            // 间奏卡默认自动插入（用户可一键删除）
   interludeFillMode: 'ambient',   // 间奏卡删除后的替代模式: 'ambient'(留白呼吸) | 'extend'(上一句延长)
@@ -5229,6 +5274,17 @@ J.plan = (project, audio) => {
     if (c.layout === 'interlude') { c.params = Object.assign({}, c.params, { showTitle: false }); return; }   // no lyric: the whole frame
     c.zone = zoneOf(c.line);
   });
+  // Stable identity follows the owning cut, effect and occurrence, not its timestamp.
+  const eventSlots = new Map();
+  plan.events = plan.events.flatMap(e => {
+    const owner = evOwner.get(e);
+    const key = (owner ? owner.line + ':' + owner.index : 'free') + ':' + e.type;
+    const slot = eventSlots.get(key) || 0; eventSlots.set(key, slot + 1);
+    const id = 'auto:' + key + ':' + slot;
+    const patch = (project.eventOverrides || {})[id];
+    if (patch && patch.deleted) return [];
+    return [Object.assign(e, patch || {}, { id, sourceId: id, manual: false })];
+  });
   // manual timeline events placed by user
   if (Array.isArray(project.events)) {
     for (const ue of project.events) {
@@ -5240,6 +5296,7 @@ J.plan = (project, audio) => {
           amp: ue.amp != null ? +ue.amp : 1,
           dur: ue.dur != null ? +ue.dur : (ue.type === 'flash' ? 3 / 24 : ue.type === 'shake' ? 0.3 : 0.15),
           manual: true,
+          disabled: !!ue.disabled,
         });
       }
     }
@@ -5252,18 +5309,21 @@ J.plan = (project, audio) => {
 
 J.bakeEvents = (project, plan) => {
   project.eventMode = 'manual';
+  project.eventOverrides = {};
   project.events = (plan.events || []).map((e, idx) => ({
-    id: e.id || ('ev_' + idx + '_' + Math.random().toString(36).slice(2, 7)),
+    id: e.manual && e.id ? e.id : ('ev_baked_' + idx + '_' + Math.random().toString(36).slice(2, 7)),
     t: +e.t.toFixed(3),
     type: e.type || 'glitch',
     amp: +(e.amp != null ? e.amp : 1).toFixed(2),
     dur: +(e.dur != null ? e.dur : (e.type === 'flash' ? 3 / 24 : e.type === 'shake' ? 0.3 : 0.15)).toFixed(3),
     manual: true,
+    disabled: !!e.disabled,
   }));
 };
 
 J.clearEvents = (project) => {
   project.events = [];
+  project.eventOverrides = {};
 };
 
 /* ---------- 統一感 (unify): the conventions of a hand-made lyric video ----------
@@ -5947,7 +6007,7 @@ class Renderer {
     }
     // ---------- camera & chroma amounts ----------
     const u = H / 1080;
-    const events = opt.noEvents ? [] : plan.events;
+    const events = opt.noEvents ? [] : plan.events.filter(e => !e.disabled && e.amp !== 0);
     let spike = 0, shake = 0, beatPulse = 0;
     for (let i = 0; i < events.length; i++) {
       const ev = events[i]; if (ev.t > t) break;
@@ -6317,7 +6377,7 @@ class Renderer {
   post(ctx, plan, t, tq, step, sc, scale, opt, allowFilter) {
     const cw = ctx.canvas.width, ch = ctx.canvas.height;
     const fx = plan.fx, st = plan.style;
-    const active = (opt.noEvents ? [] : plan.events).filter(ev => t >= ev.t && t < ev.t + Math.max(ev.dur, 1 / plan.fps));
+    const active = (opt.noEvents ? [] : plan.events).filter(ev => !ev.disabled && ev.amp !== 0 && t >= ev.t && t < ev.t + Math.max(ev.dur, 1 / plan.fps));
     const needScratch = active.some(ev => ['slice', 'block', 'glitch', 'zoom', 'mosaic'].includes(ev.type) || (J.FXE[ev.type] && J.FXE[ev.type].scratch)) || (!opt.fast && (st.glow || 0) > 0);
     const S = needScratch ? this.ensure(this.scratch, cw, ch) : null;
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -37478,6 +37538,7 @@ function refreshLoopHold(t) {
   S.loopHold = (S.loop === 'line' || S.loop === 'cut') ? loopRange(t != null ? t : S.t) : null;
 }
 function activeLoopRange() {
+  if (S.fxLoop && S.selectedEvent) return { start: Math.max(0, S.selectedEvent.t - 0.3), end: Math.min(S.plan.duration, S.selectedEvent.t + S.selectedEvent.dur + 0.4) };
   if ((S.loop === 'line' || S.loop === 'cut') && S.loopHold) return S.loopHold;
   return loopRange(S.t);
 }
@@ -37550,8 +37611,16 @@ function mergeProject(p) {
     type: e.type || 'glitch',
     amp: e.amp != null ? +e.amp : 1,
     dur: e.dur != null ? +e.dur : 0.15,
-    manual: true
+    manual: true, disabled: !!e.disabled
   })) : [];
+  o.eventOverrides = {};
+  for (const [id, e] of Object.entries((p && p.eventOverrides) || {})) {
+    if (!id.startsWith('auto:') || !e || typeof e !== 'object') continue;
+    const patch = { deleted: !!e.deleted, disabled: !!e.disabled };
+    for (const k of ['t', 'amp', 'dur']) if (Number.isFinite(e[k])) patch[k] = Math.max(0, e[k]);
+    if (J.FXE[e.type]) patch.type = e.type;
+    o.eventOverrides[id] = patch;
+  }
   o.locks = { tech: {}, params: {} };
   // project files are untrusted: only plain keys may be locked, and only on (never a value we did not write)
   for (const [g, on] of Object.entries((p && p.locks && p.locks.tech) || {})) if (on === true && /^[\w-]+$/.test(g)) o.locks.tech[g] = true;
@@ -37624,13 +37693,15 @@ function audioLike() {
 }
 /* Otomatis判定のとき、判定結果を言語欄の横に出す */
 function langNote() {
-  const el = $('langNote'); if (!el) return;
-  el.textContent = (S.project.lang || 'auto') === 'auto' ? '→ ' + J.LANG_LABEL[J.resolveLang(S.project)] : '';
   if (langNote.last !== undefined && langNote.last !== J.lang) { try { renderFontRoles(); } catch (e) {} }   // font menus show the language's faces
   langNote.last = J.lang;
 }
 function replan() {
   S.plan = J.plan(S.project, audioLike());
+  if (S.selectedEvent) {
+    S.selectedEvent = S.plan.events.find(e => e.id === S.selectedEvent.id) || null;
+    if (S.selectedEvent) updateEventInspector(S.selectedEvent); else hideEventInspector();
+  }
   // lines locked in older projects (seed only): take a snapshot now, so from here on they stay exactly as they are
   for (const [i, o] of Object.entries(S.project.overrides || {})) if (o && o.lock && !Array.isArray(o.lockedCuts)) { const snap = J.lineSnapshot(S.plan, +i); if (snap) o.lockedCuts = snap; }
   langNote();
@@ -37694,7 +37765,7 @@ function fixedLayout() { return !!(FIXED_MQ && FIXED_MQ.matches) && document.doc
 function sizeViewport() {
   const vp = $('viewport'), c = $('view');
   const ar = S.plan.W / S.plan.H;
-  let cssW = S.screenFxMode ? Math.max(1, (vp.clientWidth - 10) / 2) : (vp.clientWidth || 800), cssH = cssW / ar;
+  let cssW = S.screenFxMode && S.fxCompare ? Math.max(1, (vp.clientWidth - 10) / 2) : (vp.clientWidth || 800), cssH = cssW / ar;
   // fixed workspace: the viewport gets whatever height is left under the header / above the transport and timeline
   const maxH = fixedLayout() ? Math.max(160, vp.clientHeight - 2) : Math.max(220, window.innerHeight * 0.68);
   if (cssH > maxH) { cssH = maxH; cssW = cssH * ar; }
@@ -37703,7 +37774,7 @@ function sizeViewport() {
   if (c.width !== pw || c.height !== ph) { c.width = pw; c.height = ph; }
   c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
   const base = $('viewNoFx');
-  if (base && S.screenFxMode) { base.width = pw; base.height = ph; base.style.width = cssW + 'px'; base.style.height = cssH + 'px'; }
+  if (base && S.screenFxMode && S.fxCompare) { base.width = pw; base.height = ph; base.style.width = cssW + 'px'; base.style.height = cssH + 'px'; }
   S.need = true;
 }
 // preview only: dotted outline of the centre that 中央を空ける keeps free (never in exports)
@@ -37718,14 +37789,14 @@ function drawCenterGuide(ctx, k) {
 function draw() {
   const c = $('view'), ctx = c.getContext('2d');
   const t0 = performance.now();
-  S.renderer.frame(ctx, S.plan, S.t, { scale: c.width / S.plan.W, fast: S.playing && S.slow });
-  if (S.screenFxMode) {
+  S.renderer.frame(ctx, S.plan, S.t, { scale: c.width / S.plan.W, fast: S.playing && S.slow, noEvents: !!(S.screenFxMode && S.fxBypass) });
+  if (S.screenFxMode && S.fxCompare) {
     const b = $('viewNoFx'), bx = b.getContext('2d');
     // Same renderer and clock preserve cached textures and all non-event styling.
     S.renderer.frame(bx, S.plan, S.t, { scale: b.width / S.plan.W, fast: S.playing && S.slow, noEvents: true });
     if (S.plan.centerFree) drawCenterGuide(bx, b.width / S.plan.W);
-    renderScreenFxEvents();
   }
+  if (S.screenFxMode) renderScreenFxEvents();
   if (S.plan.centerFree) drawCenterGuide(ctx, c.width / S.plan.W);
   const dt = performance.now() - t0;
   S.slow = S.playing ? (dt > 30 ? true : dt < 14 ? false : S.slow) : false;
@@ -37739,7 +37810,7 @@ function tick(now) {
     let t = Math.max(0, S.audio ? AP.time() : (now - S.t0) / 1000 * playRate());
     const range = activeLoopRange();
     if (t >= range.end - 1e-3) {
-      if (S.loop && !S.tap) { seek(range.start); t = range.start; }
+      if ((S.fxLoop || S.loop) && !S.tap) { seek(range.start); t = range.start; }
       else { pause(); t = Math.min(t, S.plan.duration - 1e-3); if (S.tap) stopTap(); }
     }
     S.t = t; S.need = true;
@@ -37771,6 +37842,8 @@ function play() {
   S.playing = true; $('btnPlay').textContent = '❚❚'; $('btnPlay').setAttribute('aria-label', 'Jeda');
 }
 function pause() {
+  S.fxLoop = false;
+  if ($('evPreview')) $('evPreview').setAttribute('aria-pressed', 'false');
   S.playing = false; AP.stop();
   $('btnPlay').textContent = '▶'; $('btnPlay').setAttribute('aria-label', 'Putar'); S.need = true;
 }
@@ -37804,6 +37877,8 @@ function followTlPlayhead() {
 }
 function drawTimeline() {
   const c = $('timeline'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const fxRects = S.screenFxMode ? fxTimelineRects(c.clientWidth) : [];
+  c.style.height = S.screenFxMode ? (76 + Math.max(1, ...fxRects.map(r => r.lane + 1)) * 26) + 'px' : '';
   const w = Math.max(10, Math.round(c.clientWidth * dpr)), h = Math.max(10, Math.round(c.clientHeight * dpr));
   if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
   let { D, vd, off } = tlView();
@@ -37821,7 +37896,7 @@ function drawTimeline() {
   for (const b of beats) { if (b < off) continue; if (b > off + vd) break; x.fillRect(Math.round(X(b)), h - 6 * dpr, 1, 6 * dpr); }
 
   const yLines = 19 * dpr;
-  const top = 21 * dpr, bot = h - 8 * dpr;
+  const top = 21 * dpr, bot = S.screenFxMode ? 48 * dpr : h - 8 * dpr;
 
   const R = exportRange();
   if (R) { x.fillStyle = 'rgba(245,165,12,0.10)'; x.fillRect(X(R.t0), 0, X(R.t1) - X(R.t0), h); }
@@ -37837,6 +37912,23 @@ function drawTimeline() {
       x.fillStyle = 'rgba(236,231,225,0.85)'; x.font = `${10 * dpr}px ${getComputedStyle(document.body).getPropertyValue('--mono') || 'monospace'}`;
       x.save(); x.beginPath(); x.rect(x0, top, x1 - x0 - 3, bot - top); x.clip();
       x.fillText(TL.z > 3 && cut.text ? cut.text : ((J.LAYOUTS[cut.layout] || {}).name || cut.layout), x0 + 5 * dpr, top + 13 * dpr); x.restore();
+    }
+  }
+
+  if (S.screenFxMode) {
+    x.font = `${10 * dpr}px sans-serif`; x.fillStyle = '#8e8a94';
+    x.fillText('画面动效 · 拖动移动 / 右边缘调时长', 6 * dpr, 61 * dpr);
+    for (const r of fxRects) {
+      const selected = S.selectedEvent && S.selectedEvent.id === r.ev.id;
+      x.fillStyle = r.ev.disabled ? '#303039' : selected ? '#b98016' : r.ev.manual ? '#235a58' : '#393453';
+      x.fillRect(r.x * dpr, r.y * dpr, r.w * dpr, 22 * dpr);
+      x.strokeStyle = selected ? '#f5a50c' : '#777281';
+      x.strokeRect(r.x * dpr, r.y * dpr, r.w * dpr, 22 * dpr);
+      x.save(); x.beginPath(); x.rect(r.x * dpr, r.y * dpr, r.w * dpr, 22 * dpr); x.clip();
+      x.fillStyle = '#ece7e1';
+      x.fillText((r.ev.disabled ? '○ ' : '') + fxName(r.ev.type), (r.x + 4) * dpr, (r.y + 15) * dpr);
+      x.restore(); x.fillStyle = selected ? '#f5a50c' : '#8e8a94';
+      x.fillRect((r.x + r.w - 3) * dpr, (r.y + 5) * dpr, 2 * dpr, 12 * dpr);
     }
   }
 
@@ -37870,7 +37962,7 @@ function tlTime(ev) {
   const r = $('timeline').getBoundingClientRect(), { vd, off } = tlView();
   return off + J.clamp((ev.clientX - r.left) / r.width, 0, 1) * vd;
 }
-function timelineSeek(ev) { seek(tlTime(ev)); }
+function timelineSeek(ev) { if (S.fxLoop) pause(); seek(tlTime(ev)); }
 /* the line whose start handle is under the pointer (top band, <= 20px) */
 function tlHandleAt(ev) {
   const c = $('timeline'), r = c.getBoundingClientRect(), { vd, off } = tlView();
@@ -37901,6 +37993,11 @@ function updateEventInspector(ev) {
   const p = $('eventInspector');
   if (!p || !ev) return;
   p.hidden = false;
+  $('fxSelectionHint').hidden = true;
+  $('evSource').textContent = ev.manual ? '手动事件 · 仅编辑这一条' : (S.project.eventOverrides || {})[ev.id] ? '自动事件 · 已局部修改' : '自动事件 · 原始生成值';
+  $('evReset').hidden = !!ev.manual;
+  $('evReset').disabled = !(S.project.eventOverrides || {})[ev.id];
+  $('evDisable').textContent = ev.disabled ? '启用' : '禁用';
   const typeSel = $('evInspType');
   if (typeSel) typeSel.value = ev.type || 'glitch';
   const badge = $('evInspBadge');
@@ -37913,7 +38010,7 @@ function updateEventInspector(ev) {
     else if (ev.type === 'invert') { icon = '◐'; label = 'Invert 反转'; }
     else if (ev.type === 'mosaic') { icon = '☷'; label = 'Mosaic 马赛克'; }
     else { icon = '★'; label = (J.FXE[ev.type] && J.FXE[ev.type].name) || ev.type; }
-    badge.textContent = `${icon} ${label}`;
+    badge.textContent = `${icon} ${fxName(ev.type)}`;
   }
   const timeInput = $('evTimeInput');
   if (timeInput && document.activeElement !== timeInput) timeInput.value = ev.t.toFixed(3);
@@ -37922,89 +38019,127 @@ function updateEventInspector(ev) {
   const amp = $('evAmp'), ampVal = $('evAmpVal');
   const a = ev.amp != null ? ev.amp : 1.0;
   if (amp) amp.value = a;
-  if (ampVal) ampVal.textContent = a.toFixed(1) + 'x';
+  if (ampVal) ampVal.textContent = a.toFixed(2) + '×';
   const dur = $('evDur'), durVal = $('evDurVal');
   const d = ev.dur != null ? ev.dur : 0.15;
-  if (dur) dur.value = d;
-  if (durVal) durVal.textContent = d.toFixed(2) + 's';
+  if (dur) { dur.min = 1 / S.plan.fps; dur.step = 1 / S.plan.fps; dur.max = Math.max(5, d); dur.value = d; }
+  if (durVal) durVal.textContent = d.toFixed(2) + 's · ' + Math.round(d * S.plan.fps) + ' 帧';
 }
 
 function hideEventInspector() {
   const p = $('eventInspector');
   if (p) p.hidden = true;
+  S.fxLoop = false;
+  if ($('evPreview')) $('evPreview').setAttribute('aria-pressed', 'false');
+  if ($('fxSelectionHint')) $('fxSelectionHint').hidden = false;
 }
 
-function addManualTimelineEvent(type) {
-  if (S.exporting || S.tap) return;
-  pushEdit();
-  remember();
-  if (!S.project.events) S.project.events = [];
-  let t = +S.t.toFixed(3);
-  if (S.plan.beats && S.plan.beats.length) {
-    let bt = null, bd = 0.12;
-    for (const b of S.plan.beats) {
-      const d = Math.abs(b - t);
-      if (d < bd) { bd = d; bt = b; }
-      if (b > t + 0.2) break;
-    }
-    if (bt != null) t = +bt.toFixed(3);
+function fxName(type) {
+  const names = { glitch: '复合故障', slice: '切片故障', block: '块状故障', invert: '反相', flash: '短闪', zoom: '缩放模糊', mosaic: '马赛克', shake: '轻震', chroma: '色散' };
+  return names[type] || (J.FXE[type] || {}).name || type;
+}
+function fxDefaultDuration(type) {
+  return type === 'flash' ? 3 / 24 : type === 'shake' ? 0.35 : ((J.FXE[type] || {}).dur || 6) / 24;
+}
+function snapFxTime(t, free, allowEnd = false) {
+  if (!free && S.project.timing.snap) {
+    let distance = 0.12, best = t;
+    for (const b of S.plan.beats || []) if (Math.abs(b - t) < distance) { distance = Math.abs(b - t); best = b; }
+    t = best;
   }
-  const defaultDur = type === 'flash' ? +(3 / 24).toFixed(3) : type === 'shake' ? 0.35 : 0.15;
-  const newEv = {
-    id: 'ev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
-    t: t,
-    type: type,
-    amp: 1.0,
-    dur: defaultDur,
-    manual: true
-  };
-  S.project.events.push(newEv);
-  S.selectedEvent = newEv;
-  replan();
-  commit();
-  flushSave();
-  seek(t);
-  updateEventInspector(newEv);
-  drawTimeline();
-  const name = (J.FXE[type] && J.FXE[type].name) || type;
-  const l = (document.documentElement.lang || '').toLowerCase();
-  const isZh = l.startsWith('zh');
-  toast(isZh ? `已在 ${t.toFixed(2)}s 放置动效：${name}` : `${t.toFixed(2)}dtkに ${name} を配置しました`);
+  return +J.clamp(t, 0, Math.max(0, S.plan.duration - (allowEnd ? 0 : 1 / S.plan.fps))).toFixed(6);
 }
-
+function selectFxEvent(ev) {
+  pause(); S.selectedEvent = ev;
+  if (ev) { updateEventInspector(ev); seek(Math.min(S.plan.duration - 0.001, ev.t + ev.dur * 0.25)); }
+  else hideEventInspector();
+  S.need = true; drawTimeline(); renderScreenFxEvents();
+}
+function editableFxEvent() {
+  const ev = S.selectedEvent;
+  if (!ev) return null;
+  if (ev.manual) return (S.project.events || []).find(e => e.id === ev.id);
+  const patches = S.project.eventOverrides || (S.project.eventOverrides = {});
+  return patches[ev.id] || (patches[ev.id] = { t: ev.t, type: ev.type, amp: ev.amp, dur: ev.dur, disabled: !!ev.disabled });
+}
+function changeFxEvent(values) {
+  if (S.exporting || S.tap || !S.selectedEvent) return;
+  Object.assign(editableFxEvent(), values);
+  Object.assign(S.selectedEvent, values);
+}
+function finishFxEdit() {
+  clearTimeout(replanTimer); replan(); commit(); flushSave();
+}
+function addManualTimelineEvent(type, at = S.t, free = false) {
+  if (S.exporting || S.tap || !J.FXE[type]) return;
+  pushEdit(); remember(); pause();
+  const t = snapFxTime(at, free);
+  const ev = { id: 'ev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6), t, type, amp: 1, dur: Math.min(fxDefaultDuration(type), S.plan.duration - t), manual: true };
+  (S.project.events || (S.project.events = [])).push(ev);
+  S.selectedEvent = ev; finishFxEdit(); selectFxEvent(S.selectedEvent);
+  toast('已添加 ' + fxName(type) + ' · ' + t.toFixed(2) + 's');
+}
 function deleteSelectedEvent() {
-  if (!S.selectedEvent) return;
-  pushEdit();
-  remember();
-  const id = S.selectedEvent.id;
-  if (S.project.events) {
-    S.project.events = S.project.events.filter(x => x.id !== id && !(Math.abs(x.t - S.selectedEvent.t) < 0.001 && x.type === S.selectedEvent.type));
-  }
-  S.selectedEvent = null;
-  hideEventInspector();
-  replan();
-  commit();
-  flushSave();
-  drawTimeline();
-  const l = (document.documentElement.lang || '').toLowerCase();
-  const isZh = l.startsWith('zh');
-  toast(isZh ? '已删除该动效事件' : '効果イベントを削除しました');
+  if (S.exporting || S.tap || !S.selectedEvent) return;
+  pushEdit(); remember();
+  const ev = S.selectedEvent;
+  if (ev.manual) S.project.events = (S.project.events || []).filter(e => e.id !== ev.id);
+  else (S.project.eventOverrides || (S.project.eventOverrides = {}))[ev.id] = { deleted: true };
+  selectFxEvent(null); finishFxEdit();
 }
-
 function nudgeSelectedEventTime(delta) {
-  if (!S.selectedEvent) return;
-  pushEdit();
-  remember();
-  let newT = +J.clamp(S.selectedEvent.t + delta, 0, S.plan.duration).toFixed(3);
-  S.selectedEvent.t = newT;
-  const pe = (S.project.events || []).find(x => x.id === S.selectedEvent.id);
-  if (pe) pe.t = newT;
-  seek(newT);
-  replan();
-  commit();
-  flushSave();
-  updateEventInspector(S.selectedEvent);
-  drawTimeline();
+  if (S.exporting || S.tap || !S.selectedEvent) return;
+  pushEdit(); remember();
+  const t = snapFxTime(S.selectedEvent.t + delta, true);
+  changeFxEvent({ t, dur: Math.min(S.selectedEvent.dur, S.plan.duration - t) });
+  finishFxEdit(); seek(t);
+}
+function fxTimelineRects(width) {
+  const { vd, off } = tlView(), lanes = [];
+  return (S.plan.events || []).map(ev => {
+    const x = (ev.t - off) / vd * width, w = Math.max(12, ev.dur / vd * width);
+    let lane = lanes.findIndex(end => end + 3 <= x);
+    if (lane < 0) lane = lanes.length;
+    lanes[lane] = x + w;
+    return { ev, x, w, lane, y: 68 + lane * 26 };
+  }).filter(r => r.x + r.w >= 0 && r.x <= width);
+}
+function fxEventAt(e) {
+  if (!S.screenFxMode) return null;
+  const bounds = $('timeline').getBoundingClientRect(), px = e.clientX - bounds.left, py = e.clientY - bounds.top;
+  const r = fxTimelineRects(bounds.width).find(r => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + 22);
+  return r ? { ev: r.ev, edge: px >= r.x + r.w - 6 ? 'right' : 'move' } : null;
+}
+function renderFxLibrary() {
+  const grid = $('fxLibraryGrid'); grid.replaceChildren();
+  const query = $('fxSearch').value.trim().toLowerCase(), category = $('fxCategory').value;
+  const categoryOf = k => /glitch|slice|block|chroma|mosaic|noise|rgb|scan/i.test(k) ? 'glitch' : /flash|shake|zoom|impact|pulse/i.test(k) ? 'impact' : 'light';
+  for (const type of J.FXE_ORDER) {
+    if (!J.FXE[type] || category !== 'all' && categoryOf(type) !== category || query && !(fxName(type) + ' ' + type).toLowerCase().includes(query)) continue;
+    const card = document.createElement('button'); card.type = 'button'; card.className = 'fx-card'; card.draggable = true;
+    card.title = '预览 ' + fxName(type) + '；点击添加到播放头';
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 144;
+    const label = document.createElement('span'); label.textContent = fxName(type);
+    const hint = document.createElement('small'); hint.textContent = '＋ 添加 · ' + type;
+    card.append(cv, label, hint); grid.append(card);
+    paintTechCanvas(cv, 'fx', type, 0.1);
+    let frame = 0, started = 0;
+    const stop = () => { cancelAnimationFrame(frame); frame = 0; };
+    const start = () => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || frame) return;
+      started = performance.now();
+      const animate = now => {
+        if (!S.screenFxMode || !cv.isConnected || document.hidden || S.exporting) { stop(); return; }
+        paintTechCanvas(cv, 'fx', type, ((now - started) / 1000) % 1.05); frame = requestAnimationFrame(animate);
+      };
+      frame = requestAnimationFrame(animate);
+    };
+    card.addEventListener('pointerenter', start); card.addEventListener('pointerleave', stop);
+    card.addEventListener('focus', start); card.addEventListener('blur', stop);
+    card.addEventListener('click', () => addManualTimelineEvent(type));
+    card.addEventListener('dragstart', e => { stop(); e.dataTransfer.setData('application/x-jizura-fx', type); e.dataTransfer.effectAllowed = 'copy'; });
+  }
+  if (!grid.childElementCount) grid.textContent = '没有匹配的动效，试试其他分类或关键词。';
 }
 
 function bakeAutoEvents() {
@@ -38075,19 +38210,23 @@ function syncFxModeUI() {
 /* Screen FX mode is UI state only; toggling never changes the project. */
 function setScreenFxMode(on) {
   if (S.exporting || S.tap) return;
-  const activeTab = document.querySelector('.tabs button[aria-selected="true"]');
-  if (on && !S.screenFxMode) S.beforeFxTab = activeTab && activeTab.dataset.tab;
-  S.screenFxMode = on;
-  const targetTab = document.querySelector('.tabs button[data-tab="' + (on ? 'fx' : (S.beforeFxTab && S.beforeFxTab !== 'fx' ? S.beforeFxTab : 'style')) + '"]');
-  if (targetTab) targetTab.click();
+  pause(); S.screenFxMode = on; S.fxBypass = false;
   $('app').classList.toggle('screen-fx-mode', on);
+  $('app').classList.toggle('fx-compare', !!(on && S.fxCompare));
   $('btnShotMode').setAttribute('aria-pressed', String(!on));
   $('btnScreenFxMode').setAttribute('aria-pressed', String(on));
+  $('btnFxBypass').setAttribute('aria-pressed', 'false');
+  $('btnFxBypass').textContent = '旁路动效';
   $('btnShotMode').classList.toggle('accent', !on);
   $('btnScreenFxMode').classList.toggle('accent', on);
-  closeCutPick();
-  if (!on) { S.selectedEvent = null; hideEventInspector(); }
-  syncFxModeUI(); sizeViewport(); S.need = true;
+  closeCutPick(); selectFxEvent(null);
+  if (on) {
+    const pane = document.querySelector('[data-pane="fx"]');
+    $('fxGlobalControls').appendChild(pane); pane.hidden = false;
+    $('fxSnap').checked = !!S.project.timing.snap;
+    renderFxLibrary();
+  }
+  syncFxModeUI(); sizeViewport(); drawTimeline(); S.need = true;
 }
 let screenFxListSignature = '';
 function renderScreenFxEvents() {
@@ -38095,25 +38234,13 @@ function renderScreenFxEvents() {
   const events = S.plan.events || [];
   const signature = JSON.stringify(events) + '|' + (S.selectedEvent && S.selectedEvent.id);
   if (signature === screenFxListSignature) return;
-  screenFxListSignature = signature;
-  box.replaceChildren();
-  if (!events.length) { box.textContent = '暂无动效，可在当前播放时间添加。'; return; }
+  screenFxListSignature = signature; box.replaceChildren();
+  if (!events.length) { box.textContent = '暂无动效，从左侧效果库添加，或在全片设置中开启自动生成。'; return; }
   events.forEach(ev => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost';
-    b.textContent = ev.t.toFixed(2) + 's · ' + ((J.FXE[ev.type] || {}).name || ev.type) + (ev.manual ? '' : ' · 自动');
-    b.setAttribute('aria-pressed', String(!!S.selectedEvent && S.selectedEvent.id === ev.id && !!ev.id));
-    b.addEventListener('click', () => {
-      if (S.exporting || S.tap) return;
-      pause();
-      // Bake the existing plan before editing an automatic event so replan cannot duplicate it.
-      if (!ev.manual) {
-        pushEdit(); remember(); J.bakeEvents(S.project, S.plan); replan(); commit(); flushSave(); syncFxModeUI();
-      }
-      const selected = ev.manual ? (S.project.events || []).find(e => e.id === ev.id) :
-        (S.project.events || []).find(e => e.type === ev.type && Math.abs(e.t - ev.t) < 0.001);
-      if (!selected) return;
-      S.selectedEvent = selected; updateEventInspector(selected); seek(selected.t); renderScreenFxEvents();
-    });
+    b.textContent = ev.t.toFixed(2) + 's · ' + fxName(ev.type) + ' · ' + (ev.disabled ? '已禁用' : ev.manual ? '手动' : (S.project.eventOverrides || {})[ev.id] ? '已修改' : '自动');
+    b.setAttribute('aria-pressed', String(!!S.selectedEvent && S.selectedEvent.id === ev.id));
+    b.addEventListener('click', () => { if (!S.exporting && !S.tap) selectFxEvent(ev); });
     box.appendChild(b);
   });
 }
@@ -39062,7 +39189,7 @@ function renderLines() {
     const manual = S.project.timing.lineTimes && S.project.timing.lineTimes[i] != null;
     const label = ln.interlude ? `[interlude${ln.secs ? ' ' + ln.secs + 's' : ''}]` : ln.text;
     li.innerHTML = `<span class="no">${String(i + 1).padStart(2, '0')}</span>
-      <input class="time mono" type="number" step="0.01" min="0" value="${ln.start.toFixed(2)}" title="Mulai (dtk)${manual ? ' · manual' : ' · otomatis'}" aria-label="Waktu mulai baris ${i + 1} (dtk)" style="${manual ? 'border-color:var(--cyan)' : ''}">
+      <input class="time cut-time mono" type="number" step="0.01" min="0" value="${ln.start.toFixed(2)}" title="Mulai (dtk)${manual ? ' · manual' : ' · otomatis'}" aria-label="Waktu mulai baris ${i + 1} (dtk)" style="${manual ? 'border-color:var(--cyan)' : ''}">
       <span class="txt" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
       <div class="meta"><span class="cuts"></span>
       <span class="tools">
@@ -39170,7 +39297,7 @@ function renderLines() {
         const pair = document.createElement('div');
         pair.className = 'cut-pair' + (isSchForced ? ' is-forced' : '');
         pair.dataset.k = '0';
-        pair.append(b, swatch);
+        pair.append(q('.time'), b, swatch);
         cutsEl.appendChild(pair);
       }
     } else {
@@ -39216,7 +39343,9 @@ function renderLines() {
         pair.dataset.k = String(k);
 
         // cutの開始時刻 (詳細モード): the first cut starts with the line; the others can be typed (empty = automatic)
-        if (k > 0) {
+        if (k === 0) {
+          pair.append(q('.time'));
+        } else {
           const tIn = document.createElement('input');
           const own = o.cutTime && o.cutTime[k] != null;
           tIn.type = 'number'; tIn.step = '0.01'; tIn.min = '0'; tIn.className = 'cut-time pro-only mono' + (own ? ' is-forced' : '');
@@ -39366,6 +39495,7 @@ function prepareEdit() {
 function applySnap(snapStr) {
   const o = typeof snapStr === 'string' ? JSON.parse(snapStr) : snapStr;
   const proj = o.project || (o.lyrics !== undefined ? (o.style ? o : Object.assign({}, S.project, o)) : o);
+  if (S.selectedEvent) { pause(); S.selectedEvent = null; hideEventInspector(); }
   S.project = mergeProject(proj);
 
   fontKey = '';
@@ -39450,7 +39580,7 @@ async function resetAll() {
   S.project = mergeProject(null); S.project.lyrics = '';
   S.audio = null; if ($('audioFile')) $('audioFile').value = '';
   if (J.forgetSong) await J.forgetSong();
-  $('audioName').textContent = audioNameDefault;
+  if ($('audioName')) $('audioName').textContent = audioNameDefault;
   TL.z = 1; TL.off = 0;
   $('lyrics').value = ''; fontKey = '';
   syncUI(); replan(); commit(); updateEditBtns(); flushSave(); seek(0);
@@ -40906,17 +41036,13 @@ function updateTap() {
 function syncUI() {
   $('songTitle').value = S.project.title || ''; $('songArtist').value = S.project.artist || '';
   $('lyrics').value = S.project.lyrics;
-  $('bpm').value = S.project.timing.bpm > 0 ? S.project.timing.bpm : '';
-  $('bpm').placeholder = S.audio ? `Otomatis ${S.audio.bpm}` : 'Tidak ada';
-  $('offset').value = S.project.timing.offset ?? 0.4;
-  $('lineScale').value = S.project.timing.lineScale ?? 1;
   $('snap').checked = !!S.project.timing.snap;
   document.querySelectorAll('.wa-toggle').forEach(el => { el.checked = S.project.wa !== false; });
   document.querySelectorAll('.extra-toggle').forEach(el => { el.checked = S.project.extra === true; });
   for (const set of J.SET_ORDER) document.querySelectorAll('.' + set + '-toggle').forEach(el => { el.checked = J.setOn(S.project, set); });
   document.querySelectorAll('.unify-toggle').forEach(el => { el.checked = S.project.unify === true; });
   document.querySelectorAll('.typeset-toggle').forEach(el => { el.checked = S.project.typeset === true; });
-  $('lyricLang').value = J.LANG_LABEL[S.project.lang] ? S.project.lang : 'auto'; langNote();
+  langNote();
   document.querySelectorAll('.themeSel').forEach(el => { el.value = J.THEMES[S.project.themeId] ? S.project.themeId : ''; });
   renderFontRoles(); renderColors(); renderFx(); renderTech(); syncOut(); drawStyleGrid(); renderCustomStyle(); syncFxModeUI();
 }
@@ -40926,13 +41052,6 @@ function bind() {
   $('lyrics').addEventListener('focus', prepareEdit);
   $('lyrics').addEventListener('input', e => { S.project.lyrics = e.target.value; replanSoon(260); });
   $('lyrics').addEventListener('blur', () => { flushSave(); updateEditBtns(); });
-  $('lyricLang').addEventListener('change', e => {
-    pushEdit();
-    remember();
-    S.project.lang = e.target.value; replan(); renderFontRoles(); commit(); flushSave();
-    const l = J.resolveLang(S.project);
-    toast((S.project.lang === 'auto' ? 'Bahasa lirik: deteksi otomatis → ' : 'Bahasa lirik: ') + J.LANG_LABEL[l]);
-  });
   $('songTitle').addEventListener('focus', prepareEdit);
   $('songTitle').addEventListener('input', e => { S.project.title = e.target.value; replanSoon(300); });
   $('songTitle').addEventListener('blur', () => { flushSave(); updateEditBtns(); });
@@ -40940,12 +41059,7 @@ function bind() {
   $('songArtist').addEventListener('input', e => { S.project.artist = e.target.value; replanSoon(300); });
   $('songArtist').addEventListener('blur', () => { flushSave(); updateEditBtns(); });
   $('btnSyntax').addEventListener('click', e => { const s = $('syntax'); s.hidden = !s.hidden; e.target.setAttribute('aria-expanded', String(!s.hidden)); });
-  $('bpm').addEventListener('change', e => { pushEdit(); S.project.timing.bpm = Math.max(0, parseFloat(e.target.value) || 0); replan(); });
-  $('offset').addEventListener('change', e => { pushEdit(); S.project.timing.offset = Math.max(0, parseFloat(e.target.value) || 0); replan(); });
-  $('lineScale').addEventListener('change', e => { pushEdit(); S.project.timing.lineScale = J.clamp(parseFloat(e.target.value) || 1, 0.3, 4); replan(); });
   $('snap').addEventListener('change', e => { pushEdit(); S.project.timing.snap = e.target.checked; replan(); });
-  $('btnResetTimes').addEventListener('click', () => { pushEdit(); S.project.timing.lineTimes = {}; replan(); });
-  $('audioFile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) loadAudioFile(f); });
   /* 全画面ドラッグ＆ドロップ（音声ファイルなど） */
   const dropOverlay = $('dropOverlay');
   let dragDepth = 0, dropHideTimer = 0;
@@ -41127,52 +41241,24 @@ function bind() {
     });
   }
   const sc = $('scrub');
-  sc.addEventListener('input', () => { S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
+  sc.addEventListener('input', () => { if (S.fxLoop) pause(); S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
   sc.addEventListener('change', () => { S.scrubbing = false; });
   const tl = $('timeline');
   let drag = false, raf = 0;
   tl.addEventListener('pointerdown', e => {
     tl.setPointerCapture(e.pointerId);
     if (S.tap || S.exporting) return;
-    const evHit = null; // FX events are no longer exposed in the timeline.
+    const evHit = fxEventAt(e);
     if (evHit) {
-      pushEdit();
-      remember();
-      pause();
-      S.selectedEvent = evHit.ev;
-      if (!evHit.ev.manual || !S.project.events.some(x => x.id === evHit.ev.id)) {
-        if (!S.project.events) S.project.events = [];
-        evHit.ev.id = evHit.ev.id || ('ev_' + Math.random().toString(36).slice(2, 9));
-        evHit.ev.manual = true;
-        const exists = S.project.events.find(x => x.id === evHit.ev.id);
-        if (!exists) {
-          S.project.events.push({
-            id: evHit.ev.id,
-            t: +evHit.ev.t.toFixed(3),
-            type: evHit.ev.type,
-            amp: +(evHit.ev.amp != null ? evHit.ev.amp : 1).toFixed(2),
-            dur: +(evHit.ev.dur != null ? evHit.ev.dur : 0.15).toFixed(3),
-            manual: true,
-          });
-        }
-      }
-      TL.dragEvent = {
-        ev: evHit.ev,
-        edge: evHit.edge,
-        origT: evHit.ev.t,
-        origDur: evHit.ev.dur || (evHit.ev.type === 'flash' ? 3 / 24 : evHit.ev.type === 'shake' ? 0.3 : 0.15),
-        startX: e.clientX,
-      };
-      seek(evHit.ev.t);
-      updateEventInspector(evHit.ev);
-      drawTimeline();
+      selectFxEvent(evHit.ev);
+      TL.dragEvent = { ev: evHit.ev, edge: evHit.edge, origT: evHit.ev.t, origDur: evHit.ev.dur, startX: e.clientX, changed: false };
       return;
     }
     const h = tlHandleAt(e);
     if (h >= 0) { pushEdit(); TL.drag = h; pause(); tl.style.cursor = 'ew-resize'; return; }
     const r = tl.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
     const my = (e.clientY - r.top) * dpr;
-    if (my >= 20 * dpr && my <= 44 * dpr) {
+    if (my >= 20 * dpr) {
       S.selectedEvent = null;
       hideEventInspector();
       drawTimeline();
@@ -41181,42 +41267,24 @@ function bind() {
   });
   tl.addEventListener('pointermove', e => {
     if (TL.dragEvent) {
-      const { vd } = tlView();
-      const r = tl.getBoundingClientRect();
-      const dt = ((e.clientX - TL.dragEvent.startX) / r.width) * vd;
-      const curEv = TL.dragEvent.ev;
-      if (TL.dragEvent.edge === 'right') {
-        let newDur = Math.max(0.04, TL.dragEvent.origDur + dt);
-        newDur = +newDur.toFixed(3);
-        curEv.dur = newDur;
-        const pe = (S.project.events || []).find(x => x.id === curEv.id);
-        if (pe) pe.dur = newDur;
-        updateEventInspector(curEv);
-        drawTimeline();
+      if (S.exporting || S.tap) return;
+      const dragEv = TL.dragEvent, r = tl.getBoundingClientRect(), { vd } = tlView();
+      if (!dragEv.changed && Math.abs(e.clientX - dragEv.startX) < 3) return;
+      if (!dragEv.changed) { pushEdit(); remember(); dragEv.changed = true; }
+      const dt = (e.clientX - dragEv.startX) / r.width * vd;
+      if (dragEv.edge === 'right') {
+        const end = snapFxTime(dragEv.origT + dragEv.origDur + dt, e.shiftKey, true);
+        changeFxEvent({ dur: J.clamp(end - dragEv.origT, 1 / S.plan.fps, S.plan.duration - dragEv.origT) });
       } else {
-        let newT = TL.dragEvent.origT + dt;
-        if (!e.shiftKey && S.plan.beats && S.plan.beats.length) {
-          let bt = null, bd = 0.12;
-          for (const b of S.plan.beats) {
-            const d = Math.abs(b - newT);
-            if (d < bd) { bd = d; bt = b; }
-            if (b > newT + 0.2) break;
-          }
-          if (bt != null) newT = bt;
-        }
-        newT = +J.clamp(newT, 0, S.plan.duration).toFixed(3);
-        curEv.t = newT;
-        const pe = (S.project.events || []).find(x => x.id === curEv.id);
-        if (pe) pe.t = newT;
-        seek(newT);
-        updateEventInspector(curEv);
-        drawTimeline();
+        const t = Math.min(snapFxTime(dragEv.origT + dt, e.shiftKey), Math.max(0, S.plan.duration - dragEv.origDur));
+        changeFxEvent({ t }); seek(t);
       }
+      updateEventInspector(S.selectedEvent); drawTimeline(); S.need = true;
       return;
     }
     if (TL.drag >= 0) { const ev = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => tlDragTo(TL.drag, ev)); return; }
     if (drag) { timelineSeek(e); return; }
-    const evHit = null; // FX events are no longer exposed in the timeline.
+    const evHit = fxEventAt(e);
     if (evHit) {
       TL.hoverEvent = evHit.ev;
       TL.hover = -1;
@@ -41231,10 +41299,8 @@ function bind() {
   });
   const endDrag = () => {
     if (TL.dragEvent) {
-      TL.dragEvent = null;
-      replan();
-      commit();
-      flushSave();
+      const changed = TL.dragEvent.changed; TL.dragEvent = null;
+      if (changed) finishFxEdit();
       drawTimeline();
     }
     if (TL.drag >= 0) { TL.drag = -1; flushSave(); renderLines(); drawTimeline(); }
@@ -41263,76 +41329,66 @@ function bind() {
 
   $('btnShotMode').addEventListener('click', () => setScreenFxMode(false));
   $('btnScreenFxMode').addEventListener('click', () => setScreenFxMode(true));
-  const effectTypes = Object.keys(J.FXE);
-  for (const id of ['fxAddType', 'evInspType']) {
-    const select = $(id);
-    effectTypes.forEach(type => { const option = document.createElement('option'); option.value = type; option.textContent = J.FXE[type].name || type; select.appendChild(option); });
+  for (const type of J.FXE_ORDER) {
+    const option = document.createElement('option'); option.value = type; option.textContent = fxName(type); $('evInspType').appendChild(option);
   }
-  $('btnAddScreenFx').addEventListener('click', () => addManualTimelineEvent($('fxAddType').value));
+  $('fxSearch').addEventListener('input', renderFxLibrary);
+  $('fxCategory').addEventListener('change', renderFxLibrary);
+  $('btnFxCompare').addEventListener('click', () => {
+    S.fxCompare = !S.fxCompare; $('app').classList.toggle('fx-compare', S.fxCompare);
+    $('btnFxCompare').setAttribute('aria-pressed', String(S.fxCompare)); sizeViewport(); S.need = true;
+  });
+  $('btnFxBypass').addEventListener('click', () => {
+    S.fxBypass = !S.fxBypass; $('btnFxBypass').setAttribute('aria-pressed', String(S.fxBypass));
+    $('btnFxBypass').textContent = S.fxBypass ? '动效已旁路 · 点击恢复' : '旁路动效'; S.need = true;
+  });
+  $('fxSnap').addEventListener('change', e => {
+    pushEdit(); S.project.timing.snap = e.target.checked; $('snap').checked = e.target.checked; replan(); flushSave();
+  });
+  tl.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('application/x-jizura-fx') && S.screenFxMode) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  tl.addEventListener('drop', e => {
+    const type = e.dataTransfer.getData('application/x-jizura-fx');
+    if (S.screenFxMode && J.FXE[type]) { e.preventDefault(); addManualTimelineEvent(type, tlTime(e), e.shiftKey); }
+  });
   $('btnFxModeToggle').addEventListener('click', toggleFxEventMode);
   $('btnBakeFx').addEventListener('click', bakeAutoEvents);
   $('btnClearFx').addEventListener('click', clearAllEvents);
-  $('evTimeInput').addEventListener('change', e => {
-    if (!S.selectedEvent || !Number.isFinite(e.target.valueAsNumber)) return;
-    nudgeSelectedEventTime(e.target.valueAsNumber - S.selectedEvent.t);
+  $('evTimeInput').addEventListener('change', e => { if (S.selectedEvent && Number.isFinite(e.target.valueAsNumber)) nudgeSelectedEventTime(e.target.valueAsNumber - S.selectedEvent.t); });
+  $('evInspType').addEventListener('change', e => {
+    if (!S.selectedEvent || S.exporting || S.tap) return;
+    pushEdit(); remember(); changeFxEvent({ type: e.target.value, amp: 1, dur: Math.min(fxDefaultDuration(e.target.value), S.plan.duration - S.selectedEvent.t) }); finishFxEdit();
+  });
+  for (const [id, key] of [['evAmp', 'amp'], ['evDur', 'dur']]) {
+    const input = $(id); let editing = false;
+    input.addEventListener('input', () => {
+      if (!S.selectedEvent || S.exporting || S.tap) return;
+      if (!editing) { pushEdit(); remember(); editing = true; }
+      const val = key === 'dur' ? J.clamp(+input.value, 1 / S.plan.fps, S.plan.duration - S.selectedEvent.t) : +input.value;
+      changeFxEvent({ [key]: val }); updateEventInspector(S.selectedEvent); S.need = true;
+    });
+    input.addEventListener('change', () => { if (editing) { editing = false; finishFxEdit(); } });
+  }
+  $('evNudgeBack').addEventListener('click', () => nudgeSelectedEventTime(-1 / S.plan.fps));
+  $('evNudgeFwd').addEventListener('click', () => nudgeSelectedEventTime(1 / S.plan.fps));
+  $('evDelete').addEventListener('click', deleteSelectedEvent);
+  $('evClose').addEventListener('click', () => selectFxEvent(null));
+  $('evDisable').addEventListener('click', () => { if (S.selectedEvent && !S.exporting && !S.tap) { pushEdit(); remember(); changeFxEvent({ disabled: !S.selectedEvent.disabled }); finishFxEdit(); } });
+  $('evReset').addEventListener('click', () => {
+    if (!S.selectedEvent || S.selectedEvent.manual || S.exporting || S.tap) return;
+    pushEdit(); remember(); delete S.project.eventOverrides[S.selectedEvent.id]; finishFxEdit();
+  });
+  $('evDuplicate').addEventListener('click', () => {
+    if (!S.selectedEvent || S.exporting || S.tap) return;
+    const original = { ...S.selectedEvent }; addManualTimelineEvent(original.type);
+    changeFxEvent({ amp: original.amp, dur: Math.min(original.dur, S.plan.duration - S.selectedEvent.t), disabled: !!original.disabled }); finishFxEdit();
+  });
+  $('evPreview').addEventListener('click', () => {
+    if (!S.selectedEvent || S.exporting || S.tap) return;
+    if (S.fxLoop) pause();
+    else { S.fxLoop = true; seek(activeLoopRange().start); play(); $('evPreview').setAttribute('aria-pressed', 'true'); }
   });
 
-  // Event Inspector bindings
-  const evTypeSel = $('evInspType');
-  if (evTypeSel) evTypeSel.addEventListener('change', e => {
-    if (!S.selectedEvent) return;
-    pushEdit(); remember();
-    S.selectedEvent.type = e.target.value;
-    const pe = (S.project.events || []).find(x => x.id === S.selectedEvent.id);
-    if (pe) pe.type = e.target.value;
-    updateEventInspector(S.selectedEvent);
-    replan(); commit(); flushSave(); drawTimeline();
-  });
-  const evAmp = $('evAmp');
-  if (evAmp) evAmp.addEventListener('input', e => {
-    if (!S.selectedEvent) return;
-    const val = +e.target.value;
-    S.selectedEvent.amp = val;
-    const pe = (S.project.events || []).find(x => x.id === S.selectedEvent.id);
-    if (pe) pe.amp = val;
-    const valEl = $('evAmpVal'); if (valEl) valEl.textContent = val.toFixed(1) + 'x';
-    replanSoon(100);
-  });
-  if (evAmp) {
-    evAmp.addEventListener('pointerdown', prepareEdit);
-    evAmp.addEventListener('focus', prepareEdit);
-    evAmp.addEventListener('change', () => { commit(); flushSave(); });
-  }
-  const evDur = $('evDur');
-  if (evDur) evDur.addEventListener('input', e => {
-    if (!S.selectedEvent) return;
-    const val = +e.target.value;
-    S.selectedEvent.dur = val;
-    const pe = (S.project.events || []).find(x => x.id === S.selectedEvent.id);
-    if (pe) pe.dur = val;
-    const valEl = $('evDurVal'); if (valEl) valEl.textContent = val.toFixed(2) + 's';
-    replanSoon(100);
-  });
-  if (evDur) {
-    evDur.addEventListener('pointerdown', prepareEdit);
-    evDur.addEventListener('focus', prepareEdit);
-    evDur.addEventListener('change', () => { commit(); flushSave(); });
-  }
-  const evNudgeBack = $('evNudgeBack');
-  if (evNudgeBack) evNudgeBack.addEventListener('click', () => nudgeSelectedEventTime(-0.05));
-  const evNudgeFwd = $('evNudgeFwd');
-  if (evNudgeFwd) evNudgeFwd.addEventListener('click', () => nudgeSelectedEventTime(0.05));
-  const evDelete = $('evDelete');
-  if (evDelete) evDelete.addEventListener('click', () => deleteSelectedEvent());
-  const evClose = $('evClose');
-  if (evClose) evClose.addEventListener('click', () => { S.selectedEvent = null; hideEventInspector(); drawTimeline(); });
-  const evPreview = $('evPreview');
-  if (evPreview) evPreview.addEventListener('click', () => {
-    if (!S.selectedEvent) return;
-    seek(Math.max(0, S.selectedEvent.t - 0.2));
-    if (!S.playing) play();
-    setTimeout(() => { if (S.playing) pause(); }, (S.selectedEvent.dur + 0.5) * 1000);
-  });
+
   document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
     document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
     document.querySelectorAll('.tabpane').forEach(p => { p.hidden = p.dataset.pane !== b.dataset.tab; });
@@ -41448,23 +41504,13 @@ function bind() {
   dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close ? dlg.close() : dlg.removeAttribute('open'); });   // click on the backdrop
   $('btnSave').addEventListener('click', () => J.saveFile(baseName() + '.jizura.json', JSON.stringify(Object.assign({}, S.project, { appVersion: '0.10.1' }), null, 1)));
   $('btnAE').addEventListener('click', () => J.saveFile(baseName() + rangeSuffix() + '_ae.json', JSON.stringify(J.planForAE(S.plan, S.project, exportRange()), null, 1)));
-  audioNameDefault = $('audioName').textContent;
-  $('btnClearLyrics').addEventListener('click', clearLyrics);
+  audioNameDefault = $('audioName')?.textContent || '';
   document.querySelectorAll('.themeSel').forEach(el => el.addEventListener('change', () => {
     pushEdit();
     S.project.themeId = J.THEMES[el.value] ? el.value : null;
     document.querySelectorAll('.themeSel').forEach(x => { x.value = el.value; });
     flushSave();
   }));
-  $('fileLrc').addEventListener('change', async e => {
-    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-    if (f.size > 2e6) { toast('File LRC terlalu besar'); return; }
-    let text = '';
-    try { const buf = await f.arrayBuffer(); try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e2) { text = new TextDecoder('shift_jis').decode(buf); } }
-    catch (err) { toast('File LRC tidak bisa dibaca'); return; }
-    if (S.project.lyrics.trim() && !window.confirm('Ganti lirik sekarang dengan isi LRC? (Waktu per baris, pengaturan per baris, dan rentang ekspor juga dihapus. Urungkan mengembalikannya.)')) return;
-    loadLrc(text);
-  });
   ['btnLRC', 'eLRC'].forEach(id => $(id).addEventListener('click', saveLrc));
   $('btnReset').addEventListener('click', () => {
     const dlg = $('resetDlg');
@@ -41517,7 +41563,7 @@ function bind() {
     else if (e.altKey && e.code === 'KeyV') { e.preventDefault(); pasteCutStyleToCurrent(false); }
     else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && !e.ctrlKey && !e.metaKey && !typing && !S.tap) {
       e.preventDefault();
-      const step = e.shiftKey ? 0.1 : 0.05;
+      const step = S.selectedEvent ? (e.shiftKey ? 10 : 1) / S.plan.fps : e.shiftKey ? 0.1 : 0.05;
       if (S.selectedEvent) {
         nudgeSelectedEventTime(e.code === 'BracketRight' ? step : -step);
       } else {
@@ -41536,25 +41582,25 @@ function bind() {
 let audioSeq = 0;
 async function loadAudioFile(f, restored) {
   const my = ++audioSeq;                      // only the latest choice may win (an earlier, slower analysis is dropped)
-  $('audioName').textContent = 'Menganalisis audio…';
+  if ($('audioName')) $('audioName').textContent = 'Menganalisis audio…';
   try {
     pause();
     const a = await J.analyzeAudio(f);
     if (my !== audioSeq) return false;
     S.audio = a;
-    $('audioName').textContent = `${f.name}（${J.fmtTime(S.audio.duration)} · sekitar ${S.audio.bpm}BPM）` + (restored ? ' · lagu terakhir' : '');
+    if ($('audioName')) $('audioName').textContent = `${f.name}（${J.fmtTime(S.audio.duration)} · sekitar ${S.audio.bpm}BPM）` + (restored ? ' · lagu terakhir' : '');
     S.project.audioName = f.name;
     if (!restored && J.saveSong) J.saveSong(f);             // kept in this browser: a reload does not drop the song from exports
     S.project.timing.snap = true;
     syncUI(); replan();
     return true;
-  } catch (err) { if (my !== audioSeq) return false; $('audioName').textContent = 'Tidak dapat memuat: ' + err.message; S.audio = null; return false; }
+  } catch (err) { if (my !== audioSeq) return false; if ($('audioName')) $('audioName').textContent = 'Tidak dapat memuat: ' + err.message; S.audio = null; return false; }
 }
 
 /* ---------------- かんたんモードの案内ツアー ---------------- */
 const TOUR = [
   { t: () => $('lyrics'), title: '1. Masukkan lirik', text: 'Satu baris menjadi satu frasa. Baris kosong memberi jeda singkat; [interlude 8] membuat bagian instrumental 8 detik (hanya latar dan dekorasi).' },
-  { t: () => $('audioFile').closest('label') || $('audioFile'), title: '2. Impor lagu', text: 'Impor mp3 atau file sejenis: JIZURA mencari ketukan dan menyesuaikan pergantian cut. Kamu juga bisa bekerja tanpa lagu. “Sinkronkan ke ketukan” bisa dipakai untuk menandai awal tiap baris.' },
+  { t: () => $('btnTap'), title: '2. Impor lagu', text: 'Impor mp3 atau file sejenis: JIZURA mencari ketukan dan menyesuaikan pergantian cut. Kamu juga bisa bekerja tanpa lagu. “Sinkronkan ke ketukan” bisa dipakai untuk menandai awal tiap baris.' },
   { t: () => $('btnOmakaseBig'), title: '3. Buat variasi', text: 'Gaya, suasana, gerakan, palet, dan susunan dipilih otomatis. Setiap klik membuat variasi baru; “◀ Sebelumnya” untuk kembali.' },
   { t: () => $('btnPlay'), title: '4. Putar untuk mengecek', text: 'Coba putar hasilnya. Di timeline bawah, marker baris bisa digeser dengan drag (＋− untuk zoom).' },
   { t: () => $('lineList'), title: '5. 気になるbaris だけ直す', text: 'baris ごとに、歌詞をダブルクリックして直す、このbaris からタップし直す（◎）、このbaris だけ作り直す（サイコロ）ができます。' },

@@ -10,19 +10,21 @@ function el(id) {
 }
 const calls = [];
 const state = { plan: {W:1280, H:720}, project: {events:[{type:'flash',t:1}]}, t:1.1, playing:true, slow:false, renderer:{frame(ctx, plan, t, opt) {calls.push({ctx,plan,t,opt});}} };
-const context = vm.createContext({S:state, $:el, document:{querySelector:()=>null}, performance:{now:()=>1}, renderScreenFxEvents(){}, drawCenterGuide(){}, updateTimeUI(){}, drawTimeline(){}, updateCutInfo(){}, closeCutPick(){}, hideEventInspector(){}, syncFxModeUI(){}, sizeViewport(){}});
+const context = vm.createContext({S:state, $:el, document:{querySelector:()=>({})}, performance:{now:()=>1}, pause(){}, selectFxEvent(){}, renderFxLibrary(){}, renderScreenFxEvents(){}, drawCenterGuide(){}, updateTimeUI(){}, drawTimeline(){}, updateCutInfo(){}, closeCutPick(){}, hideEventInspector(){}, syncFxModeUI(){}, sizeViewport(){}});
+el('fxGlobalControls').appendChild = () => {};
+state.project.timing = {snap:true}; state.fxCompare = true;
 vm.runInContext(fn('draw', 'function tick(') + '\n' + fn('setScreenFxMode', 'let screenFxListSignature'),context);
 context.draw(); assert.equal(calls.length,1);
 const projectBefore = JSON.stringify(state.project);
 context.setScreenFxMode(true); calls.length=0; context.draw();
 assert.equal(calls.length,2); assert.equal(calls[0].t,calls[1].t); assert.equal(calls[0].plan,calls[1].plan);
-assert.equal(calls[1].opt.noEvents,true); assert.equal(calls[0].opt.noEvents,undefined);
+assert.equal(calls[1].opt.noEvents,true); assert.equal(calls[0].opt.noEvents,false);
 assert.equal(calls[0].opt.fast,calls[1].opt.fast); assert.equal(el('app').classes['screen-fx-mode'],true);
 context.setScreenFxMode(false); calls.length=0; context.draw(); assert.equal(calls.length,1);
 assert.equal(JSON.stringify(state.project),projectBefore);
 state.exporting=true; context.setScreenFxMode(true); assert.equal(state.screenFxMode,false);
 const html = fs.readFileSync('app/body.html','utf8');
-assert.match(html,/screen-fx-panel fx-only/); assert.match(html,/compare-base fx-only/);
+assert.match(html,/screen-fx-panel fx-only/); assert.match(html,/compare-base compare-only/);
 const css = fs.readFileSync('app/style.css','utf8');
 assert.match(css,/\.screen-fx-mode #cutInfo, \.screen-fx-mode #cutPick \{ display: none !important/);
 const renderer = fs.readFileSync('src/09_render.js','utf8');
