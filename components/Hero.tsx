@@ -4,16 +4,18 @@ import { useLanguage } from '../content/language';
 
 interface HeroProps {
   onOpenGame: () => void;
+  onPreloadGame?: () => void;
   containerRef: React.RefObject<HTMLElement>;
 }
 
-const Hero: React.FC<HeroProps> = ({ onOpenGame, containerRef }) => {
+const Hero: React.FC<HeroProps> = ({ onOpenGame, onPreloadGame, containerRef }) => {
   const { UI_TEXT, language } = useLanguage();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
     container: containerRef,
-    offset: ["start start", "end start"]
+    offset: ["start start", "end start"],
+    layoutEffect: false,
   });
 
   const textY = useTransform(scrollYProgress, [0, 1], [0, 200]);
@@ -225,7 +227,11 @@ const Hero: React.FC<HeroProps> = ({ onOpenGame, containerRef }) => {
         <motion.div 
             className="relative h-40 md:h-48 w-full max-w-4xl flex items-center justify-center cursor-pointer group"
             onClick={onOpenGame}
-            onMouseEnter={() => setIsHovered(true)}
+            onMouseEnter={() => {
+              setIsHovered(true);
+              onPreloadGame?.();
+            }}
+            onTouchStart={onPreloadGame}
             onMouseLeave={() => setIsHovered(false)}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

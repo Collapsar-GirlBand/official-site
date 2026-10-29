@@ -15,6 +15,7 @@ import {
   AssetLoadProgress,
   getPreloadedAssetBuffer,
   preloadGameAssets,
+  releasePreloadedAssetBuffers,
   subscribeToAssetProgress,
 } from '../services/assetPreloader';
 
@@ -833,6 +834,7 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
           }
       });
       await Promise.all(loadPromises);
+      releasePreloadedAssetBuffers();
   };
 
   // 2.2 Scheduler Loop
@@ -1035,7 +1037,9 @@ const GameSystem: React.FC<GameSystemProps> = ({ isOpen, onClose }) => {
         // of sync with the box once it becomes visible, which squashes particles.
         if (newWidth <= 0 || newHeight <= 0) return;
 
-        const nextPixelRatio = Math.max(1, window.devicePixelRatio || 1);
+        // More than 2x resolution sharply increases fill-rate and shadow cost
+        // while being effectively invisible in this soft particle artwork.
+        const nextPixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
         const sizeChanged = newWidth !== width || newHeight !== height;
         const backingStoreChanged =
             canvas.width !== Math.round(newWidth * nextPixelRatio) ||

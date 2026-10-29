@@ -37,7 +37,7 @@ const GalleryView: React.FC = () => {
               aria-label={`${language === 'zh' ? '查看' : 'View'} ${art.title[language]}`}
             >
               <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-white/5">
-                <img src={galleryImageUrl(art.file)} alt={art.title[language]} loading="lazy" className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
+                <img src={galleryImageUrl(art.file)} alt={art.title[language]} loading="lazy" decoding="async" className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
               </div>
               <div className="px-1 pb-1 pt-3">
                 <span className="font-mono text-[10px] text-white/35">{String(index + 1).padStart(2, '0')} / {String(GALLERY_ITEMS.length).padStart(2, '0')}</span>
@@ -57,7 +57,7 @@ const GalleryView: React.FC = () => {
           </div>
           <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 items-center justify-between gap-2 py-4 md:gap-6">
             <button type="button" onClick={() => setSelected((selected - 1 + GALLERY_ITEMS.length) % GALLERY_ITEMS.length)} aria-label={language === 'zh' ? '上一幅' : 'Previous artwork'} className="shrink-0 p-1 text-white/60 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white md:p-3"><ChevronLeft size={28} /></button>
-            <img src={galleryImageUrl(item.file)} alt={item.title[language]} className="min-h-0 min-w-0 max-h-full max-w-full object-contain" />
+            <img src={galleryImageUrl(item.file)} alt={item.title[language]} decoding="async" className="min-h-0 min-w-0 max-h-full max-w-full object-contain" />
             <button type="button" onClick={() => setSelected((selected + 1) % GALLERY_ITEMS.length)} aria-label={language === 'zh' ? '下一幅' : 'Next artwork'} className="shrink-0 p-1 text-white/60 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white md:p-3"><ChevronRight size={28} /></button>
           </div>
           <div className="mx-auto w-full max-w-6xl border-t border-white/15 pt-4 text-center">

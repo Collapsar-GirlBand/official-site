@@ -13,8 +13,12 @@ export interface AssetLoadProgress {
 
 const GAME_ASSET_URLS = Array.from(new Set([
   ...Object.values(CHAR_CONFIG).map(config => config.image),
-  ...Object.values(ASSETS.AUDIO),
+  // The ending track is only needed after the game is complete. Loading it at
+  // the intro used 1.5 MB of bandwidth and memory before it could be played.
+  ...Object.values(ASSETS.AUDIO).filter(url => url !== ASSETS.AUDIO.ED),
 ]));
+
+const MAX_CONCURRENT_DOWNLOADS = 4;
 
 const listeners = new Set<(progress: AssetLoadProgress) => void>();
 const assetBuffers = new Map<string, ArrayBuffer>();
@@ -124,18 +128,25 @@ export const preloadGameAssets = (retryFailed = false) => {
   snapshot = { ...snapshot, done: false, failedUrls: [] };
   emit();
 
-  activeLoad = Promise.allSettled(urls.map(async url => {
-    try {
-      await downloadAsset(url);
-    } catch (error) {
-      console.warn(`Failed to preload asset: ${url}`, error);
-      failedUrls.push(url);
-      emit();
+  activeLoad = (async () => {
+    // Avoid saturating mobile connections with every sprite and audio request
+    // at once. Small batches also leave bandwidth available for the UI chunk.
+    for (let index = 0; index < urls.length; index += MAX_CONCURRENT_DOWNLOADS) {
+      const batch = urls.slice(index, index + MAX_CONCURRENT_DOWNLOADS);
+      await Promise.allSettled(batch.map(async url => {
+        try {
+          await downloadAsset(url);
+        } catch (error) {
+          console.warn(`Failed to preload asset: ${url}`, error);
+          failedUrls.push(url);
+          emit();
+        }
+      }));
     }
-  })).then(() => {
+
     emit(true);
     return snapshot;
-  }).finally(() => {
+  })().finally(() => {
     activeLoad = null;
   });
 
@@ -143,3 +154,8 @@ export const preloadGameAssets = (retryFailed = false) => {
 };
 
 export const getPreloadedAssetBuffer = (url: string) => assetBuffers.get(url)?.slice(0);
+
+// Decoded audio and browser-cached sprite responses make these raw copies
+// redundant. Releasing them avoids keeping both compressed and decoded audio
+// in memory throughout the game.
+export const releasePreloadedAssetBuffers = () => assetBuffers.clear();

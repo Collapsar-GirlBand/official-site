@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface BackgroundProps {
   scrollContainerRef: React.RefObject<HTMLElement>;
@@ -6,11 +6,13 @@ interface BackgroundProps {
 
 const Background: React.FC<BackgroundProps> = ({ scrollContainerRef }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [opacity, setOpacity] = useState(0);
+  const isVisibleRef = useRef(false);
 
   // 1. Scroll Listener for Fade-In Effect (Attached to container)
   useEffect(() => {
-    const handleScroll = () => {
+    let scrollFrameId: number | null = null;
+
+    const updateOpacity = () => {
       const container = scrollContainerRef.current;
       if (!container) return;
 
@@ -27,16 +29,26 @@ const Background: React.FC<BackgroundProps> = ({ scrollContainerRef }) => {
       if (newOpacity < 0) newOpacity = 0;
       if (newOpacity > 1) newOpacity = 1;
       
-      setOpacity(newOpacity);
+      isVisibleRef.current = newOpacity > 0.01;
+      if (canvasRef.current) canvasRef.current.style.opacity = String(newOpacity);
+    };
+
+    const handleScroll = () => {
+      if (scrollFrameId !== null) return;
+      scrollFrameId = requestAnimationFrame(() => {
+        scrollFrameId = null;
+        updateOpacity();
+      });
     };
 
     const container = scrollContainerRef.current;
     if (container) {
-        container.addEventListener('scroll', handleScroll);
-        handleScroll(); // Initial check
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        updateOpacity();
     }
 
     return () => {
+        if (scrollFrameId !== null) cancelAnimationFrame(scrollFrameId);
         if (container) {
             container.removeEventListener('scroll', handleScroll);
         }
@@ -107,8 +119,17 @@ const Background: React.FC<BackgroundProps> = ({ scrollContainerRef }) => {
     initParticles();
 
     let animationFrameId: number;
+    let previousFrameTime = 0;
+    const frameInterval = 1000 / 30;
 
-    const animate = () => {
+    const animate = (time: number) => {
+      animationFrameId = requestAnimationFrame(animate);
+
+      // The background is fully transparent on the hero screen. Keep the loop
+      // alive so scrolling can resume it instantly, but skip all canvas work.
+      if (!isVisibleRef.current || document.hidden || time - previousFrameTime < frameInterval) return;
+      previousFrameTime = time;
+
       ctx.clearRect(0, 0, width, height);
       
       // Iterate backwards to allow safe removal of particles
@@ -187,10 +208,9 @@ const Background: React.FC<BackgroundProps> = ({ scrollContainerRef }) => {
         }
       }
 
-      animationFrameId = requestAnimationFrame(animate);
     };
 
-    animate();
+    animationFrameId = requestAnimationFrame(animate);
 
     const handleMouseMove = (e: MouseEvent) => {
       mouse.x = e.clientX;
@@ -209,10 +229,12 @@ const Background: React.FC<BackgroundProps> = ({ scrollContainerRef }) => {
       mouse.y = -1000;
     };
 
-    window.addEventListener('resize', () => {
+    const handleResize = () => {
       updateDimensions();
       initParticles();
-    });
+    };
+
+    window.addEventListener('resize', handleResize);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('touchmove', handleTouchMove);
     document.addEventListener('mouseleave', handleMouseLeave);
@@ -231,7 +253,7 @@ const Background: React.FC<BackgroundProps> = ({ scrollContainerRef }) => {
       ref={canvasRef}
       className="fixed inset-0 w-full h-full pointer-events-none transition-opacity duration-1000 ease-out z-[1]"
       style={{ 
-          opacity: opacity,
+          opacity: 0,
           mixBlendMode: 'screen' 
       }}
     />
