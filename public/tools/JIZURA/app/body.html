@@ -369,6 +369,15 @@
   </main>
 </div>
 
+<dialog id="projectErrorDlg" class="terms project-error" aria-labelledby="projectErrorTitle" aria-describedby="projectErrorHint">
+  <h2 id="projectErrorTitle">项目导入失败</h2>
+  <p id="projectErrorHint">错误信息会保留到你关闭此窗口。可以复制详情以便排查。</p>
+  <textarea id="projectErrorText" readonly rows="9" aria-label="项目导入错误详情" spellcheck="false"></textarea>
+  <div class="terms-foot">
+    <span id="projectErrorCopyStatus" role="status" aria-live="polite"></span>
+    <span class="row"><button type="button" id="btnCopyProjectError" class="ghost">复制详情</button><button type="button" id="btnCloseProjectError">关闭</button></span>
+  </div>
+</dialog>
 <dialog id="resetDlg" class="terms" aria-labelledby="resetTitle">
   <form method="dialog">
     <h2 id="resetTitle">初期化</h2>

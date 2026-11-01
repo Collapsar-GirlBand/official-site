@@ -612,6 +612,10 @@ button.linkish { background: none; border: 0; padding: 4px 0; color: var(--muted
 button.linkish:hover { color: var(--text); background: none; }
 dialog.terms { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 22px 24px 18px; background: var(--panel); color: var(--text); border: 1px solid var(--line2); border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.55); }
 dialog.terms .reset-list { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; }
+dialog.project-error { width: min(720px, calc(100vw - 32px)); }
+dialog.project-error textarea { display: block; width: 100%; box-sizing: border-box; min-height: 180px; max-height: 50vh; margin: 0 0 16px; padding: 12px; background: var(--raised); color: var(--text); border: 1px solid var(--line2); border-radius: var(--r); font: 12px/1.7 monospace; resize: vertical; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+dialog.project-error .terms-foot { flex-wrap: wrap; }
+#projectErrorCopyStatus { font-size: 12px; color: var(--muted); }
 button.danger { background: #c9433a; border-color: #c9433a; color: #fff; font-weight: 700; }
 button.danger:hover { background: #dd5146; }
 .sec-btns { display: inline-flex; gap: 6px; }

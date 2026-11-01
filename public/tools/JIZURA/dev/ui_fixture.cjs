@@ -15,6 +15,7 @@ function uiFixture(edition) {
     constructor() {
       this.style = {}; this.dataset = {}; this.children = []; this.options = []; this.value = '';
       this.width = 640; this.height = 360; this.hidden = false;
+      this.events = {}; this.open = false;
       this.classList = { add: noop, remove: noop, toggle: noop, contains: () => false };
     }
     getContext() { return ctx; }
@@ -26,7 +27,11 @@ function uiFixture(edition) {
     append() {}
     prepend() {}
     add(el) { this.options.push(el); }
-    addEventListener() {}
+    addEventListener(type, fn) { (this.events[type] ||= []).push(fn); }
+    showModal() { this.open = true; }
+    close() { this.open = false; }
+    focus() { this.focused = true; }
+    select() { this.selected = true; }
     setAttribute() {}
     getAttribute() { return null; }
     closest() { return new Element(); }

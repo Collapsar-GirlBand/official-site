@@ -25,7 +25,7 @@ function fixture() {
     replan() { box.S.plan = box.J.plan(box.S.project, null); box.autosave(); box.flushSave(); },
     commit() { box.H.list = ['new look']; box.H.i = 0; },
     updateHist() {}, updateEditBtns() {}, saveUndoHistory() {}, restoreFonts: async () => {},
-    showMsg: m => messages.push(m), toast: m => notices.push(m),
+    showMsg: m => messages.push(m), showProjectImportError: m => messages.push(m), toast: m => notices.push(m),
     loadAudioFile: async f => { box.audioLoaded = f.name; return true; },
   });
   return { box, writes, messages, notices };

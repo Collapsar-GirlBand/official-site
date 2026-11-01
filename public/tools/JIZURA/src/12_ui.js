@@ -227,6 +227,35 @@ function flushSave() {
 window.addEventListener('pagehide', () => { if (S.project) flushSave(); });
 window.addEventListener('beforeunload', () => { if (S.project) flushSave(); });
 
+// Import failures live outside the preview status overlay: font loading may clear that overlay at any time.
+function showProjectImportError(message, detail) {
+  const dlg = $('projectErrorDlg'), text = $('projectErrorText'), status = $('projectErrorCopyStatus');
+  if (!dlg || !text || !status) { showMsg(message); return; }
+  text.value = message + (detail ? '\n\n技术详情：\n' + detail : '');
+  status.textContent = '';
+  if (!dlg.dataset.bound) {
+    dlg.dataset.bound = '1';
+    $('btnCloseProjectError').addEventListener('click', () => {
+      if (typeof dlg.close === 'function') dlg.close();
+      else { dlg.removeAttribute('open'); dlg.hidden = true; }
+    });
+    $('btnCopyProjectError').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text.value);
+        status.textContent = '错误详情已复制';
+      } catch (_) {
+        text.focus(); text.select();
+        status.textContent = '已选中错误详情，请按 Ctrl+C 或使用系统复制菜单';
+      }
+    });
+  }
+  dlg.hidden = false;
+  if (!dlg.open) {
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  }
+}
+
 // Both picker and drop imports use a transaction: invalid files and UI failures leave the previous session intact.
 async function importProjectFile(file) {
   if (S.exporting || projectImporting) return;
@@ -277,8 +306,9 @@ async function importProjectFile(file) {
     const section = err && err.projectSection || phase;
     const reason = phase === '读取文件' ? '文件读取失败' : phase === '解析项目' ? '项目文件格式或内容无效'
       : '程序处理项目时发生异常，不能据此判定为项目格式不兼容';
-    showMsg('无法打开项目（' + section + '）：' + reason + '。具体信息：'
-      + (err && err.message || String(err)) + '。当前项目已保留。');
+    showProjectImportError('无法打开项目（' + section + '）：' + reason + '。具体信息：'
+      + (err && err.message || String(err)) + '。当前项目已保留。',
+      (file && file.name ? '文件：' + file.name + '\n' : '') + (err && err.stack || String(err)));
     return false;
   }
 }
@@ -3311,7 +3341,9 @@ function updateHist() {
   const canB = H.i > 0, canF = H.i < H.list.length - 1;
   ['btnPrev', 'btnPrev2'].forEach(id => { const b = $(id); if (b) b.disabled = !canB; });
   ['btnNext', 'btnNext2'].forEach(id => { const b = $(id); if (b) b.disabled = !canF; });
-  $('histPos').textContent = H.list.length > 1 ? `${H.i + 1} / ${H.list.length}` : '';
+  const pos = $('histPos');
+  // Compact editor layouts omit the look-history controls.
+  if (pos) pos.textContent = H.list.length > 1 ? `${H.i + 1} / ${H.list.length}` : '';
 }
 
 /* ---------------- locks (what Randomize / Shuffle must not touch) ----------------

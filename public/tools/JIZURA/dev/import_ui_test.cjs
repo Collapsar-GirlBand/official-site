@@ -47,3 +47,41 @@ test('legacy ocean project completes the real import, UI refresh, replanning and
   assert.deepEqual(JSON.parse(JSON.stringify(J.ui.project.overrides)), raw.overrides);
   assert.ok(J.ui.plan.cuts.length);
 });
+
+test('import error stays readable through pending font/preview updates until manually closed', async () => {
+  const { box, nodes } = uiFixture(), { J } = box;
+  box.console = { error() {}, warn() {} };
+  J.ui.project = J.uiApi.mergeProject({ lyrics: '原项目', timingOrder: 2 });
+  J.ui.plan = J.plan(J.ui.project, null);
+  const badFile = { name: 'bad.json', text: async () => '{' };
+  assert.equal(await J.uiApi.importProjectFile(badFile), false);
+  const dialog = nodes.get('projectErrorDlg'), text = nodes.get('projectErrorText');
+  const message = text.value;
+  assert.equal(dialog.open, true);
+  assert.match(message, /JSON/); assert.match(message, /文件：bad.json/);
+  J.uiApi.replan();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(dialog.open, true); assert.equal(text.value, message);
+  nodes.get('btnCloseProjectError').events.click[0]();
+  assert.equal(dialog.open, false);
+  assert.equal(await J.uiApi.importProjectFile(badFile), false);
+  assert.equal(dialog.open, true);
+  assert.equal(nodes.get('btnCloseProjectError').events.click.length, 1);
+});
+
+test('persistent error details can be copied, with manual selection when clipboard access fails', async () => {
+  const { box, nodes } = uiFixture(), { J } = box;
+  box.console = { error() {}, warn() {} };
+  assert.equal(await J.uiApi.importProjectFile({ text: async () => '{' }), false);
+  let copied = '';
+  box.navigator = { clipboard: { writeText: async text => { copied = text; } } };
+  const copy = nodes.get('btnCopyProjectError').events.click[0];
+  await copy();
+  assert.equal(copied, nodes.get('projectErrorText').value);
+  assert.match(nodes.get('projectErrorCopyStatus').textContent, /已复制/);
+  box.navigator.clipboard.writeText = async () => { throw new Error('clipboard unavailable'); };
+  await copy();
+  assert.equal(nodes.get('projectErrorText').selected, true);
+  assert.match(nodes.get('projectErrorCopyStatus').textContent, /Ctrl\+C/);
+  assert.equal(nodes.get('projectErrorDlg').open, true);
+});

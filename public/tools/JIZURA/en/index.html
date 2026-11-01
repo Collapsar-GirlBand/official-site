@@ -643,6 +643,10 @@ button.linkish { background: none; border: 0; padding: 4px 0; color: var(--muted
 button.linkish:hover { color: var(--text); background: none; }
 dialog.terms { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 22px 24px 18px; background: var(--panel); color: var(--text); border: 1px solid var(--line2); border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.55); }
 dialog.terms .reset-list { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; }
+dialog.project-error { width: min(720px, calc(100vw - 32px)); }
+dialog.project-error textarea { display: block; width: 100%; box-sizing: border-box; min-height: 180px; max-height: 50vh; margin: 0 0 16px; padding: 12px; background: var(--raised); color: var(--text); border: 1px solid var(--line2); border-radius: var(--r); font: 12px/1.7 monospace; resize: vertical; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+dialog.project-error .terms-foot { flex-wrap: wrap; }
+#projectErrorCopyStatus { font-size: 12px; color: var(--muted); }
 button.danger { background: #c9433a; border-color: #c9433a; color: #fff; font-weight: 700; }
 button.danger:hover { background: #dd5146; }
 .sec-btns { display: inline-flex; gap: 6px; }
@@ -1488,6 +1492,15 @@ button.small.primary { padding: 4px 12px; }
   </main>
 </div>
 
+<dialog id="projectErrorDlg" class="terms project-error" aria-labelledby="projectErrorTitle" aria-describedby="projectErrorHint">
+  <h2 id="projectErrorTitle">项目导入失败</h2>
+  <p id="projectErrorHint">错误信息会保留到你关闭此窗口。可以复制详情以便排查。</p>
+  <textarea id="projectErrorText" readonly rows="9" aria-label="项目导入错误详情" spellcheck="false"></textarea>
+  <div class="terms-foot">
+    <span id="projectErrorCopyStatus" role="status" aria-live="polite"></span>
+    <span class="row"><button type="button" id="btnCopyProjectError" class="ghost">复制详情</button><button type="button" id="btnCloseProjectError">关闭</button></span>
+  </div>
+</dialog>
 <dialog id="resetDlg" class="terms" aria-labelledby="resetTitle">
   <form method="dialog">
     <h2 id="resetTitle">Reset</h2>
@@ -42160,6 +42173,35 @@ function flushSave() {
 window.addEventListener('pagehide', () => { if (S.project) flushSave(); });
 window.addEventListener('beforeunload', () => { if (S.project) flushSave(); });
 
+// Import failures live outside the preview status overlay: font loading may clear that overlay at any time.
+function showProjectImportError(message, detail) {
+  const dlg = $('projectErrorDlg'), text = $('projectErrorText'), status = $('projectErrorCopyStatus');
+  if (!dlg || !text || !status) { showMsg(message); return; }
+  text.value = message + (detail ? '\n\n技术详情：\n' + detail : '');
+  status.textContent = '';
+  if (!dlg.dataset.bound) {
+    dlg.dataset.bound = '1';
+    $('btnCloseProjectError').addEventListener('click', () => {
+      if (typeof dlg.close === 'function') dlg.close();
+      else { dlg.removeAttribute('open'); dlg.hidden = true; }
+    });
+    $('btnCopyProjectError').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text.value);
+        status.textContent = '错误详情已复制';
+      } catch (_) {
+        text.focus(); text.select();
+        status.textContent = '已选中错误详情，请按 Ctrl+C 或使用系统复制菜单';
+      }
+    });
+  }
+  dlg.hidden = false;
+  if (!dlg.open) {
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  }
+}
+
 // Both picker and drop imports use a transaction: invalid files and UI failures leave the previous session intact.
 async function importProjectFile(file) {
   if (S.exporting || projectImporting) return;
@@ -42210,8 +42252,9 @@ async function importProjectFile(file) {
     const section = err && err.projectSection || phase;
     const reason = phase === '读取文件' ? '文件读取失败' : phase === '解析项目' ? '项目文件格式或内容无效'
       : '程序处理项目时发生异常，不能据此判定为项目格式不兼容';
-    showMsg('无法打开项目（' + section + '）：' + reason + '。具体信息：'
-      + (err && err.message || String(err)) + '。当前项目已保留。');
+    showProjectImportError('无法打开项目（' + section + '）：' + reason + '。具体信息：'
+      + (err && err.message || String(err)) + '。当前项目已保留。',
+      (file && file.name ? '文件：' + file.name + '\n' : '') + (err && err.stack || String(err)));
     return false;
   }
 }
@@ -45244,7 +45287,9 @@ function updateHist() {
   const canB = H.i > 0, canF = H.i < H.list.length - 1;
   ['btnPrev', 'btnPrev2'].forEach(id => { const b = $(id); if (b) b.disabled = !canB; });
   ['btnNext', 'btnNext2'].forEach(id => { const b = $(id); if (b) b.disabled = !canF; });
-  $('histPos').textContent = H.list.length > 1 ? `${H.i + 1} / ${H.list.length}` : '';
+  const pos = $('histPos');
+  // Compact editor layouts omit the look-history controls.
+  if (pos) pos.textContent = H.list.length > 1 ? `${H.i + 1} / ${H.list.length}` : '';
 }
 
 /* ---------------- locks (what Randomize / Shuffle must not touch) ----------------
