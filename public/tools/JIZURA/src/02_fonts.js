@@ -33,6 +33,68 @@ J.FONTS = {
   shippori:      { label: 'Shippori Mincho B1',        family: '"Shippori Mincho B1"', weight: 800, kind: 'mincho', fb: JP_SERIF_FB, gf: 'Shippori+Mincho+B1:wght@800' },
   sansui:        { label: 'IBM Plex Sans JP',          family: '"IBM Plex Sans JP"', weight: 500, kind: 'gothic', fb: JP_SANS_FB, gf: 'IBM+Plex+Sans+JP:wght@400;500;700' },
 };
+/* A role can use a calibrated primary face and a separately calibrated fallback.
+   These maps are rebuilt whenever the effective style changes. */
+J.FONT_FALLBACKS = Object.create(null);
+J.FONT_FORCED_FALLBACK = Object.create(null);
+J.FONT_CHARACTER_RULES = Object.create(null);
+J.FONT_CALIBRATION = Object.create(null);
+const pageLocation = typeof location === 'undefined' ? { pathname: '/', href: 'http://localhost/' } : location;
+const fontRoot = new URL(/\/(ja|en|zh-hant|zh-hans|ko|id|vi)\/$/.test(pageLocation.pathname.replace(/index\.html$/, '')) ? '../assets/fonts/' : './assets/fonts/', pageLocation.href);
+['朝华标题A.ttf','朝华标题B.ttf','朝华打字机.ttf','法华文楷标准版.ttf','哥特宋.ttf','江城尖刃黑.ttf','乐米棱碑体.ttf','平方星辰体.ttf','HakkouMincho.ttf','HOSHINOTIRABARI.ttf','MRT-まるこいあす  かなのみ.ttf','MRT-まるこいあすα.ttf','MRT-まるこいあすβ.ttf'].forEach((file, i) => {
+  J.FONTS['site_' + i] = { label: file.replace(/\.ttf$/, ''), family: '"JizuraSite' + i + '"', weight: 400, kind: 'custom', bundled: true, fb: JP_SANS_FB, url: new URL(encodeURIComponent(file), fontRoot).href };
+});
+J.readFontCoverage = buffer => {
+  const d = new DataView(buffer); let cmap = 0;
+  for (let i = 0; i < d.getUint16(4); i++) { const p = 12 + i * 16; if (d.getUint32(p) === 0x636d6170) cmap = d.getUint32(p + 8); }
+  if (!cmap) return null;
+  const tables = [];
+  for (let i = 0; i < d.getUint16(cmap + 2); i++) { const p = cmap + 4 + i * 8, t = cmap + d.getUint32(p + 4), f = d.getUint16(t); if (f === 4 || f === 12) tables.push([t, f]); }
+  return ch => {
+    const cp = ch.codePointAt(0);
+    for (const [t, f] of tables) {
+      if (f === 12) { let lo = 0, hi = d.getUint32(t + 12) - 1; while (lo <= hi) { const m = (lo + hi) >>> 1, p = t + 16 + m * 12, a = d.getUint32(p), b = d.getUint32(p + 4); if (cp < a) hi = m - 1; else if (cp > b) lo = m + 1; else return d.getUint32(p + 8) + cp - a !== 0; } }
+      else if (cp <= 65535) { const count = d.getUint16(t + 6) / 2, end = t + 14, start = end + count * 2 + 2, delta = start + count * 2, range = delta + count * 2; for (let i = 0; i < count; i++) { if (cp > d.getUint16(end + i * 2)) continue; if (cp < d.getUint16(start + i * 2)) break; const off = d.getUint16(range + i * 2), v = off ? d.getUint16(range + i * 2 + off + (cp - d.getUint16(start + i * 2)) * 2) : cp; return v !== 0 && ((v + d.getInt16(delta + i * 2)) & 65535) !== 0; } }
+    }
+    return false;
+  };
+};
+const siteFontJobs = new Map();
+J.loadSiteFont = key => {
+  const f = J.FONTS[key]; if (!f || !f.url) return Promise.resolve();
+  if (!siteFontJobs.has(key)) siteFontJobs.set(key, (async () => {
+    const r = await fetch(f.url); if (!r.ok) throw new Error('字体加载失败：' + f.label);
+    const buf = await r.arrayBuffer(); f.coverage = J.readFontCoverage(buf);
+    const face = new FontFace(f.family.replace(/"/g, ''), buf); await face.load(); document.fonts.add(face); f.loaded = true;
+  })().catch(e => { siteFontJobs.delete(key); throw e; }));
+  return siteFontJobs.get(key);
+};
+J.configureFontCombos = combos => {
+  J.FONT_FALLBACKS = Object.create(null);
+  J.FONT_FORCED_FALLBACK = Object.create(null);
+  J.FONT_CHARACTER_RULES = Object.create(null);
+  J.FONT_CALIBRATION = Object.create(null);
+  for (const [role, c] of Object.entries(combos || {})) {
+    if (!c || !c.main) continue;
+    const key = 'combo_' + role, fb = key + '_fallback';
+    if (!J.FONTS[c.main] || J.FONTS[c.main].combo) continue;
+    J.FONTS[key] = Object.assign({}, J.FONTS[c.main], { label: c.name || '组合 · ' + role, combo: true, source: c.main });
+    if (J.FONTS[c.fallback]) { J.FONTS[fb] = Object.assign({}, J.FONTS[c.fallback], { combo: true, source: c.fallback }); J.FONT_FALLBACKS[key] = fb; }
+    J.FONT_CALIBRATION[key] = Object.assign({}, c.mainCal);
+    J.FONT_FORCED_FALLBACK[key] = new Set(typeof c.fallbackChars === 'string' ? [...c.fallbackChars] : []);
+    J.FONT_CALIBRATION[fb] = Object.assign({}, c.fallbackCal);
+    J.FONT_CHARACTER_RULES[key] = [];
+    for (const [i, rule] of (Array.isArray(c.rules) ? c.rules : []).entries()) {
+      if (!rule || typeof rule.chars !== 'string' || !J.FONTS[rule.font] || J.FONTS[rule.font].combo) continue;
+      const alias = key + '_rule_' + i;
+      J.FONTS[alias] = Object.assign({}, J.FONTS[rule.font], { combo: true, source: rule.font });
+      J.FONT_CALIBRATION[alias] = Object.assign({}, rule.cal);
+      J.FONT_CHARACTER_RULES[key].push({ chars: new Set([...rule.chars]), font: alias });
+    }
+  }
+  J.glyphs && J.glyphs.clear(); J.metrics && J.metrics.clear();
+};
+J.fontCalibration = key => Object.assign({ size: 1, baseline: 0, width: 1, advance: 1, tracking: 0, weight: 0, stroke: 0 }, J.FONT_CALIBRATION[key] || {});
 J.GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Noto+Sans+JP:wght@300;500;700;900&family=Noto+Serif+JP:wght@300;500;700&family=Zen+Kaku+Gothic+New:wght@900&family=Zen+Old+Mincho:wght@900&family=Kaisei+Tokumin:wght@800&family=M+PLUS+Rounded+1c:wght@800&family=Mochiy+Pop+One&family=DotGothic16&family=Yuji+Syuku&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap';
 
 /* user fonts (local family names or uploaded files) */
@@ -50,6 +112,7 @@ J.loadFontFile = async (file) => {
   await ff.load(); document.fonts.add(ff);
   const key = 'user_' + fam, label = file.name.replace(/\.[^.]+$/, '').slice(0, 80);
   J.addUserFont(key, label, fam, 400, 'custom');
+  try { J.FONTS[key].coverage = J.readFontCoverage(buf); } catch (_) {}
   J.FONTS[key].loaded = true;
   if (J.saveFontData) J.saveFontData(key, buf);        // kept in this browser, so a reload keeps the face
   return { key, label, family: fam, weight: 400 };
@@ -63,7 +126,7 @@ J.restoreUserFonts = async (list) => {
     let ok = false;
     try {
       const buf = J.loadFontData ? await J.loadFontData(uf.key) : null;
-      if (buf) { const ff = new FontFace(J.safeFamily(uf.family), buf); await ff.load(); document.fonts.add(ff); ok = true; }
+      if (buf) { const ff = new FontFace(J.safeFamily(uf.family), buf); await ff.load(); document.fonts.add(ff); ok = true; try { if (f) f.coverage = J.readFontCoverage(buf); } catch (_) {} }
     } catch (e) { ok = false; }
     if (ok && J.FONTS[uf.key]) { J.FONTS[uf.key].loaded = true; J.glyphs.clear(); J.metrics.clear(); }
     else missing.push(uf.label || uf.family || uf.key);
@@ -73,9 +136,37 @@ J.restoreUserFonts = async (list) => {
 /* uploaded faces the plan draws with but this page does not have */
 J.missingUserFonts = (keys) => (keys || []).filter(k => J.FONTS[k] && J.FONTS[k].user && !J.FONTS[k].loaded).map(k => J.FONTS[k].label);
 
-J.fontCSS = (key, px) => {
+J.fontCSS = (key, px, cal) => {
   const f = J.faceOf ? J.faceOf(key) : (J.FONTS[key] || J.FONTS.gothic_bold);   // per-language face (02b_lang.js)
-  return `${f.weight} ${px.toFixed(2)}px ${f.family},${f.fb}`;
+  const c = cal || J.fontCalibration(key);
+  const weight = Math.max(100, Math.min(900, (f.weight || 400) + (+c.weight || 0)));
+  return `${weight} ${(px * (c.size || 1)).toFixed(2)}px ${f.family},${f.fb}`;
+};
+J.glyphSupport = (() => {
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true }), cache = new Map();
+  cv.width = cv.height = 40;
+  return (fontKey, ch) => {
+    const k = fontKey + '\0' + ch; if (cache.has(k)) return cache.get(k);
+    const f = J.faceOf ? J.faceOf(fontKey) : J.FONTS[fontKey];
+    const original = J.FONTS[fontKey], source = original && J.FONTS[original.source || fontKey];
+    if (source && source.coverage) return source.coverage(ch);
+    if (!f || !ch || /\s/.test(ch)) return true;
+    ctx.clearRect(0, 0, 40, 40); ctx.font = `400 32px ${f.family}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(ch, 20, 20);
+    const a = ctx.getImageData(0, 0, 40, 40).data; let ink = 0;
+    for (let i = 3; i < a.length; i += 4) if (a[i] > 16) ink++;
+    /* Compare with the browser's replacement box: unsupported glyphs often
+       still produce a non-empty tofu glyph, so an ink-count check is not enough. */
+    ctx.clearRect(0, 0, 40, 40); ctx.font = '400 32px sans-serif'; ctx.fillText('\uFFFD', 20, 20);
+    const tofu = ctx.getImageData(0, 0, 40, 40).data; let delta = 0;
+    for (let i = 3; i < a.length; i += 4) delta += Math.abs(a[i] - tofu[i]);
+    const ok = ink > 3 && delta > 180;
+    cache.set(k, ok); return ok;
+  };
+})();
+J.resolveGlyph = (fontKey, ch) => {
+  for (const rule of J.FONT_CHARACTER_RULES[fontKey] || []) if (rule.chars.has(ch)) return rule.font;
+  const fb = J.FONT_FALLBACKS[fontKey];
+  return fb && ((J.FONT_FORCED_FALLBACK[fontKey] && J.FONT_FORCED_FALLBACK[fontKey].has(ch)) || !J.glyphSupport(fontKey, ch)) ? fb : fontKey;
 };
 
 /* Google Fonts stylesheets are attached lazily, one family at a time, only for the faces a plan actually uses —
@@ -131,9 +222,14 @@ J.ensureFonts = async (text, keys) => {
     await Promise.all(['Noto+Sans+JP:wght@100..900', 'Noto+Serif+JP:wght@200..900'].map(attachFamily));
     await Promise.all(['100 64px "Noto Sans JP"', '900 64px "Noto Sans JP"', '200 64px "Noto Serif JP"', '900 64px "Noto Serif JP"'].map(f => document.fonts.load(f, uniq).catch(() => null)));
   }
-  const list = (keys || Object.keys(J.FONTS)).filter(k => J.FONTS[k]);
+  const wanted = new Set(keys || Object.keys(J.FONTS));
+  for (const k of [...wanted]) if (J.FONT_FALLBACKS[k]) wanted.add(J.FONT_FALLBACKS[k]);
+  for (const k of [...wanted]) for (const rule of J.FONT_CHARACTER_RULES[k] || []) wanted.add(rule.font);
+  for (const k of [...wanted]) if (J.FONTS[k] && J.FONTS[k].source) wanted.add(J.FONTS[k].source);
+  const list = [...wanted].filter(k => J.FONTS[k]);
   // faces in the current lyric language (+ its fallback sans / serif), each with the weight it is drawn at
   const faces = list.map(k => (J.faceOf ? J.faceOf(k) : J.FONTS[k]));
+  await Promise.all(list.filter(k => J.FONTS[k] && J.FONTS[k].url && !J.FONTS[k].combo).map(J.loadSiteFont));
   if (J.langBaseFaces) for (const b of J.langBaseFaces(list)) faces.push({ family: '"' + b.family + '"', weight: b.weight, gf: b.gf });
   await Promise.all([...new Set(faces.map(f => f.gf).filter(Boolean))].map(attachFamily));
   const jobs = [], seen = new Set();
@@ -157,7 +253,7 @@ J.metrics = {
     const k = fontKey + '\u0000' + ch;
     let v = this.m.get(k);
     if (v === undefined) {
-      _mc.font = J.fontCSS(fontKey, 100);
+      _mc.font = J.fontCSS(fontKey, 100, Object.assign({}, J.fontCalibration(fontKey), { size: 1 }));
       v = _mc.measureText(ch).width / 100;
       if (!(v > 0)) v = ch === ' ' ? 0.3 : 1;
       this.m.set(k, v);

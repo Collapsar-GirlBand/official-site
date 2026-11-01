@@ -11,7 +11,7 @@ function engine() {
     set: () => true,
   });
   const el = () => ({ getContext: () => ctx, style: {}, appendChild: noop, addEventListener: noop });
-  const box = { console, Uint8ClampedArray, Uint8Array, setTimeout: noop, clearTimeout: noop,
+  const box = { console, URL, Uint8ClampedArray, Uint8Array, setTimeout: noop, clearTimeout: noop,
     document: { createElement: el, addEventListener: noop, querySelectorAll: () => [],
       getElementById: () => null, head: { appendChild: noop }, fonts: { ready: Promise.resolve(), load: async () => [] } },
     OffscreenCanvas: function () { return el(); }, requestAnimationFrame: noop,

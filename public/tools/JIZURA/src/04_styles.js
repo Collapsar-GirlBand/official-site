@@ -149,6 +149,13 @@ J.STYLES = {
     decor: { rings: 1.4, hud: 0.6, dots: 1 }, hud: false,
   },
 };
+J.defaultFontCalibration = () => ({ size: 1, baseline: 0, width: 1, advance: 1, tracking: 0, weight: 0, stroke: 0 });
+J.defaultFontCombos = () => ({
+  display: { main: 'gothic_black', fallback: 'dela', mainCal: J.defaultFontCalibration(), fallbackCal: J.defaultFontCalibration() },
+  body: { main: 'gothic_med', fallback: 'sansui', mainCal: J.defaultFontCalibration(), fallbackCal: J.defaultFontCalibration() },
+  serif: { main: 'mincho_bold', fallback: 'mincho', mainCal: J.defaultFontCalibration(), fallbackCal: J.defaultFontCalibration() },
+  mono: { main: 'mono', fallback: 'dot', mainCal: J.defaultFontCalibration(), fallbackCal: J.defaultFontCalibration() },
+});
 J.defaultCustomStyle = () => ({
   name: 'カスタム', desc: '自定多组配色、字体、纹理与动画偏好',
   strictPalette: true,
@@ -158,6 +165,7 @@ J.defaultCustomStyle = () => ({
     { bg: '#140D24', fg: '#F7EDFF', sub: '#B59EC9', accent: '#00F5D4', accent2: '#7B2CBF', ink: '#F7EDFF', dim: '#241740', ghostA: '#00F5D4', ghostB: '#FF007F', grad: ['#00F5D4', '#7B2CBF'], paper: false },
   ],
   fonts: { display: ['gothic_black', 'dela'], serif: ['mincho_bold', 'mincho'], body: ['gothic_med', 'sansui'], mono: ['mono'] },
+  fontCombos: J.defaultFontCombos ? J.defaultFontCombos() : {},
   texture: { grain: 0.6, paper: 0, scan: 0.15 },
   ghost: 1.0, glow: 1.0, glitchBoost: 1.0,
   bias: {
@@ -192,6 +200,7 @@ J.resolveStyle = (project) => {
       if (cs.fonts) {
         st.fonts = JSON.parse(JSON.stringify(cs.fonts));
       }
+      st.fontCombos = JSON.parse(JSON.stringify(cs.fontCombos || J.defaultFontCombos()));
       if (cs.texture) {
         st.texture = Object.assign({ grain: 0, paper: 0, scan: 0 }, cs.texture);
       }
@@ -227,6 +236,7 @@ J.resolveStyle = (project) => {
       });
     }
   }
+  J.configureFontCombos(st.fontCombos || {});
 
   // Ensure bias & texture & decor structures exist
   st.bias = Object.assign({ layout: {}, enter: {}, exit: {} }, st.bias || {});

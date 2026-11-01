@@ -44,7 +44,7 @@ BODY = {
     '<li>タイミング・行ごとの指定・書き出す範囲</li>': '<li>타이밍·줄별 설정·내보낼 범위</li>',
     '<li>スタイル・演出・配色・書体などの設定</li>': '<li>스타일·연출·배색·글꼴 등의 설정</li>',
     '<li>案の履歴（◀ ▶）と、歌詞・タイミングの「元に戻す」の履歴</li>': '<li>버전 기록(◀ ▶)과 가사·타이밍의 ‘되돌리기’ 기록</li>',
-    '<p class="terms-sub">表示モード（かんたん／詳細）・プレビューの音量・画面の言語はそのままです。保存したプロジェクトファイル（.json）も消えません。</p>': '<p class="terms-sub">표시 모드(간단/상세), 미리보기 음량, 화면 언어는 그대로입니다. 저장한 프로젝트 파일(.json)도 지워지지 않습니다.</p>',
+    '<p class="terms-sub">プレビューの音量・画面の言語はそのままです。保存したプロジェクトファイル（.json）も消えません。</p>': '<p class="terms-sub">미리보기 음량, 화면 언어는 그대로입니다. 저장한 프로젝트 파일(.json)도 지워지지 않습니다.</p>',
     '<button value="cancel" class="ghost">やめる</button><button value="reset" class="danger">初期化する</button>': '<button value="cancel" class="ghost">취소</button><button value="reset" class="danger">초기화</button>',
     '<li><code>[間奏 8]</code> … 8秒の間奏（歌詞は出さず、背景と装飾だけ）。秒数を省くと4秒、タップ同期やマーカーで長さを合わせられます</li>': '<li><code>[간주 8]</code> … 8초 간주(가사 없이 배경과 장식만). 숫자를 생략하면 4초이며, 탭 동기화나 마커로 길이를 맞출 수 있습니다</li>',
     '<button class="tour-skip ghost small">スキップ</button>': '<button class="tour-skip ghost small">건너뛰기</button>',
@@ -398,3 +398,6 @@ SAMPLE = '새벽의 색을/기억해\n멀어진 목소리가 아득히 울렸어
 TITLE = 'JIZURA — 가사 모션 영상 메이커'
 
 DESCRIPTION = '브라우저에서 가사를 움직이는 가사 영상으로 만들고 MP4로 내보내세요.'
+
+from .export_copy import apply_quality_copy
+apply_quality_copy(globals(), 'ko')

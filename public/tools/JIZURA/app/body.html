@@ -1,12 +1,3 @@
-<div id="tour" class="tour" hidden role="dialog" aria-modal="true" aria-labelledby="tourTitle">
-  <div class="tour-spot"></div>
-  <div class="tour-bub">
-    <div class="tour-step mono muted"></div>
-    <h3 id="tourTitle" class="tour-title"></h3>
-    <p class="tour-text"></p>
-    <div class="tour-nav"><button class="tour-skip ghost small">スキップ</button><span class="tour-sp"></span><button class="tour-prev ghost small">戻る</button><button class="tour-next primary small">次へ</button></div>
-  </div>
-</div>
 <div id="app">
   <header class="bar">
     <div class="proj">
@@ -16,12 +7,6 @@
     <button id="btnOmakaseTop" class="primary omk-top" title="スタイル・雰囲気・演出・配色をまるごとランダムに">おまかせ</button>
     <button id="btnMenu" class="ghost menu-btn" aria-expanded="false" aria-controls="appMenu">メニュー</button>
     <button id="btnUiTheme" class="ghost" type="button" aria-pressed="false">日间 / 黑夜</button>
-    <div class="modes" role="group" aria-label="表示モード">
-      <button id="modeMobile" class="mode-mobile" aria-pressed="false" title="スマホ向けの画面（おまかせを上に固定、行はたたんで表示）">スマホ</button>
-      <button id="modeEasy" aria-pressed="false" title="おまかせボタン中心のシンプルな画面">かんたん</button>
-      <button id="modePro" aria-pressed="true" title="すべての設定を表示">詳細</button>
-      <button id="btnTour" class="ghost tour-btn" title="かんたんモードの使い方を案内します" aria-label="使い方の案内">？</button>
-    </div>
     <div class="acts">
       <label class="file" title="保存したプロジェクト(.json)を開く">開く<input id="fileProject" type="file" accept=".json,application/json"></label>
       <button id="btnSave" title="プロジェクトを .json で保存">保存</button>
@@ -35,10 +20,9 @@
     <!-- ================= left: lyrics & timing ================= -->
     <section class="col col-left" aria-label="歌詞とタイミング">
       <section class="fx-library fx-only" aria-label="动效库">
-        <div class="fx-heading"><h2>动效库</h2><span class="muted">预览后添加</span></div>
+        <div class="fx-heading"><h2>动效库</h2></div>
         <input id="fxSearch" type="search" placeholder="搜索名称或效果代码" aria-label="搜索动效">
         <select id="fxCategory" aria-label="动效分类"><option value="all">全部效果</option><option value="impact">重拍强调</option><option value="glitch">数字故障</option><option value="light">光感与其他</option></select>
-        <p class="muted">悬停或聚焦预览，点击添加；也可拖到动效轨。</p>
         <div id="fxLibraryGrid" class="fx-library-grid"></div>
       </section>
       <div id="tapPanel" class="tapbox" hidden>
@@ -49,154 +33,42 @@
           <button id="tapBack" class="ghost">1つ戻る</button>
           <button id="tapStop" class="ghost">終了する</button>
       </div>
-      <div class="sec">
-        <div class="sec-h lyrics-heading"><h2>歌詞</h2><span class="sec-btns lyrics-tools"><button id="btnTap" class="ghost small" title="曲を再生しながら各行の頭でタップ">タップで同期</button><button id="btnSyntax" class="ghost small" aria-expanded="false">記法</button><label class="lyrics-snap"><input id="snap" type="checkbox"> 拍にスナップ</label></span></div>
+      <details class="sec lyrics-source" open>
+        <summary>编辑歌词</summary>
+        <div class="sec-h lyrics-heading"><h2>歌詞</h2><span class="sec-btns lyrics-tools"><button id="btnTap" class="ghost small" title="曲を再生しながら各行の頭でタップ">タップで同期</button><button id="btnSyntax" class="ghost small" aria-expanded="false" title="ヘルプ・記法と微調整">?</button><label class="lyrics-snap"><input id="snap" type="checkbox"> 拍にスナップ</label></span></div>
         <textarea id="lyrics" rows="9" spellcheck="false" aria-label="歌詞（1行 = 1フレーズ）"></textarea>
         <div id="syntax" class="syntax" hidden>
-          <ul>
-            <li>1行が1フレーズ。空行は少し間を空けます</li>
-            <li><code>夜明けの色を/覚えてる</code> … <code>/</code> でカットの切れ目を指定</li>
-            <li><code>*透明*</code> … 強調（大きく・インパクト寄りの演出）</li>
-            <li>行末の <code>!</code> … フラッシュと揺れを入れる</li>
-            <li><code>歌詞|ruby or note</code> … 注釈レイアウトの小さな文字</li>
-            <li><code>[01:23.45]歌詞</code> … LRC のタイムスタンプをそのまま使用</li>
-            <li><code>[間奏 8]</code> … 8秒の間奏（歌詞は出さず、背景と装飾だけ）。秒数を省くと4秒、タップ同期やマーカーで長さを合わせられます</li>
-            <li><code>#</code> で始まる行 … コメント（無視）</li>
-          </ul>
+          <div class="syntax-sec">
+            <div class="syntax-title">📝 歌詞・区切り記法</div>
+            <ul>
+              <li>1行が1フレーズ。空行は少し間を空けます；<code>#</code> で始まる行はコメント（無視）</li>
+              <li><code>夜明けの色を/覚えてる</code> … <code>/</code> でカットの切れ目を指定（時間分割）</li>
+              <li><code>*透明*</code> … 強調（大きく・インパクト寄りの演出）</li>
+              <li>行末の <code>!</code> … フラッシュと揺れを入れる</li>
+              <li><code>歌詞|ruby or note</code> … 注釈レイアウトの小さな文字</li>
+              <li><code>[間奏 8]</code> … 8秒の間奏（装飾のみ）；<code>[01:23.45]</code> LRC タイムスタンプ</li>
+            </ul>
+          </div>
+          <div class="syntax-sec">
+            <div class="syntax-title">✨ レイアウト・微調整</div>
+            <ul>
+              <li><b>文字の縮小を防ぐ</b>：長文で文字が小さくなる時は <code>/</code> で分割するか、文字倍率で拡大</li>
+              <li><b>配置ドラッグ</b>：一時停止中に画面の文字をクリックしてドラッグし、位置を微調整</li>
+              <li><b>重心微調整</b>：文字をダブルクリックしてドラッグし、光学的な重心・高さを調整</li>
+              <li><b>字間調整 (カーニング)</b>：文字選択中に <kbd>Alt</kbd> + <kbd>←</kbd> / <kbd>→</kbd> で字間を調整</li>
+              <li><b>ベースライン</b>：<kbd>Alt</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> で上下位置を微調整</li>
+            </ul>
+          </div>
         </div>
-      </div>
+      </details>
 
       <div class="sec">
-        <div class="sec-h"><h2>行とカット</h2><span class="sec-btns"><button id="btnRestoreCards" class="ghost small" title="削除したタイトルカードや間奏カードを元に戻す" hidden>カード復元</button></span><span id="linesInfo" class="muted mono"></span></div>
+        <div class="sec-h"><h2>歌词与镜头</h2><span class="sec-btns"><button id="btnRestoreCards" class="ghost small" title="削除したタイトルカードや間奏カードを元に戻す" hidden>カード復元</button></span><span id="linesInfo" class="muted mono"></span></div>
         <ol id="lineList"></ol>
       </div>
-    </section>
+      <details id="mergedSettings" class="merged-settings">
+        <summary>全片设置与导出</summary>
 
-    <!-- ================= center: stage ================= -->
-    <section class="col col-stage" aria-label="プレビュー">
-      <div class="row stage-mode" role="group" aria-label="编辑模式">
-        <button type="button" id="btnShotMode" class="accent" aria-pressed="true">镜头编辑</button>
-        <button type="button" id="btnScreenFxMode" class="ghost" aria-pressed="false">画面动效</button>
-        <button type="button" id="btnFxCompare" class="ghost fx-only" aria-pressed="false">并排对比</button>
-        <button type="button" id="btnFxBypass" class="ghost fx-only" aria-pressed="false">旁路动效</button>
-      </div>
-      <div class="viewport" id="viewport"><span class="compare-label compare-only">最终画面</span><div class="compare-base compare-only"><span class="compare-label">原画面 · 不含时间点动效</span><canvas id="viewNoFx" width="1280" height="720" aria-label="无时间点动效的同步预览"></canvas></div><canvas id="view" width="1280" height="720"></canvas><div id="viewMsg" class="overlay-msg" hidden></div><div id="keyBadge" class="key-badge" hidden></div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div></div>
-      <div class="transport">
-        <button id="btnPlay" class="play" aria-label="再生">▶</button>
-        <span id="timeNow" class="tc">0.00</span><span class="tc muted">/</span><span id="timeDur" class="tc muted">0.00</span>
-        <input id="scrub" type="range" min="0" max="10000" value="0" aria-label="再生位置">
-        <span class="vol"><button id="btnMute" class="ghost small volume-icon" aria-pressed="false" title="クリックで消音／解除（プレビューだけ。書き出しの音量は変わりません）" aria-label="プレビュー音量"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path class="sound-wave" d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12"/></svg></button><input id="vol" type="range" min="0" max="100" value="80" aria-label="プレビューの音量"></span>
-        <select class="themeSel" aria-label="おまかせのテーマ" title="おまかせのテーマ（選ぶと、その方向の中でおまかせします。必要な部品のスイッチもオンになります）"><option value="">テーマなし</option><option value="lyricpv">文字PV</option><option value="kinetic">キネティック</option><option value="wa">和風</option><option value="horror">ホラー</option><option value="pop">ポップ</option><option value="ballad">バラード</option></select>
-        <button id="btnOmakase" class="primary" title="スタイル・雰囲気・演出・配色をまるごとランダムに（キー R）">おまかせ</button>
-      </div>
-      <div class="tl-bar">
-        <span class="tl-hint muted">行の区切り（上の目盛り）はドラッグで動かせます。<span class="kbd">Shift</span> で拍に吸着しない</span>
-        <span class="tl-btns">
-          <button id="btnUndoEdit" class="ghost small" title="歌詞・タイミングの変更を元に戻す（Ctrl+Z）" disabled>元に戻す</button>
-          <button id="btnRedoEdit" class="ghost small" title="やり直す（Ctrl+Y）" disabled>やり直す</button>
-          <button id="tlOut" class="ghost small icon-txt" title="縮小" aria-label="タイムラインを縮小">−</button>
-          <button id="tlIn" class="ghost small icon-txt" title="拡大（タイムライン上でホイールでも）" aria-label="タイムラインを拡大">＋</button>
-          <button id="tlFit" class="ghost small" title="全体を表示">全体</button>
-        </span>
-      </div>
-      <canvas id="timeline" tabindex="0" aria-label="时间轴：点击定位，拖动动效移动，拖动右边缘调整时长，左右方括号按帧微移"></canvas>
-      <section class="screen-fx-panel fx-only" aria-label="画面动效编辑">
-        <div class="row"><strong>画面动效轨</strong><label><input id="fxSnap" type="checkbox" checked> 吸附拍点</label><span class="muted">拖动移动 · 右边缘调时长 · Shift 临时取消吸附</span></div>
-        <details><summary>事件列表 · 精确选择</summary>
-        <div id="fxEventList" class="fx-event-list" role="group" aria-label="动效事件"></div>
-        </details>
-      </section>
-      <div class="cutinfo" id="cutInfo"></div>
-      <div id="cutPick" class="cut-pick pro-only" hidden>
-        <div class="cut-pick-h">
-          <strong id="cutPickTitle">手法</strong>
-          <span class="muted" id="cutPickHint">このカットだけ差し替え</span>
-          <div id="cutPickSearchWrap" class="cut-pick-search-wrap">
-            <input type="text" id="cutPickFilter" class="cut-pick-filter" placeholder="名前やコードで検索 (例: A1, B2)" aria-label="手法を名前・コードで検索">
-            <button type="button" id="cutPickFilterClear" class="cut-pick-filter-clear" aria-label="クリア" hidden>×</button>
-          </div>
-          <button type="button" id="cutPickAuto" class="ghost small">自動</button>
-          <button type="button" id="cutPickClose" class="ghost small" aria-label="閉じる">✕</button>
-        </div>
-        <div id="cutPickGrid" class="tech-grid checks"></div>
-      </div>
-    </section>
-
-    <!-- ================= right: look & output ================= -->
-    <section class="col col-right" aria-label="スタイルと書き出し">
-      <section class="fx-inspector-shell fx-only" aria-label="所选动效参数">
-        <h2>所选动效</h2><p id="fxSelectionHint" class="muted">点击轨道上的动效查看参数；修改只作用于这一条。</p>
-        <div class="event-inspector" id="eventInspector" hidden>
-          <strong id="evInspBadge"></strong><span id="evSource" class="muted"></span>
-          <label>类型 <select id="evInspType"></select></label>
-          <label>起点（秒）<input id="evTimeInput" type="number" min="0" step="0.01"></label>
-          <div class="row"><button type="button" id="evNudgeBack" class="ghost">−1 帧</button><span id="evTimeVal" class="mono"></span><button type="button" id="evNudgeFwd" class="ghost">+1 帧</button></div>
-          <label>强度 <span id="evAmpVal"></span><input id="evAmp" type="range" min="0" max="2.5" step="0.05"></label>
-          <label>时长 <span id="evDurVal"></span><input id="evDur" type="range" min="0.04" max="5" step="0.01"></label>
-          <button type="button" id="evPreview" class="accent" aria-pressed="false">循环预览所选</button>
-          <div class="row"><button type="button" id="evDisable" class="ghost">禁用</button><button type="button" id="evDuplicate" class="ghost">复制到播放头</button></div>
-          <button type="button" id="evReset" class="ghost">恢复自动值</button>
-          <div class="row"><button type="button" id="evDelete" class="ghost">删除动效</button><button type="button" id="evClose" class="ghost">取消选择</button></div>
-        </div>
-        <details id="fxGlobalSettings"><summary>全片风格与自动生成</summary><p class="muted">以下设置作用于全片。查看或修改单条自动事件不会关闭其他自动事件。</p>
-          <div class="row"><button type="button" id="btnFxModeToggle" class="ghost"></button><button type="button" id="btnBakeFx" class="ghost">全片转为手动</button><button type="button" id="btnClearFx" class="ghost">清空全片动效</button></div>
-          <div id="fxGlobalControls"></div>
-        </details>
-      </section>
-      <div id="easyPanel" class="easy" hidden>
-        <div class="easy-hero">
-          <button id="btnOmakaseBig" class="omakase">おまかせで作る</button>
-          <label class="theme-row">テーマ<select class="themeSel" aria-label="おまかせのテーマ"><option value="">テーマなし</option><option value="lyricpv">文字PV</option><option value="kinetic">キネティック</option><option value="wa">和風</option><option value="horror">ホラー</option><option value="pop">ポップ</option><option value="ballad">バラード</option></select><small class="muted">選ぶと、その方向の中でおまかせします</small></label>
-          <p class="hint">押すたびに、スタイル・雰囲気・動き・配色・構成がまるごと変わります。キーボードの <span class="kbd">R</span> でも実行できます。</p>
-          <div class="hist-row">
-            <button id="btnPrev2" class="ghost">◀ 前の案</button>
-            <span id="histPos" class="muted mono"></span>
-            <button id="btnNext2" class="ghost">次の案 ▶</button>
-          </div>
-          <div class="pick-sets">
-            <label class="check"><input id="eExtra" class="extra-toggle" type="checkbox"><span>追加分の演出も使う<small>最初の公開版のあとに追加した約350の演出・配色セット12・書体6も、おまかせやシャッフルの候補にします（オフのときは最初の公開版の演出だけ）</small></span></label>
-            <label class="check"><input id="eWa" class="wa-toggle" type="checkbox" checked><span>和風の演出も使う<small>提灯・はがき・障子・扇・家紋・青海波・桜の花びらなどの和風グラフィック。オフにすると、おまかせやシャッフルで選ばれません</small></span></label>
-            <label class="check"><input class="typo-toggle" type="checkbox" checked><span>文字PV系の部品を使う<small>線・数字・字組みだけで見せる、文字PVらしい部品（約50）</small></span></label>
-            <label class="check"><input class="kinetic-toggle" type="checkbox" checked><span>キネティックの部品を使う<small>語ごとに動く・跳ねる・積み上がる、動き重視の部品（約50）</small></span></label>
-            <label class="check"><input class="horror-toggle" type="checkbox"><span>ホラーの演出も使う<small>不気味な雰囲気の部品（約50）と配色セット3。オンにすると、おまかせの雰囲気に「ホラー」が加わります</small></span></label>
-            <label class="check"><input class="unify-toggle" type="checkbox"><span>統一感</span></label>
-            <label class="check"><input class="typeset-toggle" type="checkbox"><span>文字整列</span></label>
-          </div>
-        </div>
-        <div class="easy-sec">
-          <h3>いまの案</h3>
-          <div id="easyNow" class="now"></div>
-        </div>
-        <div class="easy-sec">
-          <h3>ここだけ変える</h3>
-          <div class="easy-grid">
-            <button id="eStyle" title="スタイルだけ別のものに">スタイル</button>
-            <button id="ePalette" title="アクセント・ズレ色A/Bをランダムに">配色</button>
-            <button id="eMood" title="動き・グリッチ・使う手法の雰囲気だけ">雰囲気</button>
-            <button id="eCut" title="レイアウトと動きの組み合わせだけ">構成</button>
-          </div>
-        </div>
-        <div class="easy-sec">
-          <h3>書き出し</h3>
-          <div class="fields">
-            <label class="field">画面比<select id="eAspect"><option value="16:9">16:9</option><option value="9:16">9:16 縦</option><option value="4:3">4:3</option><option value="3:4">3:4 縦</option><option value="1:1">1:1</option><option value="4:5">4:5 縦</option><option value="21:9">21:9</option></select></label>
-            <label class="field">解像度<select id="eRes"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option><option value="2160">4K</option></select></label>
-            <label class="field">fps<select id="eFps"><option>24</option><option>30</option><option>60</option></select></label>
-            <label class="field field-wide">背景<select id="eKey"><option value="off">通常（スタイルの背景）</option><option value="green">グリーンバック（合成用）</option><option value="black">ブラックバック（合成用）</option></select></label>
-          </div>
-          <label class="check center-free"><input id="eCenter" class="center-toggle" type="checkbox"><span>中央を空ける（キャラクター用）<small>中央にキャラクターなどを重ねる前提で、文字と演出を横長の画面では左右、縦長の画面では上下に、行ごとに交互に置きます。背景と画面効果は全体のままです（プレビューには空ける範囲を点線で表示）</small></span></label>
-          <label class="row center-dir" hidden>縦長のとき<select class="centerDirSel" aria-label="縦長の画面での分け方"><option value="tb">上下に分ける</option><option value="lr">左右に分ける</option></select></label>
-          <div class="rng-row"><span class="rng-lab">書き出す範囲</span><select class="rngFrom" aria-label="書き出す範囲の最初の行"></select><span class="muted">〜</span><select class="rngTo" aria-label="書き出す範囲の最後の行"></select><span class="rngInfo muted mono"></span></div>
-          <div class="outbtns"><button id="eMP4" class="primary">MP4 を書き出す</button><button id="eMP4File" class="ghost mp4file" hidden title="保存先のファイルを先に選び、そこへ直接書き込みます。長い曲・1080p 以上でブラウザのメモリが足りずに失敗するときに使ってください（Chrome / Edge）">大きな動画用（ファイルに直接保存）</button><button id="eLRC" class="ghost" title="各行の開始時刻を付けた歌詞（.lrc）を書き出します。書き出す範囲を選んでいるときは、その行だけを動画の頭からの時刻で書き出します">LRC を書き出す</button></div>
-          <div class="outbtns out-png"><button id="ePNG" class="ghost">連番PNG（ZIP）</button><button id="ePNGA" class="ghost">透過PNG（ZIP・背景なし）</button><button id="ePNGL" class="ghost" title="後景（背景のグラフィックと歌詞の後ろの装飾）と前景（歌詞とその装飾・ゴースト）を、別々のフォルダ（back / front）に透過PNGで書き出します。画面全体の演出は両方にかかるので、前景を後景の上に重ねると通常の見た目になります">透過PNG 前景／後景（ZIP）</button></div>
-          <button class="terms-open linkish">書き出した動画の権利について</button>
-          <div class="exp-box" hidden>
-            <button class="exp-share primary" hidden>共有して保存</button>
-            <div class="progress"><i class="exp-bar"></i></div>
-            <div class="row" style="justify-content:space-between;margin-top:6px"><span class="exp-text muted mono">—</span><button class="exp-cancel ghost small">中止</button></div>
-          </div>
-        </div>
-      </div>
       <nav class="tabs" role="tablist">
         <button role="tab" data-tab="style" aria-selected="true">スタイル</button>
         <button role="tab" data-tab="fx" aria-selected="false">演出</button>
@@ -357,11 +229,11 @@
 
       <div class="tabpane" data-pane="tech" hidden>
         <div class="pick-sets">
-          <label class="check"><input id="tExtra" class="extra-toggle" type="checkbox"><span>追加分の演出も使う<small>「追加」印の手法・スタイル・書体。オフのときは、おまかせやシャッフルで最初の公開版の演出だけを使います</small></span></label>
-          <label class="check"><input id="tWa" class="wa-toggle" type="checkbox" checked><span>和風の演出も使う<small>「和」印の手法とスタイル。オフにすると、おまかせやシャッフルでは選ばれません（追加分の判定のあとに適用。行ごとに手動で指定した場合は使えます）</small></span></label>
-          <label class="check"><input class="typo-toggle" type="checkbox" checked><span>文字PV系の部品を使う<small>「文」印の手法。オフにすると、おまかせやシャッフルでは選ばれません</small></span></label>
-          <label class="check"><input class="kinetic-toggle" type="checkbox" checked><span>キネティックの部品を使う<small>「キ」印の手法。オフにすると、おまかせやシャッフルでは選ばれません</small></span></label>
-          <label class="check"><input class="horror-toggle" type="checkbox"><span>ホラーの演出も使う<small>「ホ」印の手法とスタイル。おまかせでは雰囲気が「ホラー」のときだけ使います</small></span></label>
+          <label class="check" title="「追加」印の手法・スタイル・書体。オフのときは、おまかせやシャッフルで最初の公開版の演出だけを使います"><input id="tExtra" class="extra-toggle" type="checkbox"><span>追加分の演出も使う</span></label>
+          <label class="check" title="「和」印の手法とスタイル。オフにすると、おまかせやシャッフルでは選ばれません（追加分の判定のあとに適用。行ごとに手動で指定した場合は使えます）"><input id="tWa" class="wa-toggle" type="checkbox" checked><span>和風の演出も使う</span></label>
+          <label class="check" title="「文」印の手法。オフにすると、おまかせやシャッフルでは選ばれません"><input class="typo-toggle" type="checkbox" checked><span>文字PV系の部品を使う</span></label>
+          <label class="check" title="「キ」印の手法。オフにすると、おまかせやシャッフルでは選ばれません"><input class="kinetic-toggle" type="checkbox" checked><span>キネティックの部品を使う</span></label>
+          <label class="check" title="「ホ」印の手法とスタイル。おまかせでは雰囲気が「ホラー」のときだけ使います"><input class="horror-toggle" type="checkbox"><span>ホラーの演出も使う</span></label>
         </div>
         <div class="row" style="margin-bottom:10px"><input id="techFilter" type="text" placeholder="手法を名前・コードで検索 (例: A1, B2)" style="flex:1" aria-label="手法を名前・コードで検索"><span id="techTotal" class="muted mono"></span></div>
         <p class="note">画面に見えているプレビューは自動でループします。</p>
@@ -373,11 +245,25 @@
           <label class="field">画面比<select id="outAspect"><option value="16:9">16:9</option><option value="9:16">9:16 縦</option><option value="4:3">4:3</option><option value="3:4">3:4 縦</option><option value="1:1">1:1</option><option value="4:5">4:5 縦</option><option value="21:9">21:9</option></select></label>
           <label class="field">解像度<select id="outRes"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option><option value="2160">4K</option></select></label>
           <label class="field">fps<select id="outFps"><option>24</option><option>30</option><option>60</option></select></label>
-          <label class="field">画質<select id="outQuality"><option value="standard">標準</option><option value="high">高</option><option value="max">最高</option></select></label>
+          <label class="field">画质<select id="outQuality"><option value="high" selected>高画質（推奨）</option><option value="compact">軽量版（細部が失われる場合があります）</option><option value="standard">標準画質</option><option value="smart">自動画質（容量優先）</option><option value="max">最高画質（大容量）</option></select></label>
           <label class="field field-wide">背景<select id="outKey"><option value="off">通常（スタイルの背景）</option><option value="green">グリーンバック（合成用）</option><option value="black">ブラックバック（合成用）</option></select></label>
         </div>
-        <p class="note key-note">グリーンバック／ブラックバックにすると、白い文字と演出だけを単色の背景の上に描きます（背景の模様・紙の質感・粒子・周辺減光は入りません）。プレビューにもそのまま反映されます。グリーンバックは動画編集ソフトのクロマキーで、ブラックバックは「スクリーン」合成や輝度キーで抜いて、別の映像の上に重ねられます。</p>
-        <label class="check center-free"><input id="outCenter" class="center-toggle" type="checkbox"><span>中央を空ける（キャラクター用）<small>中央にキャラクターなどを重ねる前提で、文字と演出を横長の画面では左右、縦長の画面では上下に、行ごとに交互に置きます。背景と画面効果は全体のままです（プレビューには空ける範囲を点線で表示）</small></span></label>
+        <div id="smartCompressBox" class="smart-compress-box" style="margin: 10px 0 12px; padding: 10px 12px; background: var(--raised); border: 1px solid var(--line2); border-radius: var(--r); font-size: 12px; line-height: 1.5;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 5px;">
+            <span style="font-weight:600; display:flex; align-items:center; gap:6px;">
+              <span id="smartCompDot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
+              <span id="smartCompTitle">書き出し設定</span>
+            </span>
+            <span id="smartSavingTag" class="mono" style="padding: 1px 6px; border-radius: 3px; background: rgba(16,185,129,0.15); color: #10b981; font-weight: 600; font-size: 11px;">— Mbps</span>
+          </div>
+          <div id="smartCompDesc" class="muted" style="margin-bottom: 8px; font-size: 11px;">容量は目安です。実際のサイズは内容により変わります。</div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 11px;" class="mono muted">
+            <div>高画質の目安: <span id="smartOrigEst" style="color:var(--text);">—</span></div>
+            <div>選択設定の目安: <strong id="smartOptEst" style="color:var(--cyan);">—</strong></div>
+          </div>
+        </div>
+        <details class="custom-help key-help" style="margin-top:6px;margin-bottom:6px"><summary aria-label="设置说明" title="グリーンバック／ブラックバックの説明">❓</summary><div class="custom-help-copy"><p class="note key-note">グリーンバック／ブラックバックにすると、白い文字と演出だけを単色の背景の上に描きます（背景の模様・紙の質感・粒子・周辺減光は入りません）。プレビューにもそのまま反映されます。グリーンバックは動画編集ソフトのクロマキーで、ブラックバックは「スクリーン」合成や輝度キーで抜いて、別の映像の上に重ねられます。</p></div></details>
+        <label class="check center-free" title="中央にキャラクターなどを重ねる前提で、文字と演出を横長の画面では左右、縦長の画面では上下に、行ごとに交互に置きます。背景と画面効果は全体のままです（プレビューには空ける範囲を点線で表示）"><input id="outCenter" class="center-toggle" type="checkbox"><span>中央を空ける（キャラクター用）</span></label>
           <label class="row center-dir" hidden>縦長のとき<select class="centerDirSel" aria-label="縦長の画面での分け方"><option value="tb">上下に分ける</option><option value="lr">左右に分ける</option></select></label>
         <label class="row" style="gap:6px;margin-top:10px"><input id="outAudio" type="checkbox" checked> 曲を動画に含める</label>
         <div class="rng-row"><span class="rng-lab">書き出す範囲</span><select class="rngFrom" aria-label="書き出す範囲の最初の行"></select><span class="muted">〜</span><select class="rngTo" aria-label="書き出す範囲の最後の行"></select><span class="rngInfo muted mono"></span></div>
@@ -397,6 +283,88 @@
         <button class="terms-open linkish" style="margin-top:10px">書き出した動画・画像の権利とライセンスについて</button>
         <p class="note" id="codecNote">書き出しはこのブラウザの中で行われます（Chrome / Edge 推奨）。</p>
       </div>
+
+      </details>
+    </section>
+
+    <!-- ================= center: stage ================= -->
+    <section class="col col-stage" aria-label="プレビュー">
+      <div class="row stage-mode" role="group" aria-label="编辑模式">
+        <button type="button" id="btnShotMode" class="accent" aria-pressed="true">镜头编辑</button>
+        <button type="button" id="btnScreenFxMode" class="ghost" aria-pressed="false">画面动效</button>
+        <button type="button" id="btnFxCompare" class="ghost fx-only" aria-pressed="false">并排对比</button>
+        <button type="button" id="btnFxBypass" class="ghost fx-only" aria-pressed="false">旁路动效</button>
+      </div>
+      <div class="viewport" id="viewport"><span class="compare-label compare-only">最终画面</span><div class="compare-base compare-only"><span class="compare-label">原画面 · 不含时间点动效</span><canvas id="viewNoFx" width="1280" height="720" aria-label="无时间点动效的同步预览"></canvas></div><canvas id="view" width="1280" height="720"></canvas><div id="viewMsg" class="overlay-msg" hidden></div><div id="keyBadge" class="key-badge" hidden></div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div></div>
+      <div class="transport">
+        <button id="btnPlay" class="play" aria-label="再生">▶</button>
+        <span id="timeNow" class="tc">0.00</span><span class="tc muted">/</span><span id="timeDur" class="tc muted">0.00</span>
+        <input id="scrub" type="range" min="0" max="10000" value="0" aria-label="再生位置">
+        <span class="vol"><button id="btnMute" class="ghost small volume-icon" aria-pressed="false" title="クリックで消音／解除（プレビューだけ。書き出しの音量は変わりません）" aria-label="プレビュー音量"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path class="sound-wave" d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12"/></svg></button><input id="vol" type="range" min="0" max="100" value="80" aria-label="プレビューの音量"></span>
+        <select class="themeSel" aria-label="おまかせのテーマ" title="おまかせのテーマ（選ぶと、その方向の中でおまかせします。必要な部品のスイッチもオンになります）"><option value="">テーマなし</option><option value="lyricpv">文字PV</option><option value="kinetic">キネティック</option><option value="wa">和風</option><option value="horror">ホラー</option><option value="pop">ポップ</option><option value="ballad">バラード</option></select>
+        <button id="btnOmakase" class="primary" title="スタイル・雰囲気・演出・配色をまるごとランダムに（キー R）">おまかせ</button>
+      </div>
+      <div class="tl-bar" title="行の区切り（上の目盛り）はドラッグで動かせます。Shift で拍に吸着しない">
+        <span class="tl-btns">
+          <button id="btnUndoEdit" class="ghost small" title="歌詞・タイミングの変更を元に戻す（Ctrl+Z）" disabled>元に戻す</button>
+          <button id="btnRedoEdit" class="ghost small" title="やり直す（Ctrl+Y）" disabled>やり直す</button>
+          <button id="tlOut" class="ghost small icon-txt" title="縮小" aria-label="タイムラインを縮小">−</button>
+          <button id="tlIn" class="ghost small icon-txt" title="拡大（タイムライン上でホイールでも）" aria-label="タイムラインを拡大">＋</button>
+          <button id="tlFit" class="ghost small" title="全体を表示">全体</button>
+        </span>
+      </div>
+      <canvas id="timeline" tabindex="0" aria-label="时间轴：点击定位，拖动动效移动，拖动右边缘调整时长，左右方括号按帧微移" title="行の区切り（上の目盛り）はドラッグで動かせます。Shift で拍に吸着しない"></canvas>
+      <section class="screen-fx-panel fx-only" aria-label="画面动效编辑">
+        <div class="row" title="拖动移动 · 右边缘调时长 · Shift 临时取消吸附"><strong>画面动效轨</strong><label><input id="fxSnap" type="checkbox" checked> 吸附拍点</label></div>
+        <details><summary>事件列表 · 精确选择</summary>
+        <div id="fxEventList" class="fx-event-list" role="group" aria-label="动效事件"></div>
+        </details>
+      </section>
+    </section>
+
+    <!-- ================= right: look & output ================= -->
+    <section class="col col-right" aria-label="スタイルと書き出し">
+      <section class="fx-inspector-shell fx-only" aria-label="所选动效参数">
+        <h2>所选动效</h2>
+        <div class="event-inspector" id="eventInspector" hidden>
+          <strong id="evInspBadge"></strong><span id="evSource" class="muted"></span>
+          <label>类型 <select id="evInspType"></select></label>
+          <label>起点（秒）<input id="evTimeInput" type="number" min="0" step="0.01"></label>
+          <div class="row"><button type="button" id="evNudgeBack" class="ghost">−1 帧</button><span id="evTimeVal" class="mono"></span><button type="button" id="evNudgeFwd" class="ghost">+1 帧</button></div>
+          <label>强度 <span id="evAmpVal"></span><input id="evAmp" type="range" min="0" max="2.5" step="0.05"></label>
+          <label>时长 <span id="evDurVal"></span><input id="evDur" type="range" min="0.04" max="5" step="0.01"></label>
+          <button type="button" id="evPreview" class="accent" aria-pressed="false">循环预览所选</button>
+          <div class="row"><button type="button" id="evDisable" class="ghost">禁用</button><button type="button" id="evDuplicate" class="ghost">复制到播放头</button></div>
+          <button type="button" id="evReset" class="ghost">恢复自动值</button>
+          <div class="row"><button type="button" id="evDelete" class="ghost">删除动效</button><button type="button" id="evClose" class="ghost">取消选择</button></div>
+        </div>
+        <details id="fxGlobalSettings"><summary>全片风格与自动生成</summary>
+          <div class="row"><button type="button" id="btnFxModeToggle" class="ghost"></button><button type="button" id="btnBakeFx" class="ghost">全片转为手动</button><button type="button" id="btnClearFx" class="ghost">清空全片动效</button></div>
+          <div id="fxGlobalControls"></div>
+        </details>
+      </section>
+    </section>
+    <section id="shotEditor" class="shot-editor" aria-label="镜头调节" hidden>
+      <header class="shot-editor-heading">
+        <strong id="shotEditorTitle">镜头调节</strong>
+        <div class="cutinfo" id="cutInfo"></div>
+        <button type="button" id="cutPickClose" class="ghost small" aria-label="收起镜头调节">收起</button>
+      </header>
+      <div class="shot-editor-body">
+        <nav id="shotCategories" class="shot-categories" role="tablist" aria-label="镜头参数分类" aria-orientation="vertical"></nav>
+        <div id="cutPick" class="cut-pick" role="tabpanel" hidden>
+          <div class="cut-pick-h">
+            <strong id="cutPickTitle">手法</strong>
+            <div id="cutPickSearchWrap" class="cut-pick-search-wrap">
+              <input type="text" id="cutPickFilter" class="cut-pick-filter" placeholder="名前やコードで検索 (例: A1, B2)" aria-label="手法を名前・コードで検索">
+              <button type="button" id="cutPickFilterClear" class="cut-pick-filter-clear" aria-label="クリア" hidden>×</button>
+            </div>
+            <button type="button" id="cutPickAuto" class="ghost small">自動</button>
+          </div>
+          <div id="shotVibeControls" class="shot-vibe-controls"></div>
+          <div id="cutPickGrid" class="tech-grid checks"></div>
+        </div>
+      </div>
     </section>
   </main>
 </div>
@@ -412,7 +380,7 @@
       <li>スタイル・演出・配色・書体などの設定</li>
       <li>案の履歴（◀ ▶）と、歌詞・タイミングの「元に戻す」の履歴</li>
     </ul>
-    <p class="terms-sub">表示モード（かんたん／詳細）・プレビューの音量・画面の言語はそのままです。保存したプロジェクトファイル（.json）も消えません。</p>
+    <p class="terms-sub">プレビューの音量・画面の言語はそのままです。保存したプロジェクトファイル（.json）も消えません。</p>
     <div class="terms-foot"><span></span><span class="row"><button value="cancel" class="ghost">やめる</button><button value="reset" class="danger">初期化する</button></span></div>
   </form>
 </dialog>

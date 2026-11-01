@@ -84,7 +84,7 @@ BODY = {
     '<li>タイミング・行ごとの指定・書き出す範囲</li>': '<li>Waktu, pengaturan per baris, dan rentang ekspor</li>',
     '<li>スタイル・演出・配色・書体などの設定</li>': '<li>Gaya, efek, palet, font, dan pengaturan lainnya</li>',
     '<li>案の履歴（◀ ▶）と、歌詞・タイミングの「元に戻す」の履歴</li>': '<li>Riwayat variasi (◀ ▶) dan riwayat Urungkan untuk lirik / waktu</li>',
-    '<p class="terms-sub">表示モード（かんたん／詳細）・プレビューの音量・画面の言語はそのままです。保存したプロジェクトファイル（.json）も消えません。</p>': '<p class="terms-sub">Mode editor (Sederhana / Lanjutan), volume pratinjau, dan bahasa antarmuka tidak berubah. File proyek yang sudah disimpan (.json) juga tidak terhapus.</p>',
+    '<p class="terms-sub">プレビューの音量・画面の言語はそのままです。保存したプロジェクトファイル（.json）も消えません。</p>': '<p class="terms-sub">Volume pratinjau dan bahasa antarmuka tidak berubah. File proyek yang sudah disimpan (.json) juga tidak terhapus.</p>',
     '<button value="cancel" class="ghost">やめる</button><button value="reset" class="danger">初期化する</button>': '<button value="cancel" class="ghost">Batal</button><button value="reset" class="danger">Atur ulang</button>',
     '<li><code>[間奏 8]</code> … 8秒の間奏（歌詞は出さず、背景と装飾だけ）。秒数を省くと4秒、タップ同期やマーカーで長さを合わせられます</li>': '<li><code>[interlude 8]</code> … bagian instrumental 8 detik (tanpa lirik, hanya latar dan dekorasi). Kalau angkanya dihilangkan, durasinya 4 detik; ketuk atau marker bisa dipakai untuk mengatur durasinya</li>',
     '<button class="tour-skip ghost small">スキップ</button>': '<button class="tour-skip ghost small">Lewati</button>',
@@ -391,3 +391,6 @@ EXPORT = {
     'キャンセルしました': 'Dibatalkan', 'フレーム ': 'Frame ',
     '音声をエンコード中': 'Mengodekan audio', '完了': 'Selesai',
 }
+
+from .export_copy import apply_quality_copy
+apply_quality_copy(globals(), 'id')

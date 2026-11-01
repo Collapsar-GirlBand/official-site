@@ -56,7 +56,7 @@ J.layoutText = (it) => {
     const sets = lines.map(line => { const arr = [...line]; return { arr, ts: J.typesetLine(arr) }; });
     const widths = sets.map(({ arr, ts }) => {
       let w = 0;
-      arr.forEach((ch, i) => { w += (J.metrics.adv(it.font, ch) * ts[i].adv * ts[i].f + ts[i].gap) * size + (i < arr.length - 1 ? track * size : 0); });
+      arr.forEach((ch, i) => { const fk = J.resolveGlyph ? J.resolveGlyph(it.font, ch) : it.font, fc = J.fontCalibration ? J.fontCalibration(fk) : {}; const ms = size * (fc.size || 1); w += (J.metrics.adv(fk, ch) * ts[i].adv * ts[i].f * (fc.advance || 1) + ts[i].gap + (fc.tracking || 0)) * ms + (i < arr.length - 1 ? track * size : 0); });
       return w;
     });
     const maxW = Math.max(1, ...widths);
@@ -64,29 +64,29 @@ J.layoutText = (it) => {
       let x = it.align === 'left' ? 0 : it.align === 'right' ? -widths[li] : -widths[li] / 2;
       const y = (li - (lines.length - 1) / 2) * lead;
       arr.forEach((ch, ci) => {
-        const t = ts[ci], a = J.metrics.adv(it.font, ch) * size * t.adv * t.f;
-        x += t.gap * size;
+        const t = ts[ci], fk = J.resolveGlyph ? J.resolveGlyph(it.font, ch) : it.font, fc = J.fontCalibration ? J.fontCalibration(fk) : {}, ms = size * (fc.size || 1), a = J.metrics.adv(fk, ch) * ms * t.adv * t.f * (fc.advance || 1);
+        x += (t.gap + (fc.tracking || 0)) * ms;
         // smaller / larger glyphs keep the line's baseline
-        out.push({ ch, i: gi++, li, ci, n: arr.length, x: x + a / 2, y: y + (1 - t.f) * size * 0.36, w: a, h: size * t.f, r90: false, vx: 0, vy: 0, fs: t.f });
+        out.push({ ch, i: gi++, li, ci, n: arr.length, font: fk, cal: fc, x: x + a / 2, y: y + (1 - t.f) * ms * 0.36 + (fc.baseline || 0) * size, w: a, h: ms * t.f, r90: false, vx: 0, vy: 0, fs: t.f });
         x += a + track * size;
       });
     });
     out.W = maxW; out.H = lines.length * lead - (lead - size);
   } else {
     const sets = lines.map(line => { const arr = [...line]; return { arr, ts: J.typesetLine(arr) }; });
-    const heights = sets.map(({ arr, ts }) => arr.reduce((h, ch, i) => h + (vAdv(it.font, ch, size) * ts[i].adv * ts[i].f + ts[i].gap * size) + track * size, 0) - track * size);
+      const heights = sets.map(({ arr, ts }) => arr.reduce((h, ch, i) => { const fk = J.resolveGlyph ? J.resolveGlyph(it.font, ch) : it.font, fc = J.fontCalibration ? J.fontCalibration(fk) : {}, ms = size * (fc.size || 1); return h + (vAdv(fk, ch, ms) * ts[i].adv * ts[i].f * (fc.advance || 1) + (ts[i].gap + (fc.tracking || 0)) * ms) + track * size; }, 0) - track * size);
     const maxH = Math.max(1, ...heights);
     sets.forEach(({ arr, ts }, li) => {
       let y = it.align === 'left' ? 0 : -heights[li] / 2;         // 'left' == top-aligned for vertical
       const x = -(li - (lines.length - 1) / 2) * lead;
       arr.forEach((ch, ci) => {
-        const t = ts[ci], a = vAdv(it.font, ch, size) * t.adv * t.f;
-        y += t.gap * size;
+        const t = ts[ci], fk = J.resolveGlyph ? J.resolveGlyph(it.font, ch) : it.font, fc = J.fontCalibration ? J.fontCalibration(fk) : {}, ms = size * (fc.size || 1), a = vAdv(fk, ch, ms) * t.adv * t.f * (fc.advance || 1);
+        y += (t.gap + (fc.tracking || 0)) * ms;
         const r90 = J.VERT_ROTATE.includes(ch) || /[A-Za-z0-9]/.test(ch);
         let vx = 0, vy = 0;
         if (J.isSmallKana(ch)) { vx = 0.11 * size; vy = -0.11 * size; }
         if ('、。，．'.includes(ch)) { vx = 0.3 * size; vy = -0.3 * size; }
-        out.push({ ch, i: gi++, li, ci, n: arr.length, x, y: y + a / 2, w: size * t.f, h: a, r90, vx, vy, fs: t.f });
+        out.push({ ch, i: gi++, li, ci, n: arr.length, font: fk, cal: fc, x, y: y + a / 2 + (fc.baseline || 0) * size, w: ms * t.f, h: a, r90, vx, vy, fs: t.f });
         y += a + track * size;
       });
     });
@@ -217,11 +217,14 @@ J.drawItem = (env, it) => {
     const a = baseAlpha * (c && c.a != null ? c.a : 1);
     if (a <= 0.002) continue;
     const ch = (c && c.ch) || g.ch;
+    const drawFont = c && c.ch && J.resolveGlyph ? J.resolveGlyph(it.font, ch) : (g.font || it.font), drawCal = J.fontCalibration ? J.fontCalibration(drawFont) : {};
+    ctx.font = wg && !(J.FONTS[drawFont] && J.FONTS[drawFont].combo) ? J.varFontCSS(drawFont, size, wg, drawCal) : J.fontCSS(drawFont, size, drawCal);
     const cs = (c && c.s != null ? c.s : 1) * (g.fs || 1);
     const gx = g.x * sx + g.vx * sx + (c ? c.dx || 0 : 0);
     const gy = g.y * sy + g.vy * sy + (c ? c.dy || 0 : 0);
     const crot = (c ? c.rot || 0 : 0) + (g.r90 ? 90 : 0);
-    const csx = sx * cs * (c && c.sx ? c.sx : 1), csy = sy * cs * (c && c.sy ? c.sy : 1);
+    const csx = sx * cs * (c && c.sx ? c.sx : 1) * (drawCal.width || 1), csy = sy * cs * (c && c.sy ? c.sy : 1);
+    const currentStroke = Math.max(0, (it.stroke || 0) + (drawCal.stroke || 0));
     const gcol = (!ghostPass && c && c.color) || col;
     boxes.push({ x: gx, y: gy, w: g.w * sx * cs / (g.fs || 1), h: g.h * sy * cs / (g.fs || 1) });
     // モーフ: record where each glyph ends up (device space) / leave the glyphs out while the morph draws them
@@ -229,11 +232,11 @@ J.drawItem = (env, it) => {
       ctx.save(); ctx.translate(gx, gy); if (crot) ctx.rotate(crot * J.DEG); if (csx !== 1 || csy !== 1) ctx.scale(csx, csy);
       const T = ctx.getTransform(); ctx.restore();
       env.glyphLog.push({ ch, m: [T.a, T.b, T.c, T.d, T.e, T.f], font: ctx.font, px: size, color: typeof gcol === 'string' ? gcol : (it.color || '#fff'), a: a * (fill ? fillA : 1),
-        stroke: it.stroke > 0 ? it.stroke : 0, strokeColor: typeof sCol === 'string' ? sCol : null, fill: fill && !(c && c.outline) });
+        stroke: currentStroke > 0 ? currentStroke : 0, strokeColor: typeof sCol === 'string' ? sCol : null, fill: fill && !(c && c.outline) });
     }
     if (env.hideText) continue;
     // ---- piece mode ----
-    if (it.pieceFn && fill && !(c && c.ch) && !it.gradient && dash == null && !(c && (c.clipY || c.clipX || c.outline))) {
+    if (it.pieceFn && !drawCal.stroke && fill && !(c && c.ch) && !it.gradient && dash == null && !(c && (c.clipY || c.clipX || c.outline))) {
       if (drawPieces(env, it, g, ch, gx, gy, crot, csx, csy, gcol, a, pxScale * cs)) continue;
     }
     ctx.save();
@@ -254,11 +257,21 @@ J.drawItem = (env, it) => {
       for (let k = ext.n; k >= 1; k--) { ctx.globalAlpha = a * ea * (ext.fade ? 1 - (k - 1) / ext.n * 0.85 : 1); ctx.fillText(ch, ext.dx * k / ext.n / csx, ext.dy * k / ext.n / csy); }
       ctx.globalAlpha = a;
     }
-    if (fill && !outlineOnly && fillA > 0.002 && dash == null) { ctx.globalAlpha = a * fillA; ctx.fillStyle = grad || gcol; ctx.fillText(ch, 0, 0); ctx.globalAlpha = a; }
-    if (it.stroke > 0 || outlineOnly || dash != null) {
+    if (fill && !outlineOnly && fillA > 0.002 && dash == null) {
+      ctx.globalAlpha = a * fillA; ctx.fillStyle = grad || gcol;
+      if (drawCal.stroke < 0) {
+        const extent = Math.ceil(size * (drawCal.size || 1) * 3), mask = document.createElement('canvas'); mask.width = mask.height = extent;
+        const mx = mask.getContext('2d'); mx.translate(extent / 2, extent / 2); mx.font = ctx.font; mx.textAlign = 'center'; mx.textBaseline = 'middle'; mx.fillStyle = '#fff'; mx.fillText(ch, 0, 0);
+        mx.globalCompositeOperation = 'destination-out'; mx.lineWidth = -drawCal.stroke * 2; mx.strokeText(ch, 0, 0);
+        mx.globalCompositeOperation = 'source-in'; mx.fillStyle = grad || gcol; mx.fillRect(-extent / 2, -extent / 2, extent, extent);
+        ctx.drawImage(mask, -extent / 2, -extent / 2);
+      } else ctx.fillText(ch, 0, 0);
+      ctx.globalAlpha = a;
+    }
+    if (currentStroke > 0 || outlineOnly || dash != null) {
       if (shadow && fill) { ctx.shadowColor = 'rgba(0,0,0,0)'; }
       ctx.lineJoin = 'round'; ctx.miterLimit = 2;
-      ctx.lineWidth = (it.stroke > 0 ? it.stroke : Math.max(1, size * 0.02)) / Math.sqrt(Math.abs(csx * csy));
+      ctx.lineWidth = (currentStroke > 0 ? currentStroke : Math.max(1, size * 0.02)) / Math.sqrt(Math.abs(csx * csy));
       ctx.strokeStyle = (!ghostPass && c && c.color) || sCol;
       if (dash != null) { const L = size * 3.2; ctx.setLineDash([Math.max(0.01, L * dash), L]); ctx.lineDashOffset = 0; }
       else if (it.strokeDash) ctx.setLineDash(it.strokeDash);
@@ -282,15 +295,17 @@ J.weightNow = (env) => {
   const k = J.clamp(((env.ltb ?? env.lt) || 0) / span);
   return 1e-3 + (1 - Math.pow(1 - k, 3)) * (1 - 1e-3);
 };
-J.varFontCSS = (key, px, e) => {
+J.varFontCSS = (key, px, e, cal) => {
   const f = J.FONTS[key] || {}, serif = f.kind === 'mincho';
-  const w = Math.round(serif ? 200 + e * 700 : 100 + e * 800);
-  return `${w} ${px.toFixed(2)}px ${serif ? '"Noto Serif JP"' : '"Noto Sans JP"'},${f.fb || 'sans-serif'}`;
+  const c = cal || {};
+  const targetWeight = Math.round((serif ? 200 + e * 700 : 100 + e * 800) + (+c.weight || 0));
+  const w = Math.max(100, Math.min(900, targetWeight));
+  return `${w} ${(px * (c.size || 1)).toFixed(2)}px ${serif ? '"Noto Serif JP"' : '"Noto Sans JP"'},${f.fb || 'sans-serif'}`;
 };
 
 /* returns true if pieces were drawn (i.e. not at rest) */
 function drawPieces(env, it, g, ch, gx, gy, crot, sx, sy, col, alpha, px) {
-  const glyph = J.glyphs.get(it.font, ch, px);
+  const glyph = J.glyphs.get(g.font || it.font, ch, px);
   const list = it.shatter ? fragList(glyph, it.seed || 1) : glyph.pieces;
   if (!list.length) return false;
   const size = it.size;

@@ -144,6 +144,8 @@ function mergeProject(p) {
   const en = J.defaultProject().enabled;
   for (const g of Object.keys(en)) en[g] = Object.assign(en[g], ((p && p.enabled) || {})[g] || {});
   o.enabled = en;
+  o.vibeLibrary = p && p.vibeLibrary && typeof p.vibeLibrary === 'object' ? JSON.parse(JSON.stringify(p.vibeLibrary)) : {};
+  o.vibeGeneration = Object.assign({ id: 'all', includeGeneral: false }, p && p.vibeGeneration || {});
   o.overrides = (p && p.overrides) || {};
   o.eventMode = (p && p.eventMode === 'manual') ? 'manual' : 'auto';
   o.events = Array.isArray(p && p.events) ? p.events.filter(e => e && typeof e.t === 'number').map(e => ({
@@ -534,7 +536,7 @@ function updateEventInspector(ev) {
   const p = $('eventInspector');
   if (!p || !ev) return;
   p.hidden = false;
-  $('fxSelectionHint').hidden = true;
+  if ($('fxSelectionHint')) $('fxSelectionHint').hidden = true;
   $('evSource').textContent = ev.manual ? '手动事件 · 仅编辑这一条' : (S.project.eventOverrides || {})[ev.id] ? '自动事件 · 已局部修改' : '自动事件 · 原始生成值';
   $('evReset').hidden = !!ev.manual;
   $('evReset').disabled = !(S.project.eventOverrides || {})[ev.id];
@@ -810,8 +812,49 @@ const CHIP_GROUPS = [
   ['decor', '', '装飾'], ['treat', 't', '加工'], ['bg', 'b', '背景'], ['cam', 'c', 'カメラ'],
   ['fx', 'f', '画面効果'], ['trans', 'c', 'つなぎ'],
 ];
-const cutPick = { g: null, line: -1, k: -1 };
+let shotVibe = 'all', shotVibeSubset = 'all', shotVibeManage = false, shotVibeRole = 'companion', managedVibe = 'xxt';
+const cutPick = { g: null, line: -1, k: -1, index: -1 };
 let lastCutIdx = -2;
+
+const SHOT_GROUP_NAMES = { layout: '布局', font: '字体', scheme: '配色', enter: '入场', hold: '保持', exit: '退场', decor: '装饰', treat: '文字处理', bg: '背景', cam: '运镜', fx: '画面效果', trans: '转场' };
+function editingCut() {
+  if (cutPick.g) return S.plan.cuts.find(c => cutPick.k < 0 ? c.index === cutPick.index : c.line === cutPick.line && lyricCutK(c) === cutPick.k) || null;
+  return J.cutAt(S.plan, S.t);
+}
+function selectShot(cut) {
+  if (!cut || S.exporting || S.tap) return;
+  const k = lyricCutK(cut), previousGroup = cutPick.g;
+  if (S.screenFxMode) setScreenFxMode(false);
+  pause(); seek(cut.start + Math.min(cut.dur * 0.5, Math.max(0.08, cut.inDur || 0.2)));
+  const source = document.querySelector('.lyrics-source'); if (source) source.open = false;
+  if (k < 0 && !['title', 'interlude'].includes(cut.layout)) { closeCutPick(); return; }
+  const restricted = cut.layout === 'interlude' || cut.layout === 'title';
+  const group = previousGroup && !(restricted && ['layout', 'font', 'hold', 'treat'].includes(previousGroup)) ? previousGroup : restricted ? 'bg' : 'layout';
+  toggleCutPick(group, cut, k);
+}
+function renderShotCategories(cut) {
+  const nav = $('shotCategories'); nav.replaceChildren();
+  const restricted = cut.layout === 'interlude' || cut.layout === 'title';
+  for (const [g] of CHIP_GROUPS) {
+    const button = document.createElement('button'); button.type = 'button'; button.role = 'tab';
+    button.id = 'shotCategory-' + g; button.dataset.group = g; button.textContent = SHOT_GROUP_NAMES[g];
+    button.setAttribute('aria-selected', String(cutPick.g === g)); button.setAttribute('aria-controls', 'cutPick');
+    button.tabIndex = cutPick.g === g ? 0 : -1;
+    button.disabled = lyricCutK(cut) < 0 || restricted && ['layout', 'font', 'hold', 'treat'].includes(g);
+    button.title = SHOT_GROUP_NAMES[g] + ' · ' + groupName(g, cutGroupVal(cut, g));
+    button.addEventListener('click', () => { toggleCutPick(g, cut, lyricCutK(cut)); $('shotCategory-' + g).focus(); });
+    button.addEventListener('keydown', e => {
+      if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+      e.preventDefault();
+      const available = [...nav.querySelectorAll('button:not(:disabled)')], index = available.indexOf(button);
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? available.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : -1) + available.length) % available.length;
+      const group = available[next].dataset.group;
+      toggleCutPick(group, cut, lyricCutK(cut)); $('shotCategory-' + group).focus();
+    });
+    nav.appendChild(button);
+  }
+  $('cutPick').setAttribute('aria-labelledby', 'shotCategory-' + cutPick.g);
+}
 
 function lyricCutK(cut) {
   if (!cut || cut.line < 0) return -1;
@@ -851,6 +894,24 @@ function cutTechSlot(line, k) {
   if (f && res.font == null) res = Object.assign({ font: f }, res);
   return res;
 }
+function cutDecorIds(cut) {
+  if (!cut) return [];
+  const k = lyricCutK(cut);
+  const slot = (cut.line >= 0 && k >= 0) ? cutTechSlot(cut.line, k) : {};
+  if (slot.decor !== undefined) {
+    if (!slot.decor || slot.decor === 'none') return [];
+    if (Array.isArray(slot.decor)) return slot.decor.filter(id => id && id !== 'none' && J.DECOR[id]);
+    if (typeof slot.decor === 'string') {
+      if (slot.decor.includes(',')) return slot.decor.split(',').map(s => s.trim()).filter(id => id && J.DECOR[id]);
+      if (J.DECOR[slot.decor]) return [slot.decor];
+    }
+    return [];
+  }
+  if (cut.decor && Array.isArray(cut.decor)) {
+    return cut.decor.map(d => d && d.id).filter(id => id && J.DECOR[id]);
+  }
+  return [];
+}
 function cutGroupVal(cut, g) {
   if (g === 'scheme') return cut ? ((cut.scheme != null) ? cut.scheme : 0) : 0;
   if (g === 'layout') return cut ? (cut.layout || '') : '';
@@ -862,7 +923,10 @@ function cutGroupVal(cut, g) {
   if (g === 'bg') return cut ? (cut.bg || 'none') : 'none';
   if (g === 'cam') return cut ? (cut.cam || 'push') : 'push';
   if (g === 'trans') return cut ? (cut.trans || '') : '';
-  if (g === 'decor') return (cut && cut.decor && cut.decor[0] && cut.decor[0].id) || '';
+  if (g === 'decor') {
+    const ids = cutDecorIds(cut);
+    return ids.length ? (ids.length === 1 ? ids[0] : ids) : '';
+  }
   if (g === 'fx') return cut ? (cut.fx || '') : '';
   return '';
 }
@@ -878,11 +942,18 @@ function groupName(g, k) {
   }
   if (!k) return 'なし';
   if (k === 'none') return (g === 'bg' && J.BG.none ? J.BG.none.name : 'なし');
+  if (g === 'decor' && Array.isArray(k)) {
+    if (!k.length) return 'なし';
+    return k.map(id => (J.DECOR[id] && J.DECOR[id].name) || id).join(' + ');
+  }
   const tbl = J.registry(g);
   return (tbl && tbl[k] && tbl[k].name) || k;
 }
 function groupCode(g, k) {
   if (!k || k === 'none' || g === 'scheme' || g === 'font') return '';
+  if (g === 'decor' && Array.isArray(k)) {
+    return k.map(id => J.codeOf(g, id)).filter(Boolean).join('+');
+  }
   return J.codeOf(g, k) || '';
 }
 function pickEnabledTech(g, opts) {
@@ -912,13 +983,13 @@ function pickEnabledTech(g, opts) {
     if (fit.length) keys = fit;
   }
   if (opts.allowNone && !keys.includes('none')) keys = ['none'].concat(keys);
-  if (opts.avoid && keys.length > 1) keys = keys.filter(key => key !== opts.avoid);
+  if (opts.avoid && keys.length > 1) keys = keys.filter(key => Array.isArray(opts.avoid) ? !opts.avoid.includes(key) : key !== opts.avoid);
   if (!keys.length) return '';
   return keys[(Math.random() * keys.length) | 0];
 }
 function rerollCurrentCut(kind) {
   if (S.exporting || S.tap) return;
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
   const k = lyricCutK(cut);
   if (!cut || k < 0) { toast('この位置のカットは抽選できません'); return; }
   pushEdit();
@@ -975,7 +1046,7 @@ function getCutStyleSnapshot(cut) {
     enter: slot.enter || cut.enter || 'blur',
     hold: isInter ? 'still' : (slot.hold || cut.hold || 'still'),
     exit: slot.exit || cut.exit || 'blur',
-    decor: slot.decor !== undefined ? slot.decor : ((cut.decor && cut.decor[0] && cut.decor[0].id) || 'none'),
+    decor: slot.decor !== undefined ? slot.decor : (cut.decor && cut.decor.length ? cut.decor.map(d => d.id) : 'none'),
     treat: isInter ? 'none' : (slot.treat || cut.treat || 'none'),
     bg: slot.bg || cut.bg || 'none',
     cam: slot.cam || cut.cam || 'push',
@@ -1040,18 +1111,19 @@ function applyStyleToCutSlot(i, k, style, opts = {}) {
 }
 
 function copyCurrentCutStyle() {
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
   if (!cut) { toast('コピーするカットがありません'); return; }
   copiedCutTech = getCutStyleSnapshot(cut);
   try {
     localStorage.setItem('jizura.copiedCutTech.v1', JSON.stringify(copiedCutTech));
   } catch (e) {}
+  lastCutIdx = -2;
   updateCutInfo();
   toast(`カット #${String(cut.index + 1).padStart(2, '0')} のパラメータをコピーしました`);
 }
 
 function pasteCutStyleToCurrent(skipLayout = false) {
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
   const k = lyricCutK(cut);
   if (!cut || k < 0) { toast('貼り付け先のカットがありません'); return; }
   if (!copiedCutTech) { toast('コピーされたパラメータがありません'); return; }
@@ -1071,7 +1143,7 @@ function pasteCutStyleToCurrent(skipLayout = false) {
 }
 
 function applyCutStyleToLine(includeLayout = false) {
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
   if (!cut || cut.line < 0) { toast('適用先の行がありません'); return; }
   const style = copiedCutTech || getCutStyleSnapshot(cut);
   if (!style) { toast('スタイルを取得できませんでした'); return; }
@@ -1094,7 +1166,7 @@ function applyCutStyleToLine(includeLayout = false) {
 }
 
 function applyCutStyleToAll(includeLayout = false) {
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
   const style = copiedCutTech || (cut ? getCutStyleSnapshot(cut) : null);
   if (!style) { toast('適用するスタイルがありません'); return; }
 
@@ -1118,7 +1190,7 @@ function applyCutStyleToAll(includeLayout = false) {
 function applyCutStyleToRange(includeLayout = false) {
   const R = exportRangeLines();
   if (!R || R.from < 0 || R.to < R.from) { toast('書き出し範囲が設定されていません'); return; }
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
   const style = copiedCutTech || (cut ? getCutStyleSnapshot(cut) : null);
   if (!style) { toast('適用するスタイルがありません'); return; }
 
@@ -1140,7 +1212,7 @@ function applyCutStyleToRange(includeLayout = false) {
 }
 
 function clearCurrentCutTech() {
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
   const k = lyricCutK(cut);
   if (!cut || k < 0) { toast('解除するカットがありません'); return; }
 
@@ -1215,7 +1287,7 @@ function rollCutSlot(lineIdx, k) {
 /* 微调当前播放头镜头的打轴时间 (delta 秒，如 -0.05 或 +0.05) */
 function nudgeCurrentCutTime(delta = 0.05) {
   if (S.exporting || S.tap) return;
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
   if (!cut || cut.line < 0) return;
   const li = cut.line, ln = S.plan.lines[li];
   if (!ln) return;
@@ -1295,7 +1367,7 @@ function bindCutActions(el) {
   const btnDeleteCard = el.querySelector('#btnDeleteCard');
   if (btnDeleteCard) {
     btnDeleteCard.addEventListener('click', () => {
-      const currentCut = J.cutAt(S.plan, S.t);
+      const currentCut = editingCut();
       if (!currentCut) return;
       pushEdit();
       if (!S.project.deletedCards) S.project.deletedCards = { title: false, gaps: {}, lines: {} };
@@ -1358,133 +1430,174 @@ function bindCutActions(el) {
 }
 
 function updateCutInfo() {
-  const cut = J.cutAt(S.plan, S.t);
-  const idx = cut ? cut.index : -1;
-  const li = cut ? cut.line : -1;
+  const playing = J.cutAt(S.plan, S.t), li = playing ? playing.line : -1;
   if (li !== S.curLine) { S.lineEls.forEach((el, i) => el.classList.toggle('cur', i === li)); S.curLine = li; followLine(li); }
-  if (idx === lastCutIdx) return;
-  lastCutIdx = idx;
-  // the cut playing now is marked in the line list
-  document.querySelectorAll('.cut-lay.playing, .cut-sch.playing, .cut-font.playing, .cut-pair.playing').forEach(x => x.classList.remove('playing'));
-  if (cut && S.lineEls[li]) {
-    const kk = lyricCutK(cut);
-    if (kk >= 0) {
-      const cs = S.lineEls[li].querySelector(`.cut-lay[data-k="${kk}"]`);
-      if (cs) cs.classList.add('playing');
-      const csf = S.lineEls[li].querySelector(`.cut-font[data-k="${kk}"]`);
-      if (csf) csf.classList.add('playing');
-      const csc = S.lineEls[li].querySelector(`.cut-sch[data-k="${kk}"]`);
-      if (csc) csc.classList.add('playing');
-      const cp = S.lineEls[li].querySelector(`.cut-pair[data-k="${kk}"]`);
-      if (cp) cp.classList.add('playing');
-    }
-  }
-  const el = $('cutInfo');
-  if (!cut) { el.innerHTML = '<span class="hint">この位置にカットはありません</span>'; closeCutPick(); return; }
-  const st = (S.plan && S.plan.style) || J.resolveStyle(S.project);
-  const nSchemes = (st && st.schemes && st.schemes.length) || 1;
-  const curSchIdx = (cut.scheme != null ? cut.scheme : 0) % nSchemes;
-  const curSch = (st && st.schemes && st.schemes[curSchIdx]) || {};
-  const schDot = curSch.bg ? `<i class="sch-dot" style="background:${curSch.bg};border:1px solid ${curSch.accent || curSch.fg || '#fff'}"></i>` : '';
-  const isInter = cut.layout === 'interlude';
-  const k = lyricCutK(cut);
-  if (S.mode !== 'pro') {          // かんたん／スマホは本家と同じ静的なチップ表示
-    closeCutPick();
-    const chip = (cls, k, v, code) => `<span class="chip ${cls}"><b>${k}</b>${code ? `<span class="chip-code">${code}</span>` : ''}${v}</span>`;
-    const n = (tbl, k) => (tbl[k] ? tbl[k].name : k);
-    const fnName = k => (J.FONTS && J.FONTS[k] ? (J.FONTS[k].label || J.FONTS[k].name) : k);
-    const cutFont = cut.font || (cut.params && cut.params.font);
-    el.innerHTML = [
-      `<span class="chip mono">#${String(cut.index + 1).padStart(2, '0')}</span>`,
-      chip('l', 'レイアウト', n(J.LAYOUTS, cut.layout), groupCode('layout', cut.layout)),
-      !isInter && cutFont ? chip('fn', 'フォント', fnName(cutFont), '') : '',
-      chip('s', '配色', `${schDot}配色 ${curSchIdx + 1}`, ''),
-      chip('e', '登場', n(J.ENTER, cut.enter), groupCode('enter', cut.enter)),
-      chip('h', '保持', n(J.HOLD, cut.hold), groupCode('hold', cut.hold)),
-      chip('x', '退場', n(J.EXIT, cut.exit), groupCode('exit', cut.exit)),
-      cut.decor && cut.decor.length ? chip('', '装飾', cut.decor.map(d => (groupCode('decor', d.id) ? `[${groupCode('decor', d.id)}] ` : '') + n(J.DECOR, d.id)).join('・'), '') : '',
-      cut.treat && cut.treat !== 'none' ? chip('t', '加工', n(J.TREAT, cut.treat), groupCode('treat', cut.treat)) : '',
-      cut.bg && cut.bg !== 'none' ? chip('b', '背景', n(J.BG, cut.bg), groupCode('bg', cut.bg)) : '',
-      cut.cam && cut.cam !== 'push' ? chip('c', 'カメラ', n(J.CAMERA, cut.cam), groupCode('cam', cut.cam)) : '',
-      cut.fx && cut.fx !== 'none' ? chip('f', '画面効果', n(J.FXE, cut.fx), groupCode('fx', cut.fx)) : '',
-      cut.trans ? chip('c', 'つなぎ', n(J.TRANS, cut.trans), groupCode('trans', cut.trans)) : '',
-      buildCutActionButtons(cut, k)
-    ].join('');
-    bindCutActions(el);
-    return;
-  }
-  const slot = k >= 0 ? cutTechSlot(cut.line, k) : {};
-  const quiet = k >= 0 ? cutQuietSlot(cut.line, k) : {};
-  const bits = [`<span class="chip mono">#${String(cut.index + 1).padStart(2, '0')}</span>`];
-  CHIP_GROUPS.forEach(([g, cls, label]) => {
-    if (isInter && (g === 'hold' || g === 'treat' || g === 'font')) return;
-    if (cut.layout === 'title' && (g === 'hold' || g === 'treat' || g === 'font')) return;
-    if ((isInter || cut.layout === 'title') && g === 'layout') {
-      const valKey = cutGroupVal(cut, g);
-      const cCode = groupCode(g, valKey);
-      const codeBadge = cCode ? `<span class="chip-code">${cCode}</span>` : '';
-      bits.push(`<button type="button" class="chip l" disabled><b>${label}</b>${codeBadge}${escapeHtml(groupName(g, valKey))}</button>`);
-      return;
-    }
-    const forced = slot[g] != null && slot[g] !== '' && !quiet[g];
-    const valKey = cutGroupVal(cut, g);
-    const cCode = groupCode(g, valKey);
-    const codeBadge = cCode ? `<span class="chip-code">${cCode}</span>` : '';
-    let valLabel = escapeHtml(groupName(g, valKey));
-    if (g === 'scheme' && schDot) valLabel = schDot + valLabel;
-    bits.push(`<button type="button" class="chip ${cls}${forced ? ' is-forced' : ''}" data-g="${g}" aria-pressed="${cutPick.g === g ? 'true' : 'false'}" ${k < 0 ? 'disabled' : ''}><b>${label}</b>${codeBadge}${valLabel}</button>`);
+  const cut = editingCut();
+  const signature = [playing && playing.index, cutPick.g, cutPick.line, cutPick.k, cut && cut.layout].join('|');
+  if (lastCutIdx === signature) return;
+  const editorChanged = lastCutIdx === -2 || String(lastCutIdx).split('|').slice(1).join('|') !== signature.split('|').slice(1).join('|');
+  lastCutIdx = signature;
+  document.querySelectorAll('.shot-button').forEach(button => {
+    const index = +button.dataset.cutIndex;
+    button.classList.toggle('playing', !!playing && playing.index === index);
+    button.setAttribute('aria-pressed', String(!!cutPick.g && !!cut && cut.index === index));
   });
-  bits.push(`<button type="button" class="ghost small cut-roll" data-roll="shuffle" ${k < 0 ? 'disabled' : ''} title="このカットだけ構成を再抽選">シャッフル</button>`);
-  bits.push(`<button type="button" class="ghost small cut-roll accent" data-roll="omakase" ${k < 0 ? 'disabled' : ''} title="このカットだけ手法をランダムに">おまかせ</button>`);
-  bits.push(buildCutActionButtons(cut, k));
-  el.innerHTML = bits.join('');
-  if (k >= 0) {
-    el.querySelectorAll('button.chip[data-g]').forEach(b => b.addEventListener('click', () => toggleCutPick(b.dataset.g, cut, k)));
-    el.querySelectorAll('button.cut-roll').forEach(b => b.addEventListener('click', () => rerollCurrentCut(b.dataset.roll)));
-  }
-  bindCutActions(el);
-  followCutPick(cut, k);
+  if (!cutPick.g) return;
+  if (!cut) { closeCutPick(); return; }
+  if (!editorChanged) return;
+  const k = lyricCutK(cut);
+  $('shotEditorTitle').textContent = '镜头 ' + String(cut.index + 1).padStart(2, '0') + ' · ' + (cut.text || '间奏');
+  $('shotEditorTitle').title = $('shotEditorTitle').textContent;
+  $('cutInfo').innerHTML = buildCutActionButtons(cut, k);
+  bindCutActions($('cutInfo'));
+  renderShotCategories(cut);
 }
-function followCutPick(cut, k) {
-  if (S.mode !== 'pro' || !cutPick.g) return;
-  const p = $('cutPick');
-  if (!cut || k < 0) {
-    cutPick.g = null; cutPick.line = -1; cutPick.k = -1;
-    if (p) p.hidden = true;
-    return;
-  }
-  cutPick.line = cut.line;
-  cutPick.k = k;
-  if (p) p.hidden = false;
-  fillCutPick();
+function followCutPick() {
+  if (cutPick.g && !editingCut()) closeCutPick();
 }
 function closeCutPick() {
-  cutPick.g = null; cutPick.line = -1; cutPick.k = -1;
+  cutPick.g = null; cutPick.line = -1; cutPick.k = -1; cutPick.index = -1;
   const p = $('cutPick'); if (p) p.hidden = true;
+  const editor = $('shotEditor'); if (editor) editor.hidden = true;
+  $('app').classList.remove('shot-editing');
   const f = $('cutPickFilter'); if (f) f.value = '';
   const c = $('cutPickFilterClear'); if (c) c.hidden = true;
-  lastCutIdx = -2;
+  lastCutIdx = -2; S.need = true;
 }
 function toggleCutPick(g, cut, k) {
-  if (S.mode !== 'pro') return;
-  if (cutPick.g === g && cutPick.line === cut.line && cutPick.k === k) { closeCutPick(); updateCutInfo(); return; }
-  cutPick.g = g; cutPick.line = cut.line; cutPick.k = k;
-  $('cutPick').hidden = false;
-  fillCutPick();
-  lastCutIdx = -2; updateCutInfo();
-  setTimeout(() => { const f = $('cutPickFilter'); if (f) f.focus(); }, 30);
+  if (S.exporting || S.tap || !cut || k < 0 && !['title', 'interlude'].includes(cut.layout) || S.screenFxMode) return;
+  if (cutPick.g !== g || cutPick.line !== cut.line || cutPick.k !== k) $('cutPickFilter').value = '';
+  cutPick.g = g; cutPick.line = cut.line; cutPick.k = k; cutPick.index = cut.index;
+  $('shotEditor').hidden = false; $('cutPick').hidden = false;
+  $('app').classList.add('shot-editing');
+  lastCutIdx = -2; updateCutInfo(); fillCutPick(); S.need = true;
 }
+
+function renderShotVibes() {
+  const host = $('shotVibeControls');
+  if (!host) return;
+  host.hidden = cutPick.k < 0;
+  if (J.VIBES[shotVibe]?.custom && typeof managedVibe !== 'undefined') managedVibe = shotVibe;
+  const currentManageVibe = (typeof managedVibe !== 'undefined' && managedVibe && J.VIBES[managedVibe]?.custom) ? managedVibe : (J.VIBES[shotVibe]?.custom ? shotVibe : 'xxt');
+  const activeCustomName = J.VIBES[shotVibe]?.custom ? J.VIBES[shotVibe].name : (J.VIBES[currentManageVibe]?.name || '星宿叹');
+  const isCustom = !!J.VIBES[shotVibe]?.custom;
+  host.innerHTML = `<div class="shot-vibe-tabs" role="tablist" aria-label="部件风格"></div>
+    <div class="shot-vibe-tools">
+      <label><span id="shotVibeSubsetLabel">${activeCustomName}</span> <select id="shotVibeSubset" aria-label="收录类型"><option value="all">全部收录</option><option value="exclusive">专属部件</option><option value="companion">通用搭配</option></select></label>
+      <button type="button" id="shotVibeManage" class="ghost small" aria-pressed="${shotVibeManage}">${shotVibeManage ? '完成收录' : '管理' + (isCustom ? activeCustomName : (J.VIBES[currentManageVibe]?.name || '星宿叹')) + '收录'}</button>
+      <label id="shotVibeRoleWrap">点击部件 <select id="shotVibeRole"><option value="companion">收录为通用搭配</option><option value="exclusive">收录为专属</option><option value="">移出${J.VIBES[currentManageVibe]?.name || '收录'}</option></select></label>
+    </div>
+    <div class="shot-vibe-generation"><label>自动生成范围 <select id="shotVibeGeneration" aria-label="自动生成风格范围"><option value="all">全部风格（原有范围）</option><option value="general">仅通用部件</option></select></label>
+      <label><input type="checkbox" id="shotVibeGeneral"> 同时允许通用部件</label></div>
+    <p class="muted shot-vibe-note" id="shotVibeNote"></p>`;
+  const tabs = host.querySelector('.shot-vibe-tabs');
+  for (const [id, name] of [['all', '全部'], ['general', '通用'], ...Object.entries(J.VIBES).map(([id, v]) => [id, v.name])]) {
+    const b = document.createElement('button'); b.type = 'button'; b.role = 'tab'; b.textContent = name;
+    b.setAttribute('aria-selected', String(shotVibe === id)); b.setAttribute('aria-controls', 'cutPickGrid');
+    b.tabIndex = shotVibe === id ? 0 : -1;
+    b.addEventListener('click', () => { shotVibe = id; shotVibeSubset = 'all'; if (J.VIBES[id]?.custom && typeof managedVibe !== 'undefined') managedVibe = id; fillCutPick(); });
+    b.addEventListener('keydown', e => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+      e.preventDefault(); const buttons = [...tabs.children], i = buttons.indexOf(b);
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next].click(); $('shotVibeControls').querySelector('[aria-selected="true"]').focus();
+    }); tabs.appendChild(b);
+  }
+  const subset = $('shotVibeSubset'); subset.value = shotVibeSubset; subset.parentElement.hidden = !isCustom;
+  subset.addEventListener('change', () => { shotVibeSubset = subset.value; fillCutPick(); });
+  $('shotVibeRoleWrap').hidden = !shotVibeManage;
+  $('shotVibeRole').value = shotVibeRole;
+  $('shotVibeRole').addEventListener('change', () => { shotVibeRole = $('shotVibeRole').value; });
+  $('shotVibeManage').addEventListener('click', () => {
+    shotVibeManage = !shotVibeManage;
+    if (shotVibeManage) {
+      if (J.VIBES[shotVibe]?.custom && typeof managedVibe !== 'undefined') managedVibe = shotVibe;
+      shotVibe = 'all'; shotVibeSubset = 'all';
+    }
+    fillCutPick();
+  });
+  const select = $('shotVibeGeneration');
+  for (const [id, v] of Object.entries(J.VIBES)) { const o = document.createElement('option'); o.value = id; o.textContent = v.name; select.appendChild(o); }
+  const settings = S.project.vibeGeneration || { id: 'all' };
+  select.value = J.VIBES[settings.id] || settings.id === 'general' ? settings.id : 'all';
+  $('shotVibeGeneral').checked = !!settings.includeGeneral;
+  $('shotVibeGeneral').disabled = ['all', 'general'].includes(select.value);
+  const changeGeneration = () => {
+    if (S.exporting || S.tap) return;
+    pushEdit(); remember();
+    S.project.vibeGeneration = { id: select.value, includeGeneral: $('shotVibeGeneral').checked };
+    replan(); commit(); flushSave();
+  };
+  select.addEventListener('change', changeGeneration); $('shotVibeGeneral').addEventListener('change', changeGeneration);
+  const manageTargetName = J.VIBES[currentManageVibe]?.name || '星宿叹';
+  $('shotVibeNote').textContent = shotVibeManage ? `收录模式：点击部件只修改${manageTargetName}的分类，不替换镜头。专属部件将从本项目的通用分类中隐藏。` :
+    '风格选项卡仅筛选浏览；自动生成范围单独保存。空类别沿用通用候选，原有手法开关、锁定与手动指定继续生效。';
+}
+function editShotVibePart(g, key, vibe) {
+  if (!shotVibeManage) return false;
+  if (S.exporting || S.tap) return true;
+  const targetVibe = vibe || (typeof managedVibe !== 'undefined' && managedVibe && J.VIBES[managedVibe]?.custom ? managedVibe : 'xxt');
+  const role = $('shotVibeRole').value;
+  pushEdit(); remember(); J.setVibePart(S.project, targetVibe, g, key, role);
+  replan(); commit(); flushSave();
+  // Replanning rebuilds the toolbar; preserve the user's chosen operation.
+  $('shotVibeRole').value = role;
+  return true;
+}
+function finishShotVibeGrid() {
+  const grid = $('cutPickGrid');
+  const currentManageVibe = (typeof managedVibe !== 'undefined' && managedVibe && J.VIBES[managedVibe]?.custom) ? managedVibe : 'xxt';
+  grid.querySelectorAll('[data-vibe-key]').forEach(b => {
+    if (shotVibeManage) {
+      const role = J.vibeRole(S.project, currentManageVibe, cutPick.g, b.dataset.vibeKey);
+      if (!role) return;
+      const badge = document.createElement('span'); badge.className = 'shot-vibe-badge';
+      badge.textContent = `${J.VIBES[currentManageVibe]?.name || '收录'} · ` + (role === 'exclusive' ? '专属' : '搭配'); b.appendChild(badge);
+    } else if (J.VIBES[shotVibe]?.custom) {
+      const role = J.vibeRole(S.project, shotVibe, cutPick.g, b.dataset.vibeKey);
+      if (!role) return;
+      const badge = document.createElement('span'); badge.className = 'shot-vibe-badge';
+      badge.textContent = `${J.VIBES[shotVibe].name} · ` + (role === 'exclusive' ? '专属' : '搭配'); b.appendChild(badge);
+    } else {
+      for (const [vid, vdef] of Object.entries(J.VIBES)) {
+        if (!vdef.custom) continue;
+        const role = J.vibeRole(S.project, vid, cutPick.g, b.dataset.vibeKey);
+        if (!role) continue;
+        const badge = document.createElement('span'); badge.className = 'shot-vibe-badge';
+        badge.textContent = `${vdef.name} · ` + (role === 'exclusive' ? '专属' : '搭配'); b.appendChild(badge);
+      }
+    }
+  });
+  if (grid.querySelector('[data-vibe-key]')) return;
+  const empty = document.createElement('div'); empty.className = 'cut-pick-empty';
+  if (J.VIBES[shotVibe]?.custom) {
+    empty.textContent = `${J.VIBES[shotVibe].name}在此类别还没有收录部件。点击“管理${J.VIBES[shotVibe].name}收录”，从现有部件中挑选。`;
+  } else {
+    empty.textContent = '当前风格下没有匹配的部件，可切换“全部”查看。';
+  }
+  grid.appendChild(empty);
+}
+
 function fillCutPick() {
   const g = cutPick.g, grid = $('cutPickGrid');
   if (!g || !grid) return;
   const meta = CHIP_GROUPS.find(x => x[0] === g);
-  const cut = J.cutAt(S.plan, S.t);
+  const cut = editingCut();
+  if (!cut) { closeCutPick(); return; }
+  renderShotVibes();
+  $('cutPickAuto').disabled = cutPick.k < 0 || shotVibeManage;
+  if (cutPick.k < 0) {
+    $('cutPickTitle').textContent = '生成卡片'; $('cutPickSearchWrap').hidden = true;
+    grid.textContent = '此卡片由全片设置生成，可使用上方操作删除或复制。'; return;
+  }
   const prefix = J.GROUP_CODE_PREFIX ? (J.GROUP_CODE_PREFIX[g] || '') : '';
   const prefixStr = prefix ? ` [${prefix}]` : '';
-  $('cutPickTitle').textContent = (meta ? meta[2] : g) + prefixStr + (cut ? ' · #' + String(cut.index + 1).padStart(2, '0') : '');
   const cur = cut ? cutGroupVal(cut, g) : '';
   const forced = cutTechSlot(cutPick.line, cutPick.k)[g];
   const onKey = forced || cur;
+  const activeDecorIds = g === 'decor' ? cutDecorIds(cut) : [];
+  const decorCountStr = (g === 'decor' && activeDecorIds.length > 0) ? ` (${activeDecorIds.length})` : '';
+  $('cutPickTitle').textContent = (SHOT_GROUP_NAMES[g] || (meta ? meta[2] : g)) + prefixStr + decorCountStr + (cut ? ' · #' + String(cut.index + 1).padStart(2, '0') : '');
   grid.innerHTML = '';
 
   const filterWrap = $('cutPickSearchWrap');
@@ -1503,11 +1616,12 @@ function fillCutPick() {
     const isForced = forcedSch != null && forcedSch !== '';
 
     schemes.forEach((sc, idx) => {
+      if (!J.matchesVibe(S.project, shotVibe, g, idx, shotVibeSubset)) return;
       const b = document.createElement('button');
       b.type = 'button';
       const isSelected = isForced ? (+forcedSch === idx) : (curIdx === idx);
       b.className = 'tcard' + (isSelected ? ' is-on' : '');
-      b.title = `配色 ${idx + 1}`;
+      b.title = `配色 ${idx + 1}`; b.dataset.vibeKey = idx;
 
       const [W, H] = J.designSize(S.project.aspect || '16:9');
       const th = 80, tw = Math.max(72, Math.round(th * W / H));
@@ -1551,6 +1665,7 @@ function fillCutPick() {
       b.appendChild(span);
 
       b.addEventListener('click', () => {
+        if (editShotVibePart(g, idx)) return;
         pushEdit(); remember();
         setCutScheme(cutPick.line, cutPick.k, idx);
         replan(); commit();
@@ -1558,14 +1673,14 @@ function fillCutPick() {
       });
       grid.appendChild(b);
     });
-    return;
+    finishShotVibeGrid(); return;
   }
   if (g === 'font') {
     const forcedFont = cutTechSlot(cutPick.line, cutPick.k).font;
     const isForced = forcedFont != null && forcedFont !== '';
     const curFont = cut ? (cut.font || (cut.params && cut.params.font) || '') : '';
 
-    if (!q) {
+    if (!q && shotVibe === 'all' && !shotVibeManage) {
       const autoBtn = document.createElement('button');
       autoBtn.type = 'button';
       autoBtn.className = 'tcard' + (!isForced ? ' is-on' : '');
@@ -1580,7 +1695,7 @@ function fillCutPick() {
       grid.appendChild(autoBtn);
     }
 
-    const allFontKeys = Object.keys(J.FONTS || {});
+    const allFontKeys = Object.keys(J.FONTS || {}).filter(key => J.matchesVibe(S.project, shotVibe, g, key, shotVibeSubset));
     const fontKeys = q ? allFontKeys.filter(fk => {
       const fDef = J.FONTS[fk];
       if (!fDef) return false;
@@ -1598,7 +1713,7 @@ function fillCutPick() {
       b.type = 'button';
       const isSelected = isForced ? (forcedFont === fKey) : (curFont === fKey);
       b.className = 'tcard' + (isSelected ? ' is-on' : '');
-      b.title = fDef.label || fDef.name || fKey;
+      b.title = fDef.label || fDef.name || fKey; b.dataset.vibeKey = fKey;
 
       const cv = document.createElement('canvas');
       cv.width = tw; cv.height = th;
@@ -1621,6 +1736,7 @@ function fillCutPick() {
       b.appendChild(span);
 
       b.addEventListener('click', () => {
+        if (editShotVibePart(g, fKey)) return;
         pushEdit(); remember();
         setCutFont(cutPick.line, cutPick.k, fKey);
         replan(); commit();
@@ -1628,27 +1744,35 @@ function fillCutPick() {
       });
       grid.appendChild(b);
     });
-    return;
+    finishShotVibeGrid(); return;
   }
-  if (!q && (g === 'decor' || g === 'trans' || g === 'fx')) {
+  if (!q && !shotVibeManage && (g === 'decor' || g === 'trans' || g === 'fx')) {
     const none = document.createElement('button');
     none.type = 'button';
-    none.className = 'tcard' + (forced === 'none' ? ' is-on' : '');
+    const isNone = g === 'decor'
+      ? (forced === 'none' || (Array.isArray(forced) && forced.length === 0) || (forced === undefined && activeDecorIds.length === 0))
+      : (forced === 'none');
+    none.className = 'tcard' + (isNone ? ' is-on' : '');
     none.innerHTML = '<span class="tcard-name" style="padding:16px 6px"><span>なし</span></span>';
     none.addEventListener('click', () => {
       pushEdit(); remember();
       setCutTech(cutPick.line, cutPick.k, g, 'none');
       replan(); commit();
+      if (g === 'decor') {
+        const st = grid.scrollTop;
+        fillCutPick();
+        grid.scrollTop = st;
+      }
     });
     grid.appendChild(none);
   }
   const [W, H] = J.designSize(S.project.aspect || '16:9');
   const th = 80, tw = Math.max(72, Math.round(th * W / H));
-  const allItems = J.order(g).filter(key => J.registry(g)[key] && !J.registry(g)[key].special);
+  const allItems = J.order(g).filter(key => J.registry(g)[key] && !J.registry(g)[key].special && J.matchesVibe(S.project, shotVibe, g, key, shotVibeSubset));
   const items = q ? allItems.filter(key => J.matchEffect(g, key, q)).sort((a, b) => J.effectScore(g, a, q) - J.effectScore(g, b, q)) : allItems;
 
   if (q && !items.length) {
-    const otherMatches = J.searchAllEffects(q);
+    const otherMatches = J.searchAllEffects(q).filter(m => J.matchesVibe(S.project, shotVibe, m.group, m.key, shotVibeSubset));
     const empty = document.createElement('div');
     empty.className = 'cut-pick-empty';
     const gName = meta ? meta[2] : g;
@@ -1667,6 +1791,7 @@ function fillCutPick() {
         btn.className = 'cut-pick-switch-btn';
         btn.innerHTML = `<span class="muted">[${escapeHtml(omLabel)}]</span> <b>${m.code || ''}</b> <span>${escapeHtml(m.name)}</span>`;
         btn.addEventListener('click', () => {
+          if (editShotVibePart(m.group, m.key)) return;
           pushEdit(); remember();
           setCutTech(cutPick.line, cutPick.k, m.group, m.key);
           replan(); commit();
@@ -1685,18 +1810,43 @@ function fillCutPick() {
     const def = J.registry(g)[key];
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'tcard' + (key === onKey ? ' is-on' : '');
+    const isSelected = g === 'decor' ? activeDecorIds.includes(key) : (key === onKey);
+    b.className = 'tcard' + (isSelected ? ' is-on' : '');
+    b.dataset.vibeKey = key;
     b.title = (def.code ? `[${def.code}] ` : '') + `${def.name} (${key})`;
     const codeTag = def.code ? `<span class="tcard-code">${def.code}</span>` : '';
-    b.innerHTML = `<canvas width="${tw}" height="${th}" data-g="${g}" data-k="${key}"></canvas><span class="tcard-name">${codeTag}<span>${escapeHtml(def.name)}</span>${setBadges(def)}</span>`;
+    const l = (document.documentElement.lang || '').toLowerCase();
+    const isZh = l.startsWith('zh');
+    const isEn = l === 'en';
+    const layerLabel = def.layer === 'back'
+      ? (isZh ? '后景' : (isEn ? 'back' : '背面'))
+      : (isZh ? '前景' : (isEn ? 'front' : '前面'));
+    const layerBadge = (g === 'decor' && def.layer) ? `<span class="tcard-layer-tag" style="opacity:0.6;font-size:10px;margin-left:4px;">[${layerLabel}]</span>` : '';
+    b.innerHTML = `<canvas width="${tw}" height="${th}" data-g="${g}" data-k="${key}"></canvas><span class="tcard-name">${codeTag}<span>${escapeHtml(def.name)}</span>${layerBadge}${setBadges(def)}</span>`;
     b.addEventListener('click', () => {
+      if (editShotVibePart(g, key)) return;
       pushEdit(); remember();
-      setCutTech(cutPick.line, cutPick.k, g, key);
-      replan(); commit();
+      if (g === 'decor') {
+        let next;
+        if (activeDecorIds.includes(key)) {
+          next = activeDecorIds.filter(id => id !== key);
+        } else {
+          next = activeDecorIds.concat(key);
+        }
+        setCutTech(cutPick.line, cutPick.k, 'decor', next.length ? next : 'none');
+        replan(); commit();
+        const st = grid.scrollTop;
+        fillCutPick();
+        grid.scrollTop = st;
+      } else {
+        setCutTech(cutPick.line, cutPick.k, g, key);
+        replan(); commit();
+      }
     });
     grid.appendChild(b);
   });
   queueThumbs(grid);
+  finishShotVibeGrid();
 }
 
 /* ---------------- line list ---------------- */
@@ -1793,158 +1943,26 @@ function renderLines() {
       else setOv(i, { lock: true, lockedSeed: ln.seed, lockedCuts: J.lineSnapshot(S.plan, i) || undefined, savedCuts: undefined });
       replan(); commit();
     });
-    const cutsEl = q('.cuts');
-    if (ln.interlude) {
-      const interCut = S.plan.cuts.find(c => c.line === i);
-      if (interCut) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'cut-lay is-inter-cut pro-only';
-        b.dataset.k = '0';
-        b.textContent = '間奏';
-        b.title = '間奏カット';
-        b.setAttribute('aria-label', `${i + 1}行目 間奏カット`);
-        b.addEventListener('click', () => seek(interCut.start + 0.001));
+    const cutsEl = q('.cuts'); cutsEl.classList.add('shot-list');
+    q('.time').classList.add('pro-only'); q('.tools').prepend(q('.time'));
+    S.plan.cuts.filter(c => c.line === i && lyricCutK(c) >= 0).forEach(c => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'shot-button';
+      button.dataset.cutIndex = c.index;
+      button.setAttribute('aria-pressed', String(!!cutPick.g && cutPick.line === i && cutPick.k === lyricCutK(c)));
+      const number = document.createElement('b'); number.textContent = '镜头 ' + String(c.index + 1).padStart(2, '0');
+      const name = document.createElement('span'); name.textContent = groupName('layout', c.layout);
+      button.append(number, name); button.title = c.start.toFixed(2) + 's · ' + (c.text || '间奏') + ' · ' + name.textContent;
+      button.addEventListener('click', () => selectShot(c)); cutsEl.appendChild(button);
+    });
 
-        const st = (S.plan && S.plan.style) || J.resolveStyle(S.project);
-        const schemes = (st && st.schemes) || [];
-        const nSchemes = schemes.length || 1;
-        const curSchIdx = (interCut.scheme != null ? interCut.scheme : 0) % nSchemes;
-        const curSch = schemes[curSchIdx] || schemes[0] || {};
-        const forcedSch = (o.cutSchemes && o.cutSchemes[0] != null)
-          ? o.cutSchemes[0]
-          : ((o.cutTech && o.cutTech[0] && o.cutTech[0].scheme != null) ? o.cutTech[0].scheme : null);
-        const isSchForced = forcedSch != null && forcedSch !== '';
-
-        const schTitle = groupName('scheme', curSchIdx);
-
-        const swatch = document.createElement('button');
-        swatch.type = 'button';
-        swatch.setAttribute('aria-label', schTitle + ' →');
-        swatch.className = 'cut-sch-swatch pro-only' + (isSchForced ? ' is-forced' : '');
-        swatch.title = schTitle;
-        swatch.style.background = curSch.bg || '#000';
-        swatch.style.borderColor = curSch.accent || curSch.fg || 'rgba(255,255,255,0.4)';
-        swatch.innerHTML = `<i style="background:${curSch.fg || '#fff'}"></i><i style="background:${curSch.accent || curSch.fg || '#fff'}"></i>`;
-        swatch.addEventListener('click', () => {
-          seek(interCut.start + 0.001);
-          remember();
-          setCutScheme(i, 0, String((curSchIdx + 1) % nSchemes));
-          replan();
-          commit();
-          seek(interCut.start + 0.001);
-        });
-
-        const pair = document.createElement('div');
-        pair.className = 'cut-pair' + (isSchForced ? ' is-forced' : '');
-        pair.dataset.k = '0';
-        pair.append(q('.time'), b, swatch);
-        cutsEl.appendChild(pair);
-      }
-    } else {
-      S.plan.cuts.filter(c => c.line === i && J.LAYOUTS[c.layout] && !J.LAYOUTS[c.layout].special).forEach((c, k) => {
-        const forced = o.cutLayouts && o.cutLayouts[k];
-        const sel = document.createElement('span');
-        sel.className = 'cut-lay pro-only' + (forced ? ' is-forced' : '');
-        sel.textContent = J.LAYOUTS[c.layout].name;
-        sel.title = `${c.text}｜${J.ENTER[c.enter].name} → ${J.EXIT[c.exit].name}`;
-        sel.dataset.k = String(k);
-
-        const st = (S.plan && S.plan.style) || J.resolveStyle(S.project);
-        const schemes = (st && st.schemes) || [];
-        const nSchemes = schemes.length || 1;
-        const curSchIdx = (c.scheme != null ? c.scheme : 0) % nSchemes;
-        const curSch = schemes[curSchIdx] || schemes[0] || {};
-        const forcedSch = (o.cutSchemes && o.cutSchemes[k] != null)
-          ? o.cutSchemes[k]
-          : ((o.cutTech && o.cutTech[k] && o.cutTech[k].scheme != null) ? o.cutTech[k].scheme : null);
-        const isSchForced = forcedSch != null && forcedSch !== '';
-
-        const schTitle = groupName('scheme', curSchIdx);
-
-        const swatch = document.createElement('button');
-        swatch.type = 'button';
-        swatch.setAttribute('aria-label', schTitle + ' →');
-        swatch.className = 'cut-sch-swatch pro-only' + (isSchForced ? ' is-forced' : '');
-        swatch.title = schTitle;
-        swatch.style.background = curSch.bg || '#000';
-        swatch.style.borderColor = curSch.accent || curSch.fg || 'rgba(255,255,255,0.4)';
-        swatch.innerHTML = `<i style="background:${curSch.fg || '#fff'}"></i><i style="background:${curSch.accent || curSch.fg || '#fff'}"></i>`;
-        swatch.addEventListener('click', () => {
-          seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
-          remember();
-          setCutScheme(i, k, String((curSchIdx + 1) % nSchemes));
-          replan();
-          commit();
-          seek(c.start + Math.min(c.dur * 0.5, c.inDur + 0.05));
-        });
-
-        const pair = document.createElement('div');
-        pair.className = 'cut-pair' + (forced || isSchForced ? ' is-forced' : '');
-        pair.dataset.k = String(k);
-
-        // カットの開始時刻 (詳細モード): the first cut starts with the line; the others can be typed (empty = automatic)
-        if (k === 0) {
-          pair.append(q('.time'));
-        } else {
-          const tIn = document.createElement('input');
-          const own = o.cutTime && o.cutTime[k] != null;
-          tIn.type = 'number'; tIn.step = '0.01'; tIn.min = '0'; tIn.className = 'cut-time pro-only mono' + (own ? ' is-forced' : '');
-          tIn.value = c.start.toFixed(2);
-          tIn.title = own ? 'このカットの開始時刻（手動・マウスホイールや↑↓で微調整）。空にすると自動に戻ります' : 'このカットの開始時刻（自動・マウスホイールや↑↓で微調整）。数値を入れると固定します';
-          tIn.setAttribute('aria-label', `${i + 1}行目 カット${k + 1}の開始時刻`);
-          const applyCutTime = v => {
-            pushEdit();
-            const ct = Object.assign({}, (S.project.overrides[i] || {}).cutTime || {});
-            if (isFinite(v) && v !== '') ct[k] = +Math.max(0, v - ln.start).toFixed(3); else delete ct[k];
-            setOv(i, { cutTime: Object.keys(ct).length ? ct : undefined }); replan(); seek(Math.max(0, (isFinite(v) ? v : c.start)) + 0.001);
-          };
-          tIn.addEventListener('change', e => {
-            applyCutTime(parseFloat(e.target.value));
-          });
-          tIn.addEventListener('wheel', e => {
-            e.preventDefault();
-            const step = e.shiftKey ? 0.1 : 0.05;
-            const curVal = parseFloat(tIn.value) || c.start;
-            const nextVal = Math.max(ln.start, +(curVal + (e.deltaY < 0 ? step : -step)).toFixed(2));
-            tIn.value = nextVal.toFixed(2);
-            applyCutTime(nextVal);
-          }, { passive: false });
-          tIn.addEventListener('keydown', e => {
-            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-              e.preventDefault();
-              const step = e.shiftKey ? 0.1 : 0.05;
-              const curVal = parseFloat(tIn.value) || c.start;
-              const nextVal = Math.max(ln.start, +(curVal + (e.key === 'ArrowUp' ? step : -step)).toFixed(2));
-              tIn.value = nextVal.toFixed(2);
-              applyCutTime(nextVal);
-            }
-          });
-          pair.append(tIn);
-        }
-
-        const rollBtn = document.createElement('button');
-        rollBtn.type = 'button';
-        rollBtn.className = 'icon ghost cut-roll-btn pro-only';
-        rollBtn.title = 'このカットだけ構成を再抽選（単独ランダム・他のカットに影響しません）';
-        rollBtn.setAttribute('aria-label', `${i + 1}行目 カット${k + 1} を単独再抽選`);
-        rollBtn.innerHTML = ICON.dice;
-        rollBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          rollCutSlot(i, k);
-        });
-
-        pair.append(sel, swatch, rollBtn);
-        cutsEl.appendChild(pair);
-      });
-    }
     // Select from the whole card; embedded controls keep their own actions.
     if (S.openLine === i) li.classList.add('open');
     li.addEventListener('click', e => {
       if (e.target.closest('button, select, input, textarea, a')) return;
       const pair = e.target.closest('.cut-pair');
       const cut = pair && S.plan.cuts.filter(c => c.line === i && J.LAYOUTS[c.layout] && !J.LAYOUTS[c.layout].special)[+pair.dataset.k];
-      seek((cut ? cut.start : ln.start) + 0.001);
+      const selected = cut || S.plan.cuts.find(c => c.line === i && lyricCutK(c) >= 0);
+      if (selected) selectShot(selected); else seek(ln.start + 0.001);
       if (S.mode !== 'mobile' || pair) return;
       const was = li.classList.contains('open');
       S.lineEls.forEach(x => x.classList.remove('open'));
@@ -2163,6 +2181,7 @@ function syncRangeUI() {
   document.querySelectorAll('.rngFrom').forEach(el => { el.innerHTML = opts(el, '全体'); el.value = R ? String(R.from) : '-1'; });
   document.querySelectorAll('.rngTo').forEach(el => { el.innerHTML = opts(el, '—'); el.value = R ? String(R.to) : '-1'; el.disabled = !R; });
   const r = exportRange();
+  updateSmartCompressUI();
   document.querySelectorAll('.rngInfo').forEach(el => { el.textContent = r ? `${J.fmtTime(r.t0)} 〜 ${J.fmtTime(r.t1)}（${(r.t1 - r.t0).toFixed(1)}秒）` : `全体（${S.plan.duration.toFixed(1)}秒）`; });
 }
 function bindRangeUI() {
@@ -2216,7 +2235,7 @@ function setCutTech(i, k, group, key) {
   const cutTech = Object.assign({}, cur.cutTech || {});
   const slot = Object.assign({}, cutTech[k] || cutTech[String(k)] || {});
   delete cutTech[String(k)];
-  if (key === '' || key == null) delete slot[group];
+  if (key === '' || key == null || (Array.isArray(key) && key.length === 0)) delete slot[group];
   else slot[group] = group === 'scheme' ? +key : key;
   if (Object.keys(slot).length) cutTech[k] = slot;
   else delete cutTech[k];
@@ -2361,6 +2380,14 @@ function ensureCustomStyle() {
     cs.schemes = J.defaultCustomStyle().schemes;
   }
   if (!cs.fonts) cs.fonts = J.defaultCustomStyle().fonts;
+  if (!cs.fontCombos) cs.fontCombos = J.defaultFontCombos();
+  for (const [role, d] of Object.entries(J.defaultFontCombos())) {
+    const c = cs.fontCombos[role] || (cs.fontCombos[role] = JSON.parse(JSON.stringify(d)));
+    c.main = c.main || (cs.fonts[role] && cs.fonts[role][0]) || d.main;
+    c.fallback = c.fallback || (cs.fonts[role] && cs.fonts[role][1]) || d.fallback;
+    c.mainCal = Object.assign({}, J.defaultFontCalibration(), c.mainCal || {});
+    c.fallbackCal = Object.assign({}, J.defaultFontCalibration(), c.fallbackCal || {});
+  }
   if (!Array.isArray(cs.fonts.display) || !cs.fonts.display.length) cs.fonts.display = ['gothic_black', 'dela'];
   if (!Array.isArray(cs.fonts.serif) || !cs.fonts.serif.length) cs.fonts.serif = ['mincho_bold', 'mincho'];
   if (!Array.isArray(cs.fonts.body) || !cs.fonts.body.length) cs.fonts.body = ['gothic_med', 'sansui'];
@@ -2411,6 +2438,7 @@ function copyPresetToCustom(key) {
       body: Array.isArray(c.fonts.body) ? c.fonts.body.slice() : ['gothic_med'],
       mono: Array.isArray(c.fonts.mono) ? c.fonts.mono.slice() : ['mono'],
     },
+    fontCombos: JSON.parse(JSON.stringify(c.fontCombos || J.defaultFontCombos())),
     texture: Object.assign({ grain: 0.5, paper: 0, scan: 0 }, c.texture || {}),
     ghost: c.ghost != null ? c.ghost : 1.0,
     glow: c.glow != null ? c.glow : 0.8,
@@ -2596,7 +2624,211 @@ const FONT_ROLES = [
 
 function renderCustFonts(cs) {
   const box = $('custFontRoles'); if (!box) return;
-  box.innerHTML = '';
+  box.innerHTML = '<div class="font-combo-help">指定字符可分别选择字体并独立校准。规则从上到下匹配，最上方优先；其余字符使用主字体，缺字时使用副字体。</div>';
+
+  const fields = [
+    ['size', '字号补偿', 0.7, 1.3, 0.01, 'x'], ['baseline', '基线偏移', -0.5, 0.5, 0.01, 'em'],
+    ['width', '字宽', 0.6, 1.5, 0.01, 'x'], ['advance', '占位', 0.6, 1.5, 0.01, 'x'],
+    ['tracking', '额外字距', -0.3, 0.3, 0.01, 'em'], ['weight', '字重', -300, 300, 10, ''], ['stroke', '笔画', -4, 8, 0.5, 'px'],
+  ];
+  const fontOptions = (value) => Object.entries(J.FONTS).filter(([fk, f]) => !f.combo && !fk.startsWith('combo_')).map(([fk, f]) => `<option value="${escapeHtml(fk)}" ${fk === value ? 'selected' : ''}>${escapeHtml(f.label)}</option>`).join('');
+  FONT_ROLES.forEach(r => {
+    const c = cs.fontCombos[r.role] || (cs.fontCombos[r.role] = { main: (cs.fonts[r.role] || [])[0] || 'gothic_med', fallback: (cs.fonts[r.role] || [])[1] || 'gothic_bold', mainCal: J.defaultFontCalibration(), fallbackCal: J.defaultFontCalibration() });
+    c.mainCal = Object.assign(J.defaultFontCalibration(), c.mainCal);
+    c.fallbackCal = Object.assign(J.defaultFontCalibration(), c.fallbackCal);
+    if (!Array.isArray(c.rules)) c.rules = typeof c.fallbackChars === 'string' && c.fallbackChars
+      ? [{ chars: c.fallbackChars, font: c.fallback, cal: { ...c.fallbackCal } }] : [];
+    c.rules = c.rules.filter(rule => rule && typeof rule === 'object' && !Array.isArray(rule)).map(rule => ({
+      chars: typeof rule.chars === 'string' ? rule.chars : '',
+      font: typeof rule.font === 'string' ? rule.font : c.fallback,
+      cal: Object.assign(J.defaultFontCalibration(), rule.cal && typeof rule.cal === 'object' ? rule.cal : {}),
+    }));
+    delete c.fallbackChars;
+    const card = document.createElement('details'); card.className = 'font-combo-card'; card.open = true;
+    card.innerHTML = `<summary><strong>${r.label}</strong><span class="muted combo-rule-count"></span></summary><div class="font-combo-grid"><label>主字体 · 默认使用<select data-side="main">${fontOptions(c.main)}</select></label><label>副字体 · 主字体缺字时使用<select data-side="fallback">${fontOptions(c.fallback)}</select></label></div>`;
+    const grid = card.querySelector('.font-combo-grid');
+    const calibration = (cal, title) => {
+      const details = document.createElement('details'); details.className = 'font-cal-details';
+      const summary = document.createElement('summary'); summary.textContent = title + ' · 7 项微调'; details.appendChild(summary);
+      const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'font-cal-reset';
+      reset.textContent = '重置此字体校准'; reset.setAttribute('aria-label', r.label + ' · ' + title + ' · 重置校准');
+      reset.addEventListener('click', () => {
+        Object.assign(cal, J.defaultFontCalibration());
+        details.querySelectorAll('.font-cal').forEach((row, i) => {
+          const [k, , , , , unit] = fields[i];
+          row.querySelector('input').value = cal[k];
+          row.querySelector('output').textContent = (+cal[k]).toFixed(k === 'weight' ? 0 : 2) + unit;
+        });
+        applyCombo(); refreshPreview();
+      });
+      details.appendChild(reset);
+      fields.forEach(([k, label, min, max, step, unit]) => {
+        const row = document.createElement('label'); row.className = 'font-cal';
+        const v = Number.isFinite(+cal[k]) ? Math.max(min, Math.min(max, +cal[k])) : (['size', 'width', 'advance'].includes(k) ? 1 : 0);
+        cal[k] = v;
+        row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${v}"><output>${v.toFixed(k === 'weight' ? 0 : 2)}${unit}</output>`;
+        const input = row.querySelector('input'), out = row.querySelector('output');
+        input.setAttribute('aria-label', r.label + ' · ' + title + ' · ' + label);
+        input.addEventListener('input', () => { cal[k] = +input.value; out.textContent = (+input.value).toFixed(k === 'weight' ? 0 : 2) + unit; applyCombo(); refreshPreview(); });
+        details.appendChild(row);
+      });
+      return details;
+    };
+    grid.append(calibration(c.mainCal, '主字体校准'), calibration(c.fallbackCal, '副字体校准'));
+    const rulesPanel = document.createElement('section'); rulesPanel.className = 'font-rules';
+    rulesPanel.innerHTML = '<div class="font-rules-heading"><strong>指定字符字体</strong><button type="button" class="combo-rule-add">+ 添加规则</button></div><p class="font-rules-hint">从上到下匹配，第一条命中的规则优先。空字符规则暂不生效。</p><div class="font-rule-list"></div>';
+    card.appendChild(rulesPanel);
+    const renderRules = () => {
+      card.querySelector('.combo-rule-count').textContent = c.rules.length + ' 条字符规则 · 主字体 → 副字体';
+      const list = rulesPanel.querySelector('.font-rule-list'); list.replaceChildren();
+      if (!c.rules.length) {
+        const empty = document.createElement('p'); empty.className = 'font-rules-empty';
+        empty.textContent = '尚无指定规则。添加一条，为数字、标点或任意字符选择专用字体。'; list.appendChild(empty);
+      }
+      c.rules.forEach((rule, i) => {
+        const row = document.createElement('div'); row.className = 'font-rule-card';
+        row.innerHTML = `<div class="font-rule-heading"><strong>规则 ${i + 1}${i === 0 ? ' · 最高优先' : ''}</strong><div class="font-rule-actions"><button type="button" data-action="up" ${i === 0 ? 'disabled' : ''} aria-label="规则 ${i + 1} 上移" title="提高优先级">↑</button><button type="button" data-action="down" ${i === c.rules.length - 1 ? 'disabled' : ''} aria-label="规则 ${i + 1} 下移" title="降低优先级">↓</button><button type="button" data-action="remove" aria-label="移除规则 ${i + 1}">移除</button></div></div><div class="font-rule-fields"><label>指定字符<input type="text" placeholder="例如：0123456789，。！？"></label><label>使用字体<select>${fontOptions(rule.font)}</select></label></div>`;
+        const chars = row.querySelector('input'); chars.value = rule.chars;
+        chars.addEventListener('input', () => { rule.chars = [...new Set([...chars.value])].join(''); applyCombo(); refreshPreview(); });
+        row.querySelector('select').addEventListener('change', e => { rule.font = e.target.value; applyCombo(); refreshPreview(); });
+        row.appendChild(calibration(rule.cal, '规则 ' + (i + 1) + ' 字体校准'));
+        row.querySelectorAll('button[data-action]').forEach(button => button.addEventListener('click', () => {
+          const action = button.dataset.action;
+          if (action === 'remove') c.rules.splice(i, 1);
+          else { const target = i + (action === 'up' ? -1 : 1); [c.rules[i], c.rules[target]] = [c.rules[target], c.rules[i]]; }
+          applyCombo(); renderRules(); refreshPreview();
+          const focusRow = list.children[Math.min(action === 'up' ? i - 1 : action === 'down' ? i + 1 : i, c.rules.length - 1)];
+          (focusRow?.querySelector('input') || rulesPanel.querySelector('.combo-rule-add')).focus();
+        }));
+        list.appendChild(row);
+      });
+    };
+    rulesPanel.querySelector('.combo-rule-add').addEventListener('click', () => {
+      c.rules.push({ chars: '', font: c.fallback, cal: J.defaultFontCalibration() });
+      applyCombo(); renderRules(); refreshPreview();
+      rulesPanel.querySelector('.font-rule-list').lastElementChild.querySelector('input').focus();
+    });
+    renderRules();
+    const libraryKey = 'jizura.fontComboLibrary.v1';
+    const tools = document.createElement('div'); tools.className = 'font-combo-tools';
+    tools.innerHTML = `<label>组合名称<input class="combo-name" maxlength="80" placeholder="输入名称保存组合"></label><button type="button" class="combo-save">保存</button><label>共享组合库<select class="combo-library"><option value="">选择已保存组合…</option></select></label><button type="button" class="combo-load">应用</button><button type="button" class="combo-delete">删除</button><label class="combo-sample">预览文字<input maxlength="160" value="字面预览 日本語 ABC 0123"></label><canvas class="combo-canvas" width="960" height="200" aria-label="字体组合实时预览"></canvas><div class="combo-status" role="status" aria-live="polite"></div>`;
+    card.appendChild(tools);
+    const name = tools.querySelector('.combo-name'), saved = tools.querySelector('.combo-library');
+    const sample = tools.querySelector('label.combo-sample input'), canvas = tools.querySelector('canvas');
+    const status = tools.querySelector('.combo-status');
+    let library = [], revision = 0;
+    const message = (text, error = false) => { status.textContent = text; status.classList.toggle('error', error); };
+    const readLibrary = () => {
+      const data = JSON.parse(localStorage.getItem(libraryKey) || '[]');
+      if (!Array.isArray(data)) throw new Error('组合库格式无效');
+      return data.filter(x => x && typeof x.name === 'string' && x.combo && typeof x.combo.main === 'string' && typeof x.combo.fallback === 'string');
+    };
+    const updateLibrary = () => {
+      try { library = readLibrary(); } catch (e) { message('无法读取组合库：' + e.message, true); }
+      saved.replaceChildren(new Option('选择已保存组合…', ''));
+      library.forEach(x => saved.add(new Option(x.name, x.name)));
+      tools.querySelector('.combo-load').disabled = tools.querySelector('.combo-delete').disabled = !saved.value;
+    };
+    const applyCombo = () => {
+      cs.fonts[r.role] = ['combo_' + r.role];
+      touchCustomStyle(); flushSave();
+    };
+    const refreshPreview = async () => {
+      const ticket = ++revision, text = sample.value;
+      message('正在加载字体…');
+      try {
+        const loadMaps = Object.fromEntries(Object.keys(J).filter(k => k.startsWith('FONT_')).map(k => [k, J[k]]));
+        const loadFonts = J.FONTS, loadEntries = Object.assign({}, loadFonts);
+        let loading;
+        try {
+          J.configureFontCombos(cs.fontCombos);
+          loading = J.ensureFonts(text, ['combo_' + r.role]);
+        } finally {
+          Object.keys(J).filter(k => k.startsWith('FONT_') && !(k in loadMaps)).forEach(k => delete J[k]);
+          Object.assign(J, loadMaps); J.FONTS = loadFonts;
+          Object.keys(loadFonts).forEach(k => { if (!(k in loadEntries)) delete loadFonts[k]; });
+          Object.assign(loadFonts, loadEntries);
+          J.glyphs && J.glyphs.clear(); J.metrics && J.metrics.clear();
+        }
+        await loading;
+        if (ticket !== revision || !card.isConnected) return;
+        // Configure only during synchronous drawing; restore even if rendering fails.
+        const maps = Object.fromEntries(Object.keys(J).filter(k => k.startsWith('FONT_')).map(k => [k, J[k]]));
+        const fonts = J.FONTS, fontEntries = Object.assign({}, fonts);
+        try {
+          J.configureFontCombos(cs.fontCombos);
+          const key = 'combo_' + r.role;
+          if (!J.FONTS[key]) throw new Error('字体组合渲染器尚未就绪');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Canvas 不可用');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#151820'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const item = { text, font: key, size: 64, x: canvas.width / 2, y: canvas.height / 2, color: '#ffffff' };
+          const measured = J.measure(item);
+          item.sx = item.sy = Math.min(1, (canvas.width - 48) / Math.max(1, measured.w), (canvas.height - 32) / Math.max(1, measured.h));
+          J.drawItem({ ctx, pass: 'main', scale: 1, allowFilter: false }, item);
+        } finally {
+          Object.keys(J).filter(k => k.startsWith('FONT_') && !(k in maps)).forEach(k => delete J[k]);
+          Object.assign(J, maps);
+          J.FONTS = fonts;
+          Object.keys(fonts).forEach(k => { if (!(k in fontEntries)) delete fonts[k]; });
+          Object.assign(fonts, fontEntries);
+          J.glyphs && J.glyphs.clear(); J.metrics && J.metrics.clear();
+        }
+        const missing = J.missingUserFonts ? J.missingUserFonts([c.main, c.fallback, ...c.rules.map(rule => rule.font)]) : [];
+        message(missing.length ? '本地字体未加载：' + missing.join('、') : '实时预览 · ' + c.rules.length + ' 条规则（上方优先）· 主字体缺字时使用副字体', !!missing.length);
+      } catch (e) { if (ticket === revision && card.isConnected) message('预览失败：' + e.message, true); }
+    };
+    saved.addEventListener('change', () => {
+      name.value = saved.value;
+      tools.querySelector('.combo-load').disabled = tools.querySelector('.combo-delete').disabled = !saved.value;
+    });
+    tools.querySelector('.combo-save').addEventListener('click', () => {
+      const title = name.value.trim();
+      if (!title) { message('请先输入组合名称', true); name.focus(); return; }
+      try {
+        const entries = readLibrary().filter(x => x.name !== title);
+        entries.push({ name: title, combo: JSON.parse(JSON.stringify(c)) });
+        localStorage.setItem(libraryKey, JSON.stringify(entries));
+        // Refresh every role's shared list without discarding edits or sample text.
+        box.querySelectorAll('.font-combo-tools').forEach(el => el.dispatchEvent(new Event('combo-library-update')));
+        saved.value = title; saved.dispatchEvent(new Event('change'));
+        applyCombo(); message('已保存：' + title);
+      } catch (e) { message('保存失败：' + e.message, true); }
+    });
+    tools.querySelector('.combo-load').addEventListener('click', () => {
+      try {
+        const entry = readLibrary().find(x => x.name === saved.value);
+        if (!entry) throw new Error('请选择有效组合');
+        if (entry.combo.rules != null && (!Array.isArray(entry.combo.rules) || entry.combo.rules.some(rule => !rule || typeof rule !== 'object' || Array.isArray(rule) || typeof rule.chars !== 'string' || typeof rule.font !== 'string'))) throw new Error('组合字符规则格式无效');
+        if ([entry.combo.main, entry.combo.fallback, ...(entry.combo.rules || []).map(rule => rule.font)].some(key => !J.FONTS[key] || J.FONTS[key].combo || key.startsWith('combo_'))) throw new Error('组合所需字体不可用，请先导入字体');
+        pushEdit(); remember();
+        delete c.rules; delete c.fallbackChars;
+        Object.assign(c, JSON.parse(JSON.stringify(entry.combo)));
+        c.mainCal = Object.assign(J.defaultFontCalibration(), c.mainCal);
+        c.fallbackCal = Object.assign(J.defaultFontCalibration(), c.fallbackCal);
+        applyCombo(); renderCustFonts(cs);
+      } catch (e) { message('应用失败：' + e.message, true); }
+    });
+    tools.querySelector('.combo-delete').addEventListener('click', () => {
+      if (!saved.value) return;
+      try {
+        const title = saved.value;
+        localStorage.setItem(libraryKey, JSON.stringify(readLibrary().filter(x => x.name !== title)));
+        box.querySelectorAll('.font-combo-tools').forEach(el => el.dispatchEvent(new Event('combo-library-update')));
+        message('已从组合库删除：' + title + '；项目配置已保留');
+      } catch (e) { message('删除失败：' + e.message, true); }
+    });
+    tools.addEventListener('combo-library-update', updateLibrary);
+    sample.addEventListener('input', refreshPreview);
+    grid.querySelectorAll('select').forEach(sel => sel.addEventListener('change', () => {
+      c[sel.dataset.side] = sel.value;
+      applyCombo(); refreshPreview();
+    }));
+    updateLibrary();
+    box.appendChild(card);
+    refreshPreview();
+  });
 
   FONT_ROLES.forEach(r => {
     const card = document.createElement('div');
@@ -2610,7 +2842,7 @@ function renderCustFonts(cs) {
       + `<div class="row" style="margin-top:4px">`
       + `<select class="small add-font-sel" style="flex:1">`
       + `<option value="">+ 添加候选字体...</option>`
-      + Object.entries(J.FONTS).map(([fk, f]) => {
+      + Object.entries(J.FONTS).filter(([fk, f]) => !fk.startsWith('combo_') || (f.combo && !/_rule_\d+$|_fallback$|_main$/.test(fk))).map(([fk, f]) => {
           const g = J.faceOf ? J.faceOf(fk) : f;
           return `<option value="${escapeHtml(fk)}">${escapeHtml(g.label || f.label)}</option>`;
         }).join('')
@@ -2990,7 +3222,7 @@ function bindCustomStyleEvents() {
 
 /* ---------------- history of looks (◀ ▶) ---------------- */
 // only the "look" is tracked — lyrics, timing and output settings are never rolled back
-const HKEYS = ['style', 'mood', 'seed', 'fx', 'enabled', 'fonts', 'colors', 'overrides', 'locks', 'customStyle'];
+const HKEYS = ['style', 'mood', 'seed', 'fx', 'enabled', 'fonts', 'colors', 'overrides', 'locks', 'customStyle', 'vibeLibrary', 'vibeGeneration'];
 const H = { list: [], i: -1 };
 const lookSnap = () => JSON.stringify(Object.fromEntries(HKEYS.map(k => [k, S.project[k] ?? null])));
 function remember() {            // call before changing the look: makes sure the current look is on the stack
@@ -3101,7 +3333,7 @@ function lockBtn(k, anchor) {                     // lock button for effects tha
 }
 
 /* ---------------- おまかせ ---------------- */
-function restartPreview() { seek(0); if (!S.playing && S.mode !== 'pro') play(); }
+function restartPreview() { seek(0); }
 const themeName = th => { const o = document.querySelector(`.themeSel option[value="${th}"]`); return o ? o.textContent : th; };
 function omakase() {
   if (S.exporting || S.tap) return;
@@ -3171,23 +3403,18 @@ function toast(m, cols, duration) {
   toastTimer = setTimeout(() => { el.classList.remove('in'); el.classList.add('out'); toastTimer = setTimeout(() => { el.hidden = true; }, 260); }, duration || 1700);
 }
 
-/* ---------------- かんたん / 詳細 ---------------- */
+/* ---------------- 模式 ---------------- */
 function setMode(m) {
-  S.mode = m === 'easy' ? 'easy' : m === 'mobile' ? 'mobile' : 'pro';
-  const mobile = S.mode === 'mobile', easy = S.mode === 'easy' || mobile;   // スマホ = the かんたん panel, laid out for a phone
-  $('app').classList.toggle('is-easy', easy);
-  $('app').classList.toggle('is-mobile', mobile);
-  $('app').classList.remove('menu-open'); $('btnMenu').setAttribute('aria-expanded', 'false');
-  document.documentElement.classList.toggle('fixed-ok', !mobile);           // one scrolling page on a phone
-  $('easyPanel').hidden = !easy;
-  $('modeMobile').setAttribute('aria-pressed', String(mobile));
-  $('modeEasy').setAttribute('aria-pressed', String(S.mode === 'easy'));
-  $('modePro').setAttribute('aria-pressed', String(S.mode === 'pro'));
-  try { localStorage.setItem('jizura.mode', S.mode); } catch (e) {}
-  if (mobile) mobileInit();
-    if (easy) { showNow(); syncOut(); codecNoteSoon(); }
-    if (easy) closeCutPick();
-    if (S.plan && S.lineEls && S.lineEls.length) { lastCutIdx = -2; updateCutInfo(); }
+  S.mode = 'pro';
+  $('app').classList.remove('is-easy', 'is-mobile', 'menu-open');
+  if ($('btnMenu')) $('btnMenu').setAttribute('aria-expanded', 'false');
+  document.documentElement.classList.add('fixed-ok');
+  if ($('easyPanel')) $('easyPanel').hidden = true;
+  if ($('modeMobile')) $('modeMobile').setAttribute('aria-pressed', 'false');
+  if ($('modeEasy')) $('modeEasy').setAttribute('aria-pressed', 'false');
+  if ($('modePro')) $('modePro').setAttribute('aria-pressed', 'true');
+  try { localStorage.setItem('jizura.mode', 'pro'); } catch (e) {}
+  if (S.plan && S.lineEls && S.lineEls.length) { lastCutIdx = -2; updateCutInfo(); }
   sizeViewport(); drawTimeline(); loadThumbFonts();
 }
 
@@ -3377,31 +3604,53 @@ function renderTech() {
 }
 
 /* ---------------- output tab ---------------- */
+/* ---------------- smart compression analyzer UI ---------------- */
+function updateSmartCompressUI() {
+  const box = $('smartCompressBox');
+  if (!box || !S.project || !S.plan) return;
+  const project = Object.assign({}, S.project);
+  if (S.mode === 'mobile' && (project.res || 1080) > 1080) project.res = 1080;
+  if (!S.audio || !S.audio.buffer) project.includeAudio = false;
+  const analysis = J.analyzeComplexity(project, S.plan, exportRange());
+  const q = project.quality || 'high';
+  const titles = { high: '高画質（推奨）', compact: '軽量版（細部が失われる場合があります）',
+    standard: '標準画質', smart: '自動画質（容量優先）', max: '最高画質（大容量）' };
+  $('smartCompTitle').textContent = titles[q] || titles.high;
+  $('smartCompDesc').textContent = q === 'compact' || q === 'smart'
+    ? '容量を抑えます。細い文字・粒状感・速い動きの細部が失われる場合があります。'
+    : '画質を優先して書き出します。MP4 は圧縮動画です。容量は内容とブラウザにより変わります。';
+  if (analysis.isGrainWarning) $('smartCompDesc').textContent += ' 粒状感が強いため、高画質を推奨します。';
+  $('smartCompDot').style.background = analysis.badgeColor;
+  $('smartSavingTag').textContent = (analysis.targetBitrate / 1e6).toFixed(1) + ' Mbps';
+  $('smartOrigEst').textContent = `~${analysis.origSizeMB.toFixed(0)} MiB`;
+  $('smartOptEst').textContent = `~${analysis.optSizeMB.toFixed(0)} MiB`;
+}
+
 function syncOut() {
   $('outAspect').value = S.project.aspect; $('outRes').value = String(S.project.res); $('outFps').value = String(S.project.fps);
-  $('eAspect').value = S.project.aspect; $('eRes').value = String(S.project.res); $('eFps').value = String(S.project.fps);
   $('outQuality').value = S.project.quality || 'high'; $('outAudio').checked = S.project.includeAudio !== false;
   const k = J.keyMode(S.project) || 'off';
-  $('outKey').value = k; $('eKey').value = k;
-  $('outCenter').checked = $('eCenter').checked = !!S.project.centerFree;
+  $('outKey').value = k;
+  $('outCenter').checked = !!S.project.centerFree;
   const tall = J.designSize(S.project.aspect)[1] > J.designSize(S.project.aspect)[0] * 1.1;
   document.querySelectorAll('.center-dir').forEach(el => { el.hidden = !(S.project.centerFree && tall); });
   document.querySelectorAll('.centerDirSel').forEach(el => { el.value = S.project.centerDir === 'lr' ? 'lr' : 'tb'; });
   const kb = $('keyBadge');
   kb.hidden = k === 'off';
   if (k !== 'off') kb.innerHTML = `<i style="background:${J.KEY_BG[k]}"></i>${k === 'green' ? 'グリーンバック' : 'ブラックバック'}`;
+  updateSmartCompressUI();
 }
 // the codec check is slow in some browsers: at start-up, let the first preview frames paint before asking
 function codecNoteSoon() { (window.requestIdleCallback || (f => setTimeout(f, 400)))(() => codecNote(), { timeout: 1500 }); }
 async function codecNote() {
   const [w, h] = J.outputSize(S.project);
-  const vc = await J.pickVideoCodec(w, h, S.project.fps, 12e6);
+  const quality = S.project.quality || 'high';
+  const vc = await J.pickVideoCodec(w, h, S.project.fps, J.videoBitrate(w, h, S.project.fps, quality, S.project, S.plan), quality === 'smart' || quality === 'compact');
   $('codecNote').textContent = vc ? `このブラウザでは ${vc.label} で書き出します（${w}×${h} / ${S.project.fps}fps）。書き出し中はタブを開いたままにしてください。` : 'このブラウザは動画エンコード（WebCodecs）に対応していません。Chrome / Edge の最新版で開くか、連番PNGを使ってください。';
-  $('btnMP4').disabled = !vc; $('eMP4').disabled = !vc;
-  ['btnMP4File', 'eMP4File'].forEach(id => { $(id).hidden = !vc || !canPickFile(); });
-  if (!vc) $('eMP4').title = 'このブラウザは MP4 書き出しに対応していません（Chrome / Edge 推奨）';
+  $('btnMP4').disabled = !vc;
+  if ($('btnMP4File')) $('btnMP4File').hidden = !vc || !canPickFile();
 }
-const EXP_BTNS = ['btnMP4', 'btnPNG', 'btnPNGA', 'btnPNGL', 'eMP4', 'btnMP4File', 'eMP4File', 'ePNG', 'ePNGA', 'ePNGL'];
+const EXP_BTNS = ['btnMP4', 'btnPNG', 'btnPNGA', 'btnPNGL', 'btnMP4File'];
 function baseName() {
   const k = J.keyMode(S.project);
   return ((S.project.title || 'jizura').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60) || 'jizura') + (k ? (k === 'green' ? '_greenback' : '_blackback') : '');
@@ -3441,7 +3690,7 @@ async function runExport(kind) {
       const plan = S.plan, range = exportRange(), span = J.exportSpan(plan, range);
       const r = await J.exportMP4({ plan, project: proj, audio: S.project.includeAudio !== false ? S.audio : null, quality: S.project.quality || 'high', onProgress, signal: ac.signal, range, file });
       file = null;
-      txt.textContent = `完成 ${r.blob ? (r.blob.size / 1048576).toFixed(1) + 'MB・' : ''}${r.codec}${r.audio ? ' + ' + r.audio.toUpperCase() : ''}・${((performance.now() - t0) / 1000).toFixed(0)}秒`;
+      txt.textContent = `完成 ${r.blob ? (r.blob.size / 1048576).toFixed(1) + 'MiB・' : ''}${r.codec}${r.audio ? ' + ' + r.audio.toUpperCase() : ''}・${((performance.now() - t0) / 1000).toFixed(0)}秒`;
       if (r.blob) {
         const name = baseName() + rangeSuffix() + '.mp4';
         const res = await J.saveFile(name, r.blob);
@@ -3785,10 +4034,11 @@ function bind() {
   sc.addEventListener('input', () => { if (S.fxLoop) pause(); S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
   sc.addEventListener('change', () => { S.scrubbing = false; });
   const tl = $('timeline');
-  let drag = false, raf = 0;
+  let drag = false, raf = 0, shotClick = null;
   tl.addEventListener('pointerdown', e => {
     tl.setPointerCapture(e.pointerId);
     if (S.tap || S.exporting) return;
+    shotClick = null;
     const evHit = fxEventAt(e);
     if (evHit) {
       selectFxEvent(evHit.ev);
@@ -3804,6 +4054,7 @@ function bind() {
       hideEventInspector();
       drawTimeline();
     }
+    shotClick = S.screenFxMode ? null : { x: e.clientX, t: tlTime(e) };
     drag = true; timelineSeek(e);
   });
   tl.addEventListener('pointermove', e => {
@@ -3824,7 +4075,8 @@ function bind() {
       return;
     }
     if (TL.drag >= 0) { const ev = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => tlDragTo(TL.drag, ev)); return; }
-    if (drag) { timelineSeek(e); return; }
+    if (drag) { if (shotClick && Math.abs(e.clientX - shotClick.x) > 3) shotClick = null; timelineSeek(e); return; }
+    shotClick = null;
     const evHit = fxEventAt(e);
     if (evHit) {
       TL.hoverEvent = evHit.ev;
@@ -3846,8 +4098,10 @@ function bind() {
     }
     if (TL.drag >= 0) { TL.drag = -1; flushSave(); renderLines(); drawTimeline(); }
     drag = false;
+    const selected = shotClick; shotClick = null;
+    if (selected) selectShot(J.cutAt(S.plan, selected.t));
   };
-  tl.addEventListener('pointerup', endDrag); tl.addEventListener('pointercancel', endDrag);
+  tl.addEventListener('pointerup', endDrag); tl.addEventListener('pointercancel', () => { shotClick = null; endDrag(); });
   tl.addEventListener('pointerleave', () => {
     if (TL.dragEvent) return;
     if (TL.hoverEvent) { TL.hoverEvent = null; drawTimeline(); }
@@ -3868,7 +4122,7 @@ function bind() {
   $('tapBack').addEventListener('click', tapBack);
   bindRangeUI();
 
-  $('btnShotMode').addEventListener('click', () => setScreenFxMode(false));
+  $('btnShotMode').addEventListener('click', () => { const cut = J.cutAt(S.plan, S.t); setScreenFxMode(false); selectShot(cut); });
   $('btnScreenFxMode').addEventListener('click', () => setScreenFxMode(true));
   for (const type of J.FXE_ORDER) {
     const option = document.createElement('option'); option.value = type; option.textContent = fxName(type); $('evInspType').appendChild(option);
@@ -3990,54 +4244,41 @@ function bind() {
     }
     catch (err) { showMsg('フォントを読み込めませんでした'); setTimeout(() => showMsg(null), 2500); }
   });
-  ['outAspect', 'eAspect'].forEach(id => $(id).addEventListener('change', e => { pushEdit(); S.project.aspect = e.target.value; syncOut(); replan(); codecNote(); }));
-  ['outRes', 'eRes'].forEach(id => $(id).addEventListener('change', e => { pushEdit(); S.project.res = +e.target.value; syncOut(); autosave(); codecNote(); }));
-  ['outFps', 'eFps'].forEach(id => $(id).addEventListener('change', e => { pushEdit(); S.project.fps = +e.target.value; syncOut(); replan(); codecNote(); }));
-  $('outQuality').addEventListener('change', e => { pushEdit(); S.project.quality = e.target.value; autosave(); });
-  ['outKey', 'eKey'].forEach(id => $(id).addEventListener('change', e => {
+  $('outAspect').addEventListener('change', e => { pushEdit(); S.project.aspect = e.target.value; syncOut(); replan(); codecNote(); });
+  $('outRes').addEventListener('change', e => { pushEdit(); S.project.res = +e.target.value; syncOut(); autosave(); codecNote(); });
+  $('outFps').addEventListener('change', e => { pushEdit(); S.project.fps = +e.target.value; syncOut(); replan(); codecNote(); });
+  $('outQuality').addEventListener('change', e => { pushEdit(); S.project.quality = e.target.value; syncOut(); autosave(); codecNote(); });
+  $('outKey').addEventListener('change', e => {
     pushEdit();
     S.project.keyBg = e.target.value; syncOut(); replan(); flushSave();
     const k = J.keyMode(S.project);
     toast(k ? `背景：${k === 'green' ? 'グリーンバック' : 'ブラックバック'}（白い文字と演出だけ）` : '背景：通常（スタイルの配色）');
-  }));
+  });
   $('outAudio').addEventListener('change', e => { pushEdit(); S.project.includeAudio = e.target.checked; autosave(); });
   document.querySelectorAll('.centerDirSel').forEach(el => el.addEventListener('change', e => {
     pushEdit();
     S.project.centerDir = e.target.value; syncOut(); replan(); flushSave();
     toast(e.target.value === 'lr' ? '縦長の画面：左右に分けます' : '縦長の画面：上下に分けます');
   }));
-  ['outCenter', 'eCenter'].forEach(id => $(id).addEventListener('change', e => {
+  $('outCenter').addEventListener('change', e => {
     pushEdit();
     S.project.centerFree = e.target.checked; syncOut(); replan(); flushSave();
     const tall = S.plan.H > S.plan.W * 1.1 && S.project.centerDir !== 'lr';
     toast(e.target.checked ? `中央を空けました：文字と演出を${tall ? '上下' : '左右'}に置きます` : '中央を空けるのをやめました');
-  }));
+  });
   $('btnMP4').addEventListener('click', () => runExport('mp4'));
-  ['btnMP4File', 'eMP4File'].forEach(id => $(id).addEventListener('click', () => runExport('mp4file')));
+  if ($('btnMP4File')) $('btnMP4File').addEventListener('click', () => runExport('mp4file'));
   $('btnPNG').addEventListener('click', () => runExport('png'));
   $('btnPNGA').addEventListener('click', () => runExport('pnga'));
   $('btnPNGL').addEventListener('click', () => runExport('pngl'));
-  $('ePNG').addEventListener('click', () => runExport('png'));
-  $('ePNGA').addEventListener('click', () => runExport('pnga'));
-  $('ePNGL').addEventListener('click', () => runExport('pngl'));
   document.querySelectorAll('.exp-cancel').forEach(b => b.addEventListener('click', () => { if (S.exporting) S.exporting.abort(); }));
-  $('eMP4').addEventListener('click', () => runExport('mp4'));
-  // かんたんモード
-  $('modeEasy').addEventListener('click', () => setMode('easy'));
-  $('modeMobile').addEventListener('click', () => setMode('mobile'));
-  $('btnOmakaseTop').addEventListener('click', omakase);
-  $('btnMenu').addEventListener('click', () => { const on = !$('app').classList.contains('menu-open'); $('app').classList.toggle('menu-open', on); $('btnMenu').setAttribute('aria-expanded', String(on)); mobileBar(); });
+  if ($('btnOmakaseTop')) $('btnOmakaseTop').addEventListener('click', omakase);
+  if ($('btnMenu')) $('btnMenu').addEventListener('click', () => { const on = !$('app').classList.contains('menu-open'); $('app').classList.toggle('menu-open', on); $('btnMenu').setAttribute('aria-expanded', String(on)); mobileBar(); });
   document.querySelectorAll('.sec > .sec-h h2').forEach(h => h.addEventListener('click', () => { if (S.mode === 'mobile') h.closest('.sec').classList.toggle('fold'); }));
-  if (window.ResizeObserver) new ResizeObserver(mobileBar).observe(document.querySelector('.bar'));
-  $('modePro').addEventListener('click', () => setMode('pro'));
-  $('btnOmakase').addEventListener('click', omakase);
-  $('btnOmakaseBig').addEventListener('click', omakase);
-  ['btnPrev', 'btnPrev2'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => histGo(-1)); });
-  ['btnNext', 'btnNext2'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => histGo(1)); });
-  $('eStyle').addEventListener('click', () => rerollPart('style'));
-  $('eMood').addEventListener('click', () => rerollPart('mood'));
-  $('eCut').addEventListener('click', () => rerollPart('cut'));
-  $('ePalette').addEventListener('click', () => { randomPalette(); restartPreview(); });
+  if (window.ResizeObserver && document.querySelector('.bar')) new ResizeObserver(mobileBar).observe(document.querySelector('.bar'));
+  if ($('btnOmakase')) $('btnOmakase').addEventListener('click', omakase);
+  const bPrev = $('btnPrev'); if (bPrev) bPrev.addEventListener('click', () => histGo(-1));
+  const bNext = $('btnNext'); if (bNext) bNext.addEventListener('click', () => histGo(1));
   // 利用について（出力物の権利・ライセンス）
   const dlg = $('termsDlg');
   const openTerms = () => { if (dlg.showModal) { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', ''); };
@@ -4052,7 +4293,7 @@ function bind() {
     document.querySelectorAll('.themeSel').forEach(x => { x.value = el.value; });
     flushSave();
   }));
-  ['btnLRC', 'eLRC'].forEach(id => $(id).addEventListener('click', saveLrc));
+  if ($('btnLRC')) $('btnLRC').addEventListener('click', saveLrc);
   $('btnReset').addEventListener('click', () => {
     const dlg = $('resetDlg');
     if (!dlg || typeof dlg.showModal !== 'function') { if (window.confirm('歌詞・曲・設定・履歴をすべて消して、最初の状態に戻します。元に戻すことはできません。')) resetAll(); return; }
@@ -4138,67 +4379,18 @@ async function loadAudioFile(f, restored) {
   } catch (err) { if (my !== audioSeq) return false; if ($('audioName')) $('audioName').textContent = '読み込めませんでした: ' + err.message; S.audio = null; return false; }
 }
 
-/* ---------------- かんたんモードの案内ツアー ---------------- */
-const TOUR = [
-  { t: () => $('lyrics'), title: '1. 歌詞を入れる', text: '1行が1フレーズになります。空行で少し間が空き、[間奏 8] と書くと8秒の間奏（背景と装飾だけ）になります。' },
-  { t: () => $('btnTap'), title: '2. 曲を読み込む', text: 'mp3 などを読み込むと拍を検出して、カットの切り替わりを合わせます。曲がなくても作れます。「タップで同期」で行の頭を合わせることもできます。' },
-  { t: () => $('btnOmakaseBig'), title: '3. おまかせで作る', text: 'スタイル・雰囲気・動き・配色・構成をまるごと決めます。押すたびに別の案になり、「◀ 前の案」で戻れます。' },
-  { t: () => $('btnPlay'), title: '4. 再生して確認する', text: '再生して見てみましょう。下のタイムラインでは、行の区切りをドラッグして動かせます（＋−で拡大）。' },
-  { t: () => $('lineList'), title: '5. 気になる行だけ直す', text: '行ごとに、歌詞をダブルクリックして直す、この行からタップし直す（◎）、この行だけ作り直す（サイコロ）ができます。' },
-  { t: () => $('eMP4').closest('.easy-sec') || $('eMP4'), title: '6. 書き出す', text: '画面比（縦長 9:16 など）と解像度を選んで MP4 を書き出します。「書き出す範囲」で選んだ行だけを書き出すこともできます。' },
-];
+/* ---------------- 案内ツアー ---------------- */
+const TOUR = [];
 const TR = { i: -1 };
-function tourShow(i) {
-  const el = $('tour'), n = TOUR.length;
-  if (i < 0 || i >= n) return tourEnd();
-  TR.i = i;
-  const st = TOUR[i], tg = st.t();
-  el.hidden = false;
-  el.querySelector('.tour-step').textContent = `${i + 1} / ${n}`;
-  el.querySelector('.tour-title').textContent = st.title;
-  el.querySelector('.tour-text').textContent = st.text;
-  el.querySelector('.tour-prev').disabled = i === 0;
-  el.querySelector('.tour-next').textContent = i === n - 1 ? 'はじめる' : '次へ';
-  if (tg && tg.scrollIntoView) tg.scrollIntoView({ block: 'center', behavior: 'auto' });
-  requestAnimationFrame(() => tourPlace(tg));
-  el.querySelector('.tour-next').focus();
-}
-function tourPlace(tg) {
-  const el = $('tour'), spot = el.querySelector('.tour-spot'), bub = el.querySelector('.tour-bub');
-  const vw = window.innerWidth, vh = window.innerHeight, pad = 6;
-  const r = tg ? tg.getBoundingClientRect() : { left: vw / 2, top: vh / 2, width: 0, height: 0, right: vw / 2, bottom: vh / 2 };
-  const x0 = Math.max(4, r.left - pad), y0 = Math.max(4, r.top - pad), x1 = Math.min(vw - 4, r.right + pad), y1 = Math.min(vh - 4, r.bottom + pad);
-  Object.assign(spot.style, { left: x0 + 'px', top: y0 + 'px', width: Math.max(0, x1 - x0) + 'px', height: Math.max(0, y1 - y0) + 'px' });
-  const bw = bub.offsetWidth, bh = bub.offsetHeight, gap = 12;
-  let top = y1 + gap <= vh - bh - 8 ? y1 + gap : y0 - gap - bh >= 8 ? y0 - gap - bh : Math.max(8, vh - bh - 8);
-  let left = J.clamp(x0 + (x1 - x0) / 2 - bw / 2, 8, vw - bw - 8);
-  Object.assign(bub.style, { top: top + 'px', left: left + 'px' });
-}
-function tourStart() {
-  if (S.exporting || S.tap) return;
-  if (S.mode !== 'easy') setMode('easy');
-  pause(); tourShow(0);
-}
+function tourShow(i) {}
+function tourPlace(tg) {}
+function tourStart() {}
 function tourEnd() {
-  $('tour').hidden = true; TR.i = -1;
+  const el = $('tour'); if (el) el.hidden = true;
+  TR.i = -1;
   try { localStorage.setItem('jizura.tourDone', '1'); } catch (e) {}
 }
-function bindTour() {
-  const el = $('tour');
-  el.querySelector('.tour-next').addEventListener('click', () => tourShow(TR.i + 1));
-  el.querySelector('.tour-prev').addEventListener('click', () => tourShow(TR.i - 1));
-  el.querySelector('.tour-skip').addEventListener('click', tourEnd);
-  $('btnTour').addEventListener('click', tourStart);
-  document.addEventListener('keydown', e => {
-    if (TR.i < 0) return;
-    if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); tourShow(TR.i + 1); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopImmediatePropagation(); tourShow(TR.i - 1); }
-    else if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); tourEnd(); }
-    else if (e.key !== 'Tab') { e.stopImmediatePropagation(); }
-  }, true);
-  window.addEventListener('resize', () => { if (TR.i >= 0) tourPlace(TOUR[TR.i].t()); });
-  window.addEventListener('scroll', () => { if (TR.i >= 0) tourPlace(TOUR[TR.i].t()); }, true);
-}
+function bindTour() {}
 
 /* 检查并恢复工程资源（音频与用户字体），若有缺失则提示具体文件名 */
 async function checkAndRestoreAssets() {
@@ -4294,13 +4486,8 @@ function boot() {
   bind(); initVolume(); syncUI(); syncLoopBtn(); replan();
   checkAndRestoreAssets();
   updateEditBtns();
-  // first visit on a phone: スマホ mode
-  let mode = window.matchMedia && window.matchMedia('(max-width: 760px)').matches ? 'mobile' : 'easy';
-  try { mode = localStorage.getItem('jizura.mode') || mode; } catch (e) {}
-  setMode(mode); commit();
+  setMode('pro'); commit();
   bindTour();
-  let seen = false; try { seen = localStorage.getItem('jizura.tourDone') === '1'; } catch (e) {}
-  if (!seen && S.mode === 'easy' && !window.__adobe_cep__) setTimeout(tourStart, 600);   // first visit: show the tour once
   // open on a representative frame (end of the first cut's entrance)
   const c0 = S.plan.cuts.find(c => c.line >= 0);
   if (c0) seek(c0.start + Math.min(c0.dur * 0.6, c0.inDur + 0.25));

@@ -12,6 +12,7 @@ J.SAMPLE_LYRICS = `夜明けの色を/覚えてる
 J.defaultProject = () => ({
   version: 1,
   timingOrder: 2,                 // lyric lines keep their written order around LRC-tagged lines (v0.10)
+  vibeLibrary: {}, vibeGeneration: { id: 'all', includeGeneral: false },
   themeId: null,                  // おまかせのテーマ (J.THEMES key) — only おまかせ reads it
   title: '', artist: '',
   lyrics: J.SAMPLE_LYRICS,
@@ -28,7 +29,7 @@ J.defaultProject = () => ({
   centerDir: 'tb',                // 中央を空ける on tall frames: 'tb' = top / bottom, 'lr' = left / right
   centerFree: false,              // 中央を空ける: lay the cuts out in side bands (left / right or top / bottom) around a character
   seed: 20260922,
-  aspect: '16:9', res: 1080, fps: 24,
+  aspect: '16:9', res: 1080, fps: 24, quality: 'high',
   fx: { motion: 0.7, glitch: 0.55, chroma: 0.7, decor: 0.5, density: 0.55, texture: 0.6, flash: true, onTwos: true, koma: 12, hud: 'auto', bgSwitch: 0.35, hideNo: false, hideTime: false },
   enabled: Object.fromEntries(J.GROUP_KEYS.map(g => [g, Object.fromEntries(J.order(g).map(k => [k, true]))])),
   timing: { bpm: 0, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineScale: 1 },
@@ -281,6 +282,7 @@ function cutTechOf(ov, k) {
 
 J.plan = (project, audio) => {
   const st = J.resolveStyle(project);
+  if (J.applyVibeFonts) J.applyVibeFonts(project, st);
   const fx = Object.assign({}, J.defaultProject().fx, project.fx || {});
   const parsed = J.parseLyrics(project.lyrics);
   const title = project.title || parsed.meta.ti || '';
@@ -327,6 +329,8 @@ J.plan = (project, audio) => {
   const history = [], bgHistory = [], fxHistory = [];
   let schemeIdx = 0;
   const nSchemes = st.schemes.length;
+  const vibeSchemes = J.vibeCandidates ? J.vibeCandidates(project, 'scheme', st.schemes.map((_, i) => i)) : st.schemes.map((_, i) => i);
+  if (vibeSchemes.length) schemeIdx = vibeSchemes[0];
   const addEvent = (t, type, amp, dur) => plan.events.push({ t, type, amp, dur });
   const evOwner = new WeakMap(); Object.defineProperty(plan, 'evOwner', { value: evOwner });
   const isManualEvents = project.eventMode === 'manual' || (fx && fx.autoEvents === false);
@@ -402,8 +406,17 @@ J.plan = (project, audio) => {
         decor = pickDecor(rng, st, en, Object.assign({}, fx, { decor: Math.max(0.6, fx.decor) }), 'interlude', history);
       }
       if (tech.decor !== undefined) {
-        if (!tech.decor || tech.decor === 'none' || !J.DECOR[tech.decor]) decor = [];
-        else decor = [decorParams(J.rng(J.h(lineSeed, 0, 92)), tech.decor)];
+        if (!tech.decor || tech.decor === 'none') {
+          decor = [];
+        } else {
+          const decorList = Array.isArray(tech.decor)
+            ? tech.decor
+            : (typeof tech.decor === 'string' && tech.decor.includes(',') ? tech.decor.split(',') : [tech.decor]);
+          decor = decorList
+            .map(id => typeof id === 'string' ? id.trim() : id)
+            .filter(id => id && id !== 'none' && J.DECOR[id])
+            .map((id, idx) => decorParams(J.rng(J.h(lineSeed, 0, 92 + idx * 7)), id));
+        }
       }
 
       // camera
@@ -586,6 +599,7 @@ J.plan = (project, audio) => {
       schemeIdx = lockSpecs[lockSpecs.length - 1].scheme % nSchemes;
     } else {
       if (nSchemes > 1 && li > 0 && (U ? U.sectionStart(li) && rng.chance(0.25 + fx.bgSwitch) : rng.chance(fx.bgSwitch * (ln.impact ? 1.8 : 1)))) schemeIdx = (schemeIdx + 1 + rng.int(0, nSchemes - 2)) % nSchemes;
+      if (vibeSchemes.length && !vibeSchemes.includes(schemeIdx)) schemeIdx = rng.pick(vibeSchemes);
       if (ov.scheme !== undefined && ov.scheme !== '') {
         const os = +ov.scheme;
         if (isFinite(os) && nSchemes > 0) schemeIdx = ((os % nSchemes) + nSchemes) % nSchemes;
@@ -643,6 +657,7 @@ J.plan = (project, audio) => {
       let [inDur, outDur] = durs(enter, exit);
       let sch = schemeIdx;
       if (!U && nSchemes > 1 && k > 0 && rng.chance(0.12 * fx.bgSwitch)) sch = (schemeIdx + 1) % nSchemes;
+      if ((ov.scheme == null || ov.scheme === '') && vibeSchemes.length && !vibeSchemes.includes(sch)) sch = rng.pick(vibeSchemes);
       let LD = J.LAYOUTS[layout];
       let params = LD.plan(rng, { text: txt, n: nn, W: LW, H: LH, dur }, cutSt);
       let decor = Array.isArray(ov.decor) ? ov.decor.filter(id => J.DECOR[id]).map(id => decorParams(rng, id)) : pickDecor(rng, st, en, fx, layout, history);
@@ -707,8 +722,17 @@ J.plan = (project, audio) => {
       if (tech.exit && J.EXIT[tech.exit]) exit = tech.exit;
       if (tech.hold && J.HOLD[tech.hold]) hold = tech.hold;
       if (tech.decor !== undefined) {
-        if (!tech.decor || tech.decor === 'none' || !J.DECOR[tech.decor]) decor = [];
-        else decor = [decorParams(J.rng(J.h(lineSeed, k, 92)), tech.decor)];
+        if (!tech.decor || tech.decor === 'none') {
+          decor = [];
+        } else {
+          const decorList = Array.isArray(tech.decor)
+            ? tech.decor
+            : (typeof tech.decor === 'string' && tech.decor.includes(',') ? tech.decor.split(',') : [tech.decor]);
+          decor = decorList
+            .map(id => typeof id === 'string' ? id.trim() : id)
+            .filter(id => id && id !== 'none' && J.DECOR[id])
+            .map((id, idx) => decorParams(J.rng(J.h(lineSeed, k, 92 + idx * 7)), id));
+        }
       }
       if (tech.treat && J.TREAT[tech.treat]) {
         treat = tech.treat;
@@ -795,7 +819,10 @@ J.plan = (project, audio) => {
       if (UU) UU.remember(li, k, txt, cut);
       if (zones) splitCut(cut, halves, zones, st, dur, LS);
       // 文字整列: effects don't pile up — one decoration, no text treatment on top of it
-      if (plan.typeset) { cut.decor = cut.decor.slice(0, 1); if (cut.decor.length && cut.treat !== 'none') { cut.treat = 'none'; cut.treatP = {}; } }
+      if (plan.typeset) {
+        if (tech.decor === undefined) cut.decor = cut.decor.slice(0, 1);
+        if (cut.decor.length && cut.treat !== 'none' && tech.treat === undefined) { cut.treat = 'none'; cut.treatP = {}; }
+      }
       plan.cuts.push(cut);
       const evMark = plan.events.length;
       // history = what the draw gave (with the usual join), so a per-cut pick never shifts the later cuts

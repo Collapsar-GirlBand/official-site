@@ -33,46 +33,169 @@ const VIDEO_CANDS = [
   { codec: 'vp09.00.51.08', mux: 'vp9', label: 'VP9' },
   { codec: 'av01.0.12M.08', mux: 'av1', label: 'AV1' },
 ];
-// hardware encoders often refuse very high bitrates (52 Mbps+ for 1080p60 at 最高) — keep them in a range they accept
-J.videoBitrate = (w, h, fps, quality) => {
-  const want = w * h * fps * (quality === 'max' ? 0.42 : quality === 'high' ? 0.28 : 0.16);
+// baseline raw bitrate calculation
+J.rawVideoBitrate = (w, h, fps, quality) => {
+  const want = w * h * fps * (quality === 'max' ? 0.42 : quality === 'high' ? 0.28 : quality === 'standard' ? 0.16 : 0.20);
   const px = w * h, cap = px <= 2.2e6 ? 40e6 : px <= 3.8e6 ? 60e6 : 90e6;
   return Math.round(Math.min(want, cap));
 };
-const vcfg = (c, w, h, fps, bitrate, hw) => {
+
+/* ---------- intelligent complexity analysis & compression estimator ---------- */
+J.analyzeComplexity = (project, plan, range) => {
+  project = project || {};
+  const isKey = J.keyMode ? !!J.keyMode(project) : false;
+  const st = (plan && plan.style) || (J.resolveStyle ? J.resolveStyle(project) : (J.STYLES && J.STYLES[project.style]));
+  const fx = (plan && plan.fx) || (J.resolveFx ? J.resolveFx(project) : {});
+
+  // Calculate effective grain (0 to 1+)
+  const grainVal = isKey ? 0 : ((st && st.texture && st.texture.grain) || 0) * (fx.texture ?? 0.6);
+  const scanVal = isKey ? 0 : ((st && st.texture && st.texture.scan) || 0) * (fx.texture ?? 0.6);
+  const paperVal = isKey ? 0 : ((st && st.texture && st.texture.paper) || 0) * (fx.texture ?? 0.6);
+
+  const glitch = fx.glitch || 0;
+  const shake = fx.shake || 0;
+  const isHorror = project.mood === 'horror' || (st && st.horror);
+  const isGlitchMood = project.mood === 'glitch';
+
+  const fullDuration = (plan && plan.duration) || 60;
+  const dur = range && plan ? J.exportSpan(plan, range).dur : fullDuration;
+  const numCuts = (plan && plan.cuts && plan.cuts.length) || 10;
+  const cutFreq = numCuts / Math.max(1, fullDuration);
+
+  let category, title, desc, recommendedBpp, badgeColor, isGrainWarning = false;
+
+  if (grainVal >= 0.25) {
+    category = 'high_grain';
+    title = '高频颗粒噪点（胶片/复古质感）';
+    desc = '颗粒纹理较强，建议使用高画质；轻量版可能损失颗粒和细节。';
+    recommendedBpp = 0.16;
+    badgeColor = 'var(--amber, #f5a50c)';
+    isGrainWarning = true;
+  } else if (grainVal >= 0.10 || scanVal >= 0.25 || isHorror || isGlitchMood || glitch >= 0.4 || cutFreq >= 1.2) {
+    category = 'dynamic_mixed';
+    title = '综合动效与轻质感（中动态）';
+    desc = '画面包含纹理或较强动态，建议检查快速运动与转场的导出效果。';
+    recommendedBpp = 0.095;
+    badgeColor = 'var(--cyan, #16f4d4)';
+  } else {
+    category = 'clean_vector';
+    title = '高纯净矢量文字动效（低噪点）';
+    desc = '画面纹理较少，轻量版可缩小体积，但仍可能损失细字和边缘细节。';
+    recommendedBpp = 0.065;
+    badgeColor = '#10b981';
+  }
+
+  const [w, h] = J.outputSize ? J.outputSize(project) : [1920, 1080];
+  const fps = (plan && plan.fps) || project.fps || 30;
+  const quality = project.quality || 'high';
+
+  const origBitrate = J.rawVideoBitrate(w, h, fps, 'high');
+
+  let targetBpp = recommendedBpp;
+  if (quality === 'compact') {
+    targetBpp = 0.048;
+  } else if (quality === 'standard') {
+    targetBpp = 0.16;
+  } else if (quality === 'high') {
+    targetBpp = 0.28;
+  } else if (quality === 'max') {
+    targetBpp = 0.42;
+  }
+
+  const targetBitrate = quality === 'smart' || quality === 'compact'
+    ? Math.round(Math.min(w * h * fps * targetBpp, 90e6))
+    : J.rawVideoBitrate(w, h, fps, quality);
+  const audioBitrate = (project.includeAudio !== false) ? 192000 : 0;
+
+  const origTotalBps = origBitrate + audioBitrate;
+  const optTotalBps = targetBitrate + audioBitrate;
+
+  const origSizeMB = (origTotalBps * dur) / 8 / 1048576;
+  const optSizeMB = (optTotalBps * dur) / 8 / 1048576;
+
+  const savingRatio = Math.max(0, Math.round((1 - optSizeMB / origSizeMB) * 100));
+
+  return {
+    category,
+    title,
+    desc,
+    grainVal,
+    isGrainWarning,
+    recommendedBpp,
+    targetBpp,
+    targetBitrate,
+    origBitrate,
+    origSizeMB,
+    optSizeMB,
+    savingPercent: savingRatio > 0 ? `~${savingRatio}%` : '0%',
+    badgeColor
+  };
+};
+
+// adaptive video bitrate
+J.videoBitrate = (w, h, fps, quality, project, plan) => {
+  quality = quality || (project && project.quality) || 'high';
+  if (quality === 'smart') {
+    const a = J.analyzeComplexity(Object.assign({}, project, { quality }), plan);
+    return a.targetBitrate;
+  }
+  if (quality === 'compact') {
+    const want = w * h * fps * 0.048;
+    return Math.round(Math.min(want, 90e6));
+  }
+  return J.rawVideoBitrate(w, h, fps, quality);
+};
+const vcfg = (c, w, h, fps, bitrate, hw, vbr = false) => {
   const cfg = { codec: c.codec, width: w, height: h, bitrate, framerate: fps };
+  if (vbr) cfg.bitrateMode = 'variable';
   if (hw) cfg.hardwareAcceleration = hw;
   if (c.mux === 'avc') cfg.avc = { format: 'avc' };
   return cfg;
 };
 async function supported(cfg) { try { const s = await VideoEncoder.isConfigSupported(cfg); return !!(s && s.supported); } catch (e) { return false; } }
 const codecMemo = new Map();   // the answer never changes for a page load; asking the browser again costs ~100 ms
-J.pickVideoCodec = (w, h, fps, bitrate) => {
-  const key = [w, h, fps, bitrate].join('/');
+J.pickVideoCodec = (w, h, fps, bitrate, vbr = false) => {
+  const key = [w, h, fps, bitrate, vbr].join('/');
   if (!codecMemo.has(key)) codecMemo.set(key, (async () => {
     if (typeof VideoEncoder === 'undefined') return null;
-    for (const c of VIDEO_CANDS) { const cfg = vcfg(c, w, h, fps, bitrate); if (await supported(cfg)) return Object.assign({}, c, { cfg }); }
+    for (const c of VIDEO_CANDS) {
+      let cfg = vcfg(c, w, h, fps, bitrate, null, vbr);
+      if (await supported(cfg)) return Object.assign({}, c, { cfg });
+      if (vbr) {
+        cfg = vcfg(c, w, h, fps, bitrate, null, false);
+        if (await supported(cfg)) return Object.assign({}, c, { cfg });
+      }
+    }
     return null;
   })());
   return codecMemo.get(key).then(vc => vc && Object.assign({}, vc, { cfg: Object.assign({}, vc.cfg) }));
 };
 /* the encoders to try, best first: the browser's choice, then the same codec in software (GPU encoders are the usual
-   reason an export fails every time on one PC), then a simpler profile / lower bitrate in software, then VP9 */
-J.videoAttempts = async (w, h, fps, bitrate) => {
+   reason an export fails every time on one PC), then a simpler profile in software, then VP9.
+   Keep the requested bitrate on every attempt; retries must not silently reduce it. */
+J.videoAttempts = async (w, h, fps, bitrate, vbr = false) => {
   if (typeof VideoEncoder === 'undefined') return [];
   const out = [], seen = new Set();
   const add = async (c, hw, br) => {
-    const key = c.codec + '|' + (hw || '') + '|' + br;
+    const key = c.codec + '|' + (hw || '') + '|' + br + '|' + vbr;
     if (seen.has(key) || out.length >= 5) return;
-    const cfg = vcfg(c, w, h, fps, br, hw);
-    if (await supported(cfg)) { seen.add(key); out.push(Object.assign({}, c, { cfg, hw: hw || 'auto' })); }
+    let cfg = vcfg(c, w, h, fps, br, hw, vbr);
+    if (await supported(cfg)) { seen.add(key); out.push(Object.assign({}, c, { cfg, hw: hw || 'auto' })); return; }
+    if (vbr) {
+      cfg = vcfg(c, w, h, fps, br, hw, false);
+      if (await supported(cfg)) { seen.add(key); out.push(Object.assign({}, c, { cfg, hw: hw || 'auto' })); }
+    }
   };
   let first = null;
-  for (const c of VIDEO_CANDS) { const cfg = vcfg(c, w, h, fps, bitrate); if (await supported(cfg)) { first = c; break; } }
+  for (const c of VIDEO_CANDS) {
+    const cfg = vcfg(c, w, h, fps, bitrate, null, vbr);
+    if (await supported(cfg)) { first = c; break; }
+    if (vbr && await supported(vcfg(c, w, h, fps, bitrate, null, false))) { first = c; break; }
+  }
   if (first) { await add(first, null, bitrate); await add(first, 'prefer-software', bitrate); }
   const avc = VIDEO_CANDS.filter(c => c.mux === 'avc' && c !== first);
-  for (const c of avc) { await add(c, 'prefer-software', Math.round(bitrate * 0.7)); if (out.length >= 3) break; }
-  for (const c of VIDEO_CANDS.filter(c => c.mux !== 'avc')) await add(c, 'prefer-software', Math.round(bitrate * 0.7));
+  for (const c of avc) { await add(c, 'prefer-software', bitrate); if (out.length >= 3) break; }
+  for (const c of VIDEO_CANDS.filter(c => c.mux !== 'avc')) await add(c, 'prefer-software', bitrate);
   return out;
 };
 J.pickAudioCodec = async (sr, chn) => {
@@ -139,17 +262,18 @@ class BlockStore {                    // positioned writes into a list of blocks
   blob(type) { return new Blob(this.blocks.map(b => b.u), { type }); }
 }
 J.exportMP4 = async (o) => {
-  const { plan, project, audio, quality = 'high', onProgress, signal, range, file = null } = o;
+  const { plan, project, audio, quality = project.quality || 'high', onProgress, signal, range, file = null } = o;
   const [w, h] = J.outputSize(project);
-  const fps = plan.fps, bitrate = J.videoBitrate(w, h, fps, quality);
-  const attempts = await J.videoAttempts(w, h, fps, bitrate);
+  const fps = plan.fps, bitrate = J.videoBitrate(w, h, fps, quality, project, plan);
+  const vbr = (quality === 'smart' || quality === 'compact');
+  const attempts = await J.videoAttempts(w, h, fps, bitrate, vbr);
   if (!attempts.length) throw new Error('このブラウザは動画エンコード（WebCodecs）に対応していません。Chrome か Edge の最新版で開いてください。');
   const tried = [];
   for (let k = 0; k < attempts.length; k++) {
     const vc = attempts[k];
     try {
       if (file && k > 0) { await file.seek(0); await file.truncate(0); }
-      const r = await encodeMP4(Object.assign({}, o, { w, h, vc, note: k > 0 ? `（${vc.label}・ソフトウェアで再試行 ${k}）` : '' }));
+      const r = await encodeMP4(Object.assign({}, o, { w, h, vc, quality, note: k > 0 ? `（${vc.label}・ソフトウェアで再試行 ${k}）` : '' }));
       r.tried = tried; return r;
     } catch (e) {
       if (signal && signal.aborted) throw new Error('キャンセルしました');
@@ -161,7 +285,7 @@ J.exportMP4 = async (o) => {
   const err = new Error('MP4 を書き出せませんでした。' + (file ? '' : '「大きな動画用（ファイルに直接保存）」か、') + '解像度・fps・画質を下げて試してください。詳細：' + tried.join(' ／ '));
   err.detail = tried; throw err;
 };
-async function encodeMP4({ plan, project, audio, onProgress, signal, range, file, w, h, vc, note }) {
+async function encodeMP4({ plan, project, audio, onProgress, signal, range, file, w, h, vc, quality, note }) {
   const span = J.exportSpan(plan, range);
   const fps = plan.fps;
   let ac = null;
@@ -174,7 +298,19 @@ async function encodeMP4({ plan, project, audio, onProgress, signal, range, file
   const muxer = new Mp4Muxer.Muxer(muxOpts);
   let err = null, outFrames = 0;
   const venc = new VideoEncoder({ output: (chunk, meta) => { outFrames++; try { muxer.addVideoChunk(chunk, meta); } catch (e) { err = e; } }, error: e => { err = e; } });
-  venc.configure(Object.assign({}, vc.cfg, { latencyMode: 'quality' }));
+  const isVbr = (quality === 'smart' || quality === 'compact');
+  let encCfg = Object.assign({}, vc.cfg, { latencyMode: 'quality' });
+  if (isVbr) encCfg.bitrateMode = 'variable';
+  try {
+    venc.configure(encCfg);
+  } catch (cfgErr) {
+    if (encCfg.bitrateMode) {
+      delete encCfg.bitrateMode;
+      venc.configure(encCfg);
+    } else {
+      throw cfgErr;
+    }
+  }
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d', { alpha: false });
   const R = new J.Renderer();
@@ -231,7 +367,8 @@ async function encodeMP4({ plan, project, audio, onProgress, signal, range, file
   if (file) await file.close();
   onProgress && onProgress(1, '完了');
   const size = file ? null : store.end;
-  return { blob: file ? null : store.blob('video/mp4'), size, codec: vc.label + (vc.hw === 'prefer-software' ? '（ソフトウェア）' : ''), audio: ac ? ac.mux : null, audioWanted: !!(audio && audio.buffer && project.includeAudio !== false), width: w, height: h, toFile: !!file };
+  const analysis = J.analyzeComplexity ? J.analyzeComplexity(project, plan) : null;
+  return { blob: file ? null : store.blob('video/mp4'), size, codec: vc.label + (vc.hw === 'prefer-software' ? '（ソフトウェア）' : ''), audio: ac ? ac.mux : null, audioWanted: !!(audio && audio.buffer && project.includeAudio !== false), width: w, height: h, toFile: !!file, quality, saving: analysis ? analysis.savingPercent : null };
 }
 
 /* ---------- PNG sequence as ZIP (store, no compression) ---------- */

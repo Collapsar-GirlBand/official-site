@@ -96,7 +96,7 @@ BODY = {
     '<li>タイミング・行ごとの指定・書き出す範囲</li>': '<li>Cài đặt thời gian, hàng và phạm vi xuất</li>',
     '<li>スタイル・演出・配色・書体などの設定</li>': '<li>Phong cách, hiệu ứng, bảng màu, phông chữ và các cài đặt khác</li>',
     '<li>案の履歴（◀ ▶）と、歌詞・タイミングの「元に戻す」の履歴</li>': '<li>Lịch sử đa dạng (◀ ▶) và lịch sử Hoàn tác lời bài hát/thời gian</li>',
-    '<p class="terms-sub">表示モード（かんたん／詳細）・プレビューの音量・画面の言語はそのままです。保存したプロジェクトファイル（.json）も消えません。</p>': '<p class="terms-sub">Chế độ soạn thảo (Đơn giản / Nâng cao), âm lượng xem trước và ngôn ngữ giao diện không thay đổi. Các tệp dự án đã lưu (.json) cũng không bị xóa.</p>',
+    '<p class="terms-sub">プレビューの音量・画面の言語はそのままです。保存したプロジェクトファイル（.json）も消えません。</p>': '<p class="terms-sub">Âm lượng xem trước và ngôn ngữ giao diện không thay đổi. Các tệp dự án đã lưu (.json) cũng không bị xóa.</p>',
     '<button value="cancel" class="ghost">やめる</button><button value="reset" class="danger">初期化する</button>': '<button value="cancel" class="ghost">Hủy</button><button value="reset" class="danger">Đặt lại</button>',
     '<li><code>[間奏 8]</code> … 8秒の間奏（歌詞は出さず、背景と装飾だけ）。秒数を省くと4秒、タップ同期やマーカーで長さを合わせられます</li>': '<li><code>[interlude 8]</code> … đoạn nhạc nền 8 giây (không hiện lời, chỉ nền và hiệu ứng). Không số thì mặc định 4 giây; Đặt điểm chuyển cảnh hoặc thanh neo để chỉnh độ dài</li>',
     '<button class="tour-skip ghost small">スキップ</button>': '<button class="tour-skip ghost small">Bỏ qua</button>',
@@ -495,3 +495,6 @@ EXPORT = {
     '音声をエンコード中': 'Mã hóa âm thanh',
     '完了': 'Hoàn thành'
 }
+
+from .export_copy import apply_quality_copy
+apply_quality_copy(globals(), 'vi')
