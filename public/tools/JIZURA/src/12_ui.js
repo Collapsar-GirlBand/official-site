@@ -136,7 +136,9 @@ function initVolume() {
 }
 
 /* ---------------- project persistence ---------------- */
-function mergeProject(p) {
+function mergeProject(p, notices) {
+  const original = p;
+  p = J.normalizeProject(p, notices);
   const d = J.defaultProject();
   const o = Object.assign(d, p || {});
   o.fx = Object.assign(J.defaultProject().fx, (p && p.fx) || {});
@@ -179,7 +181,7 @@ function mergeProject(p) {
   o.userFonts = (Array.isArray(p && p.userFonts) ? p.userFonts : []).filter(uf => uf && J.SAFE_FONT_KEY.test(uf.key))
     .map(uf => ({ key: uf.key, label: String(uf.label || uf.key).slice(0, 80), family: J.safeFamily(uf.family || uf.key.slice(5)), weight: J.clamp(parseInt(uf.weight, 10) || 400, 100, 900) }));
   for (const uf of o.userFonts) if (!J.FONTS[uf.key]) J.addUserFont(uf.key, uf.label, uf.family, uf.weight);
-  migrateOrder(o, p);
+  migrateOrder(o, original);
   o.themeId = p && typeof p.themeId === 'string' && J.THEMES && J.THEMES[p.themeId] ? p.themeId : null;
   o.fonts = {};
   for (const [role, k] of Object.entries((p && p.fonts) || {})) {
@@ -214,14 +216,65 @@ function setBadges(d) {
 }
 function loadLocal() { try { const s = localStorage.getItem(LS_KEY); if (s) return mergeProject(JSON.parse(s)); } catch (e) {} return mergeProject(null); }
 let saveTimer = 0;
-function autosave() { clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 700); }
+let projectImporting = false;
+function autosave() { if (projectImporting) return; clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 700); }
 function flushSave() {
+  if (projectImporting) return;
   clearTimeout(saveTimer);
   try { if (S.project) localStorage.setItem(LS_KEY, JSON.stringify(S.project)); } catch (e) {}
   saveUndoHistory();
 }
 window.addEventListener('pagehide', () => { if (S.project) flushSave(); });
 window.addEventListener('beforeunload', () => { if (S.project) flushSave(); });
+
+// Both picker and drop imports use a transaction: invalid files and UI failures leave the previous session intact.
+async function importProjectFile(file) {
+  if (S.exporting || projectImporting) return;
+  let phase = '读取文件', previous = null;
+  try {
+    const text = await file.text();
+    if (S.exporting || projectImporting) return;
+    phase = '解析项目';
+    const notices = [], np = mergeProject(J.parseProjectFile(text), notices);
+    phase = '验证时间轴';
+    J.plan(np, audioLike());
+    if (S.tap) stopTap();
+    pause();
+    const snap = edSnap();
+    previous = { state: { ...S }, undo: ED.undo, redo: ED.redo, history: H.list, index: H.i, fontKey };
+    clearTimeout(saveTimer);
+    projectImporting = true;
+    phase = '刷新界面';
+    S.project = np; S.selectedEvent = null; fontKey = '';
+    ED.undo = snap ? [snap] : []; ED.redo = []; H.list = []; H.i = -1;
+    syncUI(); replan(); commit(); updateEditBtns();
+    projectImporting = false;
+    flushSave(); showMsg(null);
+    const summary = notices.length ? '兼容导入完成：' + notices.slice(0, 5).join('；')
+      + (notices.length > 5 ? '；另有 ' + (notices.length - 5) + ' 项修复' : '') : '项目已打开';
+    toast(summary, null, notices.length ? 12000 : 3000);
+    // Asset restoration is asynchronous and must not turn a successful project import into a failed one.
+    Promise.resolve().then(() => restoreFonts()).catch(err => {
+      console.warn('Project assets:', err);
+      toast('项目已打开，部分音频或字体需要重新选择', null, 6000);
+    });
+    return true;
+  } catch (err) {
+    if (previous) {
+      clearTimeout(saveTimer);
+      Object.assign(S, previous.state); ED.undo = previous.undo; ED.redo = previous.redo;
+      H.list = previous.history; H.i = previous.index; fontKey = previous.fontKey;
+      try { syncUI(); replan(); updateHist(); updateEditBtns(); }
+      catch (restoreError) { console.error('Project UI restoration:', restoreError); }
+      // Replanning must not replace the original plan/history or persist partial state.
+      Object.assign(S, previous.state);
+    }
+    projectImporting = false;
+    console.error('Project import (' + phase + '):', err);
+    showMsg('无法打开项目（' + phase + '）：' + (err && err.message || String(err)) + '。当前项目已保留。');
+    return false;
+  }
+}
 
 /* ---------------- planning ---------------- */
 function audioLike() {
@@ -3931,22 +3984,7 @@ function bind() {
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       if (f.name.endsWith('.json')) {
-        (async () => {
-          try {
-            const np = mergeProject(JSON.parse(await f.text()));
-            if (S.tap) stopTap();
-            pause();
-            const prevSnap = edSnap();
-            ED.undo = prevSnap ? [prevSnap] : [];
-            ED.redo = []; H.list = []; H.i = -1;
-            S.project = np;
-            syncUI(); replan(); restoreFonts(); commit(); updateEditBtns(); flushSave();
-            toast('プロジェクトを読み込みました');
-          } catch (err) {
-            showMsg('プロジェクトを読み込めませんでした');
-            setTimeout(() => showMsg(null), 2500);
-          }
-        })();
+        void importProjectFile(f);
         return;
       }
       if (f.name.endsWith('.lrc')) {
@@ -4302,17 +4340,7 @@ function bind() {
   $('resetDlg').addEventListener('close', () => { if ($('resetDlg').returnValue === 'reset') resetAll(); });
   $('fileProject').addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
-    try {
-      const np = mergeProject(JSON.parse(await f.text()));
-      if (S.tap) stopTap();
-      pause();
-      const prevSnap = edSnap();
-      ED.undo = prevSnap ? [prevSnap] : [];
-      ED.redo = []; H.list = []; H.i = -1;
-      S.project = np;
-      syncUI(); replan(); restoreFonts(); commit(); updateEditBtns(); flushSave();
-    }
-    catch (err) { showMsg('プロジェクトを読み込めませんでした'); setTimeout(() => showMsg(null), 2500); }
+    await importProjectFile(f);
     e.target.value = '';
   });
   document.addEventListener('keydown', e => {
