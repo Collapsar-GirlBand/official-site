@@ -10,9 +10,11 @@ function fixture() {
   const box = engine(), writes = [], messages = [], notices = [];
   box.console = { error() {}, warn() {} };
   box.window.addEventListener = () => {};
+  box.$ = () => null;
   box.localStorage.setItem = (key, value) => writes.push([key, value]);
   vm.runInContext(slice('function mergeProject(', 'const SET_UI')
-    + slice('function loadLocal(', '/* ---------------- planning'), box);
+    + slice('function loadLocal(', '/* ---------------- planning')
+    + slice('const audioExt = ', '/* ---------------- wiring'), box);
   const project = box.mergeProject({ lyrics: '原有歌词', timingOrder: 2 });
   Object.assign(box, {
     S: { project, plan: box.J.plan(project, null), t: 2, playing: false },
@@ -24,6 +26,7 @@ function fixture() {
     commit() { box.H.list = ['new look']; box.H.i = 0; },
     updateHist() {}, updateEditBtns() {}, saveUndoHistory() {}, restoreFonts: async () => {},
     showMsg: m => messages.push(m), toast: m => notices.push(m),
+    loadAudioFile: async f => { box.audioLoaded = f.name; return true; },
   });
   return { box, writes, messages, notices };
 }
@@ -104,6 +107,16 @@ test('UI failure rolls back project and both histories without persisting the fa
   assert.deepEqual(box.ED.undo, ['old undo']); assert.deepEqual(box.ED.redo, ['old redo']);
   assert.deepEqual(box.H.list, ['old look']); assert.equal(box.H.i, 0);
   assert.equal(writes.length, 0); assert.match(messages.at(-1), /刷新界面.*synthetic UI failure/);
+  assert.match(messages.at(-1), /不能据此判定为项目格式不兼容/);
+});
+
+test('import error text names the failing UI section when that context is available', async () => {
+  const { box, messages } = fixture(), original = box.S.project;
+  box.syncUI = () => {
+    if (box.S.project !== original) throw Object.assign(new Error('synthetic style failure'), { projectSection: '风格列表' });
+  };
+  assert.equal(await box.importProjectFile(file({ lyrics: '新歌词' })), false);
+  assert.match(messages.at(-1), /无法打开项目（风格列表）.*synthetic style failure/);
 });
 
 test('successful imports persist only after UI succeeds, keep undo and tolerate missing assets', async () => {
@@ -123,4 +136,47 @@ test('failure after replanning never autosaves a partial project or consumes pre
   assert.equal(await box.importProjectFile(file({ lyrics: '新歌词' })), false);
   assert.equal(box.S.project, previous); assert.equal(box.S.plan, plan);
   assert.deepEqual(box.H.list, ['old look']); assert.equal(writes.length, 0);
+});
+
+test('handleDroppedFiles automatically recognizes audio alone, JSON project alone, and both together', async () => {
+  const { box, notices } = fixture();
+  const makeFile = (name, type, content) => ({
+    name, type, size: 100,
+    text: async () => typeof content === 'string' ? content : JSON.stringify(content),
+    slice: () => ({ text: async () => typeof content === 'string' ? content : JSON.stringify(content) })
+  });
+
+  // 1. Drop audio alone
+  const audioFile = makeFile('song.mp3', 'audio/mpeg', '');
+  assert.equal(await box.handleDroppedFiles([audioFile]), true);
+  assert.equal(box.audioLoaded, 'song.mp3');
+
+  // 2. Drop JSON project alone (case-insensitive extension .JSON)
+  const jsonFile = makeFile('my_project.JSON', 'application/json', { lyrics: '拖入JSON新歌词' });
+  assert.equal(await box.handleDroppedFiles([jsonFile]), true);
+  assert.equal(box.S.project.lyrics, '拖入JSON新歌词');
+
+  // 3. Drop BOTH audio and JSON together
+  box.audioLoaded = null;
+  const project2 = makeFile('project2.json', 'application/json', { lyrics: '双文件歌词' });
+  const audio2 = makeFile('track.wav', 'audio/wav', '');
+  assert.equal(await box.handleDroppedFiles([project2, audio2]), true);
+  assert.equal(box.S.project.lyrics, '双文件歌词');
+  assert.equal(box.audioLoaded, 'track.wav');
+  assert.ok(notices.some(n => n.includes('project2.json') && n.includes('track.wav')));
+
+  // 4. Drop exported AE composition plan JSON (reconstructs lyrics from lines)
+  const aePlan = makeFile('comp_ae.json', 'application/json', {
+    lines: [{ src: '第一行歌词' }, { src: '第二行歌词' }],
+    title: 'AE曲名',
+    artist: 'AE歌手'
+  });
+  assert.equal(await box.handleDroppedFiles([aePlan]), true);
+  assert.equal(box.S.project.lyrics, '第一行歌词\n第二行歌词');
+  assert.equal(box.S.project.title, 'AE曲名');
+
+  // 5. Drop unrecognized file (e.g. random binary / zip)
+  const unknownFile = makeFile('archive.zip', 'application/zip', 'binary data');
+  assert.equal(await box.handleDroppedFiles([unknownFile]), false);
+  assert.ok(notices.some(n => /対応ファイル|支持的文件/.test(n)));
 });

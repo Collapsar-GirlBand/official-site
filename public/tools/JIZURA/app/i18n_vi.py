@@ -267,12 +267,22 @@ BODY = {
     '最高': 'Tối đa',
     '高': 'Cao',
     '中止': 'Đã hủy',
+    '音楽やプロジェクト(JSON)をドロップ': 'Thả tệp âm thanh hoặc dự án (JSON) vào đây',
+    '音楽（MP3 / WAV / M4A 等）、プロジェクト（.json）、LRC、フォントを自動認識': 'Tự động nhận diện âm thanh (MP3, WAV, M4A...), dự án (.json), LRC hoặc phông chữ',
     '音楽ファイルをドロップして読み込む': 'Thả tệp âm thanh để tải vào',
     'MP3 / WAV / M4A / FLAC / OGG / AAC など': 'Hỗ trợ MP3, WAV, M4A, FLAC, OGG, AAC v.v.',
 }
 
 UI = {
     "'音楽を読み込みました: ' + audio.name": "'Đã tải âm thanh: ' + audio.name",
+    "'対応ファイル（音声・JSONプロジェクト・LRC・フォント）をドロップしてください'": "'Vui lòng thả tệp được hỗ trợ (âm thanh, dự án JSON, LRC hoặc phông chữ)'",
+    "'プロジェクトと音楽を読み込みました: ' + project.name + ' / ' + audio.name": "'Đã tải dự án & âm thanh: ' + project.name + ' / ' + audio.name",
+    "'プロジェクトと音楽を読み込む'": "'Tải dự án & âm thanh'",
+    "'プロジェクト設定と音声を同時に読み込みます'": "'Nhập cài đặt dự án và đồng bộ hóa với âm thanh'",
+    "'プロジェクト（.json）を読み込む'": "'Tải dự án (.json)'",
+    "'プロジェクトの設定と歌詞を復元します'": "'Khôi phục cài đặt dự án và lời bài hát'",
+    "'音楽ファイルを読み込む'": "'Tải tệp âm thanh'",
+    "'楽曲を読み込みビートを解析します'": "'Tải nhạc và phân tích nhịp điệu'",
     "'音楽ファイル（mp3 / wav / m4a など）をドロップしてください'": "'Vui lòng thả tệp âm thanh (MP3, WAV, M4A, v.v.)'",
     '`前後の行と順番が入れ替わらないよう ${w.toFixed(2)} 秒にしました`': '`Đã đặt ${w.toFixed(2)} giây để giữ thứ tự các dòng`',
     "'このカットの開始時刻（手動）。空にすると自動に戻ります'": "'Thời điểm bắt đầu cảnh này (thủ công). Xóa trống để về tự động'",

@@ -232,7 +232,7 @@ async function importProjectFile(file) {
   if (S.exporting || projectImporting) return;
   let phase = '读取文件', previous = null;
   try {
-    const text = await file.text();
+    const text = typeof file === 'string' ? file : await file.text();
     if (S.exporting || projectImporting) return;
     phase = '解析项目';
     const notices = [], np = mergeProject(J.parseProjectFile(text), notices);
@@ -247,11 +247,14 @@ async function importProjectFile(file) {
     phase = '刷新界面';
     S.project = np; S.selectedEvent = null; fontKey = '';
     ED.undo = snap ? [snap] : []; ED.redo = []; H.list = []; H.i = -1;
-    syncUI(); replan(); commit(); updateEditBtns();
+    syncUI();
+    phase = '生成时间轴与预览'; replan();
+    phase = '更新项目历史'; commit(); updateEditBtns();
     projectImporting = false;
     flushSave(); showMsg(null);
-    const summary = notices.length ? '兼容导入完成：' + notices.slice(0, 5).join('；')
-      + (notices.length > 5 ? '；另有 ' + (notices.length - 5) + ' 项修复' : '') : '项目已打开';
+    const fileName = (file && file.name) ? file.name : '';
+    const summary = notices.length ? '兼容导入完成：' + (fileName ? fileName + ' — ' : '') + notices.slice(0, 5).join('；')
+      + (notices.length > 5 ? '；另有 ' + (notices.length - 5) + ' 项修复' : '') : (fileName ? '项目已打开: ' + fileName : '项目已打开');
     toast(summary, null, notices.length ? 12000 : 3000);
     // Asset restoration is asynchronous and must not turn a successful project import into a failed one.
     Promise.resolve().then(() => restoreFonts()).catch(err => {
@@ -271,7 +274,11 @@ async function importProjectFile(file) {
     }
     projectImporting = false;
     console.error('Project import (' + phase + '):', err);
-    showMsg('无法打开项目（' + phase + '）：' + (err && err.message || String(err)) + '。当前项目已保留。');
+    const section = err && err.projectSection || phase;
+    const reason = phase === '读取文件' ? '文件读取失败' : phase === '解析项目' ? '项目文件格式或内容无效'
+      : '程序处理项目时发生异常，不能据此判定为项目格式不兼容';
+    showMsg('无法打开项目（' + section + '）：' + reason + '。具体信息：'
+      + (err && err.message || String(err)) + '。当前项目已保留。');
     return false;
   }
 }
@@ -3887,7 +3894,128 @@ function syncUI() {
   document.querySelectorAll('.typeset-toggle').forEach(el => { el.checked = S.project.typeset === true; });
   langNote();
   document.querySelectorAll('.themeSel').forEach(el => { el.value = J.THEMES[S.project.themeId] ? S.project.themeId : ''; });
-  renderFontRoles(); renderColors(); renderFx(); renderTech(); syncOut(); drawStyleGrid(); renderCustomStyle(); syncFxModeUI();
+  const sections = [
+    ['字体设置', renderFontRoles], ['项目配色', renderColors], ['动效参数', renderFx],
+    ['效果列表', renderTech], ['输出设置', syncOut], ['风格列表', drawStyleGrid],
+    ['自定义风格', renderCustomStyle], ['动效工作区', syncFxModeUI],
+  ];
+  for (const [section, render] of sections) {
+    try { render(); }
+    catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      error.projectSection = section;
+      throw error;
+    }
+  }
+}
+
+const audioExt = /\.(mp3|wav|m4a|aac|ogg|flac|opus|aiff|alac|wma|weba)$/i;
+const isAudioFile = f => Boolean(f && ((f.type && f.type.startsWith('audio/')) || audioExt.test(f.name || '')));
+const isJsonFile = f => Boolean(f && (/\.(json|jizura)$/i.test(f.name || '') || f.type === 'application/json' || f.type === 'text/json'));
+const isLrcFile = f => Boolean(f && /\.lrc$/i.test(f.name || ''));
+const isFontFile = f => Boolean(f && /\.(ttf|otf|woff|woff2)$/i.test(f.name || ''));
+
+async function handleDroppedFiles(fileList) {
+  if (!fileList || !fileList.length) return false;
+  let audio = null, project = null, lrc = null;
+  const fonts = [], others = [];
+
+  for (let i = 0; i < fileList.length; i++) {
+    const f = fileList[i];
+    if (!project && isJsonFile(f)) {
+      project = f;
+    } else if (!audio && isAudioFile(f)) {
+      audio = f;
+    } else if (!lrc && isLrcFile(f)) {
+      lrc = f;
+    } else if (isFontFile(f)) {
+      fonts.push(f);
+    } else {
+      others.push(f);
+    }
+  }
+
+  if (!project && others.length) {
+    for (const f of others) {
+      if (f.size > 0 && f.size < 10e6) {
+        try {
+          const preview = await (f.slice ? f.slice(0, 512).text() : (f.text ? f.text() : ''));
+          if (preview.trim().startsWith('{')) {
+            project = f;
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  if (project) {
+    const projectOk = await importProjectFile(project);
+    if (projectOk && audio) {
+      if ($('audioFile')) $('audioFile').value = '';
+      const audioOk = await loadAudioFile(audio);
+      if (audioOk) {
+        toast('プロジェクトと音楽を読み込みました: ' + project.name + ' / ' + audio.name);
+      }
+    }
+    for (const f of fonts) {
+      try {
+        const uf = await J.loadFontFile(f);
+        pushEdit();
+        S.project.userFonts = (S.project.userFonts || []).filter(x => x.key !== uf.key).concat([uf]);
+        S.project.fonts.display = uf.key; fontKey = ''; renderFontRoles(); replan(); flushSave();
+      } catch (_) {}
+    }
+    return Boolean(projectOk);
+  }
+
+  if (audio) {
+    if ($('audioFile')) $('audioFile').value = '';
+    const ok = await loadAudioFile(audio);
+    if (ok) toast('音楽を読み込みました: ' + audio.name);
+    for (const f of fonts) {
+      try {
+        const uf = await J.loadFontFile(f);
+        pushEdit();
+        S.project.userFonts = (S.project.userFonts || []).filter(x => x.key !== uf.key).concat([uf]);
+        S.project.fonts.display = uf.key; fontKey = ''; renderFontRoles(); replan(); flushSave();
+      } catch (_) {}
+    }
+    return Boolean(ok);
+  }
+
+  if (lrc) {
+    if (lrc.size > 2e6) { toast('LRC ファイルが大きすぎます'); return false; }
+    let text = '';
+    try {
+      const buf = await lrc.arrayBuffer();
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (e2) { text = new TextDecoder('shift_jis').decode(buf); }
+    } catch (err) { toast('LRC を読み込めませんでした'); return false; }
+    if (S.project.lyrics.trim() && !window.confirm('今の歌詞を LRC の内容に置き換えます（行ごとの時刻・指定・書き出す範囲も消えます。「元に戻す」で戻せます）。よろしいですか？')) return false;
+    loadLrc(text);
+    return true;
+  }
+
+  if (fonts.length) {
+    let loaded = 0;
+    for (const f of fonts) {
+      try {
+        const uf = await J.loadFontFile(f);
+        pushEdit();
+        S.project.userFonts = (S.project.userFonts || []).filter(x => x.key !== uf.key).concat([uf]);
+        S.project.fonts.display = uf.key; fontKey = ''; renderFontRoles(); replan(); flushSave();
+        loaded++;
+      } catch (err) {
+        showMsg('フォントを読み込めませんでした');
+        setTimeout(() => showMsg(null), 2500);
+      }
+    }
+    return loaded > 0;
+  }
+
+  toast('対応ファイル（音声・JSONプロジェクト・LRC・フォント）をドロップしてください');
+  return false;
 }
 
 /* ---------------- wiring ---------------- */
@@ -3903,14 +4031,60 @@ function bind() {
   $('songArtist').addEventListener('blur', () => { flushSave(); updateEditBtns(); });
   $('btnSyntax').addEventListener('click', e => { const s = $('syntax'); s.hidden = !s.hidden; e.target.setAttribute('aria-expanded', String(!s.hidden)); });
   $('snap').addEventListener('change', e => { pushEdit(); S.project.timing.snap = e.target.checked; replan(); });
-  /* 全画面ドラッグ＆ドロップ（音声ファイルなど） */
+  /* 全画面ドラッグ＆ドロップ（音声ファイル・JSONプロジェクトなど） */
   const dropOverlay = $('dropOverlay');
+  const dropTitle = $('dropOverlayTitle');
+  const dropSub = $('dropOverlaySub');
+  let defaultDropTitle = dropTitle ? dropTitle.textContent : '';
+  let defaultDropSub = dropSub ? dropSub.textContent : '';
   let dragDepth = 0, dropHideTimer = 0;
   const isFilesDrag = e => {
     const dt = e.dataTransfer;
     if (!dt || !dt.types) return false;
-    return Array.from(dt.types).indexOf('Files') !== -1 || (dt.types.contains && dt.types.contains('Files'));
+    const types = Array.from(dt.types);
+    if (types.indexOf('Files') !== -1 || (dt.types.contains && dt.types.contains('Files'))) return true;
+    if (types.indexOf('text/plain') !== -1 && (!e.target || !/TEXTAREA|INPUT/.test(e.target.tagName))) return true;
+    return false;
   };
+
+  const updateDropHint = e => {
+    if (!dropTitle || !dropSub) return;
+    if (!defaultDropTitle) defaultDropTitle = dropTitle.textContent;
+    if (!defaultDropSub) defaultDropSub = dropSub.textContent;
+    const dt = e.dataTransfer;
+    if (!dt || !dt.items || !dt.items.length) {
+      dropTitle.textContent = defaultDropTitle;
+      dropSub.textContent = defaultDropSub;
+      return;
+    }
+    let hasJson = false, hasAudio = false;
+    for (let i = 0; i < dt.items.length; i++) {
+      const it = dt.items[i];
+      if (it.kind === 'file') {
+        if (it.type === 'application/json' || it.type === 'text/json') hasJson = true;
+        else if (it.type && it.type.startsWith('audio/')) hasAudio = true;
+      }
+    }
+    if (hasJson && hasAudio) {
+      dropTitle.textContent = 'プロジェクトと音楽を読み込む';
+      dropSub.textContent = 'プロジェクト設定と音声を同時に読み込みます';
+    } else if (hasJson) {
+      dropTitle.textContent = 'プロジェクト（.json）を読み込む';
+      dropSub.textContent = 'プロジェクトの設定と歌詞を復元します';
+    } else if (hasAudio) {
+      dropTitle.textContent = '音楽ファイルを読み込む';
+      dropSub.textContent = '楽曲を読み込みビートを解析します';
+    } else {
+      dropTitle.textContent = defaultDropTitle;
+      dropSub.textContent = defaultDropSub;
+    }
+  };
+
+  const resetDropHint = () => {
+    if (dropTitle && defaultDropTitle) dropTitle.textContent = defaultDropTitle;
+    if (dropSub && defaultDropSub) dropSub.textContent = defaultDropSub;
+  };
+
   const setDropActive = active => {
     if (!dropOverlay) return;
     clearTimeout(dropHideTimer);
@@ -3920,6 +4094,7 @@ function bind() {
       dropOverlay.classList.add('active');
     } else {
       dropOverlay.classList.remove('active');
+      resetDropHint();
       dropHideTimer = setTimeout(() => {
         if (!dropOverlay.classList.contains('active')) dropOverlay.hidden = true;
       }, 200);
@@ -3930,12 +4105,14 @@ function bind() {
     if (!isFilesDrag(e)) return;
     e.preventDefault();
     dragDepth++;
+    updateDropHint(e);
     setDropActive(true);
   });
 
   window.addEventListener('dragover', e => {
     if (!isFilesDrag(e)) return;
     e.preventDefault();
+    updateDropHint(e);
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
   });
 
@@ -3954,70 +4131,39 @@ function bind() {
     setDropActive(false);
   });
 
-  window.addEventListener('drop', e => {
+  if ($('lyrics')) {
+    $('lyrics').addEventListener('drop', e => {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        e.preventDefault();
+      }
+    });
+  }
+
+
+
+  window.addEventListener('drop', async e => {
     dragDepth = 0;
     setDropActive(false);
     if (!isFilesDrag(e)) return;
     e.preventDefault();
     const files = e.dataTransfer && e.dataTransfer.files;
-    if (!files || !files.length) return;
-
-    const audioExt = /\.(mp3|wav|m4a|aac|ogg|flac|opus|aiff|alac|wma|weba)$/i;
-    let audio = null;
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      if ((f.type && f.type.startsWith('audio/')) || audioExt.test(f.name)) {
-        audio = f;
-        break;
-      }
-    }
-
-    if (audio) {
-      if ($('audioFile')) $('audioFile').value = '';
-      loadAudioFile(audio).then(ok => {
-        if (ok) toast('音楽を読み込みました: ' + audio.name);
-      });
+    if (files && files.length) {
+      await handleDroppedFiles(files);
       return;
     }
 
-    // 他の対応ファイル（プロジェクト、LRC、フォント）のフォールバック
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      if (f.name.endsWith('.json')) {
-        void importProjectFile(f);
-        return;
-      }
-      if (f.name.endsWith('.lrc')) {
-        (async () => {
-          if (f.size > 2e6) { toast('LRC ファイルが大きすぎます'); return; }
-          let text = '';
-          try {
-            const buf = await f.arrayBuffer();
-            try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
-            catch (e2) { text = new TextDecoder('shift_jis').decode(buf); }
-          } catch (err) { toast('LRC を読み込めませんでした'); return; }
-          if (S.project.lyrics.trim() && !window.confirm('今の歌詞を LRC の内容に置き換えます（行ごとの時刻・指定・書き出す範囲も消えます。「元に戻す」で戻せます）。よろしいですか？')) return;
-          loadLrc(text);
-        })();
-        return;
-      }
-      if (/\.(ttf|otf|woff|woff2)$/i.test(f.name)) {
-        (async () => {
-          try {
-            const uf = await J.loadFontFile(f);
-            pushEdit();
-            S.project.userFonts = (S.project.userFonts || []).filter(x => x.key !== uf.key).concat([uf]);
-            S.project.fonts.display = uf.key; fontKey = ''; renderFontRoles(); replan(); flushSave();
-          } catch (err) {
-            showMsg('フォントを読み込めませんでした');
-            setTimeout(() => showMsg(null), 2500);
-          }
-        })();
-        return;
-      }
+    const text = e.dataTransfer && e.dataTransfer.getData('text/plain');
+    if (text && text.trim().startsWith('{')) {
+      try {
+        const parsed = J.parseProjectFile(text);
+        if (parsed && typeof parsed.lyrics === 'string') {
+          await importProjectFile({ text: async () => text, name: 'project.json' });
+          return;
+        }
+      } catch (_) {}
     }
 
-    toast('音楽ファイル（mp3 / wav / m4a など）をドロップしてください');
+    toast('対応ファイル（音声・JSONプロジェクト・LRC・フォント）をドロップしてください');
   });
   $('btnTap').addEventListener('click', () => (S.tap ? stopTap() : startTap()));
   $('tapBtn').addEventListener('click', tapNow);
@@ -4524,5 +4670,5 @@ function boot() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 J.ui = S;
 // hooks for hosts that embed the app (the After Effects CEP panel)
-J.uiApi = { toast, replan, syncUI, pause, seek, flushSave, loadAudioFile, restartPreview, exportRange, exportRangeLines, edGo, pushEdit, copyCurrentCutStyle, pasteCutStyleToCurrent, applyCutStyleToLine, applyCutStyleToAll, applyCutStyleToRange, clearCurrentCutTech, rollCutSlot, nudgeCurrentCutTime, addManualTimelineEvent, deleteSelectedEvent, nudgeSelectedEventTime, bakeAutoEvents, clearAllEvents, toggleFxEventMode };
+J.uiApi = { toast, replan, syncUI, pause, seek, flushSave, loadAudioFile, restartPreview, exportRange, exportRangeLines, edGo, pushEdit, copyCurrentCutStyle, pasteCutStyleToCurrent, applyCutStyleToLine, applyCutStyleToAll, applyCutStyleToRange, clearCurrentCutTech, rollCutSlot, nudgeCurrentCutTime, addManualTimelineEvent, deleteSelectedEvent, nudgeSelectedEventTime, bakeAutoEvents, clearAllEvents, toggleFxEventMode, handleDroppedFiles, importProjectFile };
 })();

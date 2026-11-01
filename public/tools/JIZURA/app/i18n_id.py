@@ -209,12 +209,22 @@ BODY = {
     'このカットだけ手法をランダムに': 'Acak teknik cut ini saja',
     'このカットをシャッフル': 'Acak cut ini',
     'このカットをおまかせ': 'Buat variasi cut ini',
+    '音楽やプロジェクト(JSON)をドロップ': 'Tarik & lepas file audio atau proyek (JSON)',
+    '音楽（MP3 / WAV / M4A 等）、プロジェクト（.json）、LRC、フォントを自動認識': 'Otomatis mengenali audio (MP3, WAV, M4A dll.), proyek (.json), LRC, atau font',
     '音楽ファイルをドロップして読み込む': 'Tarik & lepas file audio untuk memuat',
     'MP3 / WAV / M4A / FLAC / OGG / AAC など': 'Mendukung MP3, WAV, M4A, FLAC, OGG, AAC dll.',
 }
 
 UI = {
     "'音楽を読み込みました: ' + audio.name": "'Audio dimuat: ' + audio.name",
+    "'対応ファイル（音声・JSONプロジェクト・LRC・フォント）をドロップしてください'": "'Silakan tarik & lepas file yang didukung (audio, proyek JSON, LRC, atau font)'",
+    "'プロジェクトと音楽を読み込みました: ' + project.name + ' / ' + audio.name": "'Proyek dan audio dimuat: ' + project.name + ' / ' + audio.name",
+    "'プロジェクトと音楽を読み込む'": "'Muat proyek & audio'",
+    "'プロジェクト設定と音声を同時に読み込みます'": "'Memuat pengaturan proyek dan audio sekaligus'",
+    "'プロジェクト（.json）を読み込む'": "'Muat proyek (.json)'",
+    "'プロジェクトの設定と歌詞を復元します'": "'Memulihkan pengaturan proyek dan lirik'",
+    "'音楽ファイルを読み込む'": "'Muat file audio'",
+    "'楽曲を読み込みビートを解析します'": "'Memuat musik dan menganalisis ketukan'",
     "'音楽ファイル（mp3 / wav / m4a など）をドロップしてください'": "'Silakan lepaskan file audio (MP3, WAV, M4A, dll.)'",
     '`前後の行と順番が入れ替わらないよう ${w.toFixed(2)} 秒にしました`': '`Diatur ke ${w.toFixed(2)} dtk agar urutan baris tetap`',
     "'このカットの開始時刻（手動）。空にすると自動に戻ります'": "'Awal cut ini (manual). Kosongkan untuk kembali otomatis'",

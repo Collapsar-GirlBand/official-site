@@ -19,7 +19,8 @@ const normVibe = v =>
   (v === 'xxmd' || v === 'xiangxiaomeidan' || v === 'xiangxiao' || v === 'meidan') ? 'xxmd' :
   (v === 'zzjm' || v === 'zhuangzhongjingmi' || v === 'zhuangzhong' || v === 'solemn') ? 'zzjm' : v;
 
-const definition = (g, k) => g === 'font' ? J.FONTS[k] : g === 'scheme' ? null : J.registry(g)?.[k];
+const definition = (g, k) => g === 'style' ? J.STYLES[k] : g === 'font' ? J.FONTS[k]
+  : J.GROUP_KEYS.includes(g) ? J.registry(g)?.[k] : null;
 J.vibeKey = (project, g, k) => g === 'scheme' ? project.style + ':' + k : String(k);
 J.vibeRole = (project, vibe, g, k) => {
   const v = normVibe(vibe);

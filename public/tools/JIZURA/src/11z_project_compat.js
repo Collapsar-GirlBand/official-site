@@ -12,6 +12,15 @@ J.parseProjectFile = text => {
   catch (_) { throw new Error('文件不是有效的 JSON，可能已损坏或未完整保存'); }
   // Also accept editor-history snapshots without confusing arbitrary JSON with a project.
   if (record(p) && record(p.project)) p = p.project;
+  // Also recognize exported AE plan JSON or plan JSON that contains lines
+  if (record(p) && typeof p.lyrics !== 'string' && Array.isArray(p.lines) && p.lines.length && p.lines.some(l => l && (l.src || l.text))) {
+    p = {
+      lyrics: p.lines.map(l => (l && (l.src || l.text)) || '').join('\n'),
+      title: p.title || '',
+      artist: p.artist || '',
+      style: p.styleKey || (p.style && p.style.key) || 'noir',
+    };
+  }
   if (!record(p) || typeof p.lyrics !== 'string') throw new Error('不是可识别的 JIZURA 项目：缺少歌词字段');
   if (p.version != null && (!Number.isInteger(p.version) || p.version > 1 || p.version < 0)) {
     throw new Error('不支持的项目格式版本：' + p.version + '，请使用对应版本导出');

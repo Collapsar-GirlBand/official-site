@@ -682,6 +682,8 @@ J.plan = (project, audio) => {
       const LS = lockSpecs ? lockSpecs[k] : null;
       if (LS) {
         ({ layout, enter, exit, hold, params, decor, treat, treatP, cam, camP } = LS);
+        // Preview-time font overrides must not modify the saved locked-shot parameters.
+        params = Object.assign({}, params || {});
         if (LS.font && J.FONTS[LS.font]) cutFont = LS.font;
         if (!J.ENTER[enter]) enter = 'blur'; if (!J.EXIT[exit]) exit = 'blur'; if (!J.HOLD[hold]) hold = 'still';
         if (!J.TREAT[treat]) { treat = 'none'; treatP = {}; } if (!J.CAMERA[cam]) { cam = 'push'; camP = {}; }
