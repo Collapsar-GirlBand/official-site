@@ -7,6 +7,7 @@ J.VIBES = {
   xxmd: { name: '向晓昧旦', custom: true },
   zzjm: { name: '庄重静谧', custom: true },
   audio_vis: { name: '音频可视化', custom: true },
+  grow: { name: '生长', tag: '生长' },
   glitch: { name: '故障', tag: 'glitch' }, calm: { name: '静谧', tag: 'calm' },
   pop: { name: '流行', tag: 'pop' }, graphic: { name: '图形', tag: 'graphic' },
   editorial: { name: '编辑排版', tag: 'editorial' }, emotional: { name: '情绪', tag: 'emotional' },
@@ -17,7 +18,8 @@ const normVibe = v =>
   (v === 'collapse' || v === 'tsx') ? 'collapsar' :
   (v === 'audiovis' || v === 'audio' || v === 'audio_vis') ? 'audio_vis' :
   (v === 'xxmd' || v === 'xiangxiaomeidan' || v === 'xiangxiao' || v === 'meidan') ? 'xxmd' :
-  (v === 'zzjm' || v === 'zhuangzhongjingmi' || v === 'zhuangzhong' || v === 'solemn') ? 'zzjm' : v;
+  (v === 'zzjm' || v === 'zhuangzhongjingmi' || v === 'zhuangzhong' || v === 'solemn') ? 'zzjm' :
+  (v === 'growth' || v === 'shengzhang') ? 'grow' : v;
 
 const definition = (g, k) => g === 'style' ? J.STYLES[k] : g === 'font' ? J.FONTS[k]
   : J.GROUP_KEYS.includes(g) ? J.registry(g)?.[k] : null;
@@ -46,7 +48,7 @@ J.vibeRole = (project, vibe, g, k) => {
     return d.vibeExclusive ? 'exclusive' : 'companion';
   }
   const tag = J.VIBES[v]?.tag;
-  if (tag && d?.tags?.includes(tag)) return 'companion';
+  if (tag && (d?.tags?.includes(tag) || (tag === '生长' && (d?.grow || d?.set === 'grow' || d?.tags?.includes('grow'))))) return 'companion';
   if (isCollapsar && (d?.tags?.includes('collapsar') || d?.tags?.includes('collapse') || d?.tags?.includes('tsx'))) return 'companion';
   if (isXxmd && (d?.tags?.includes('xxmd') || d?.tags?.includes('xiangxiaomeidan'))) return 'companion';
   if (isZzjm && (d?.tags?.includes('zzjm') || d?.tags?.includes('zhuangzhongjingmi'))) return 'companion';

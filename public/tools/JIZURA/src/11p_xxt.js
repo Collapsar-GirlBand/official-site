@@ -16,7 +16,7 @@ const inOut = env => E.outCubic(J.clamp(env.lt / 0.35)) * (1 - E.inCubic(env.pOu
    2.39:1 电影遮幅、极致留白、瑞士国际主义微缩天体元数据
    ============================================================ */
 J.register('layout', 'xxt_anamorphic_cinema', {
-  name: '宽银幕电影排版',
+  name: '电影排版',
   tags: ['editorial', 'calm', 'graphic'],
   vibes: ['xxt'],
   vibeExclusive: true,
@@ -74,7 +74,7 @@ J.register('layout', 'xxt_anamorphic_cinema', {
    三维 Z 轴近大远小深度排列，透视灭点导轨与时空纵深排版
    ============================================================ */
 J.register('layout', 'xxt_depth_space', {
-  name: '空间折跃透视',
+  name: '折跃透视',
   tags: ['graphic', 'glitch', 'editorial'],
   vibes: ['xxt'],
   vibeExclusive: true,
@@ -449,7 +449,7 @@ J.register('hold', 'xxt_chest_resonate', {
    爱因斯坦环光弧、引力透镜弯折星晕、黑洞事件视界吸积光流
    ============================================================ */
 J.register('bg', 'xxt_gravitational_lens', {
-  name: '引力透镜视界',
+  name: '透镜视界',
   tags: ['graphic', 'editorial', 'emotional'],
   vibes: ['xxt'],
   vibeExclusive: true,
@@ -534,7 +534,7 @@ J.register('bg', 'xxt_warp_starmap', {
    ARRI 电影机摇臂式缓速推进，带 0.5° 微俯仰手持有机呼吸动势
    ============================================================ */
 J.register('cam', 'xxt_cinematic_push', {
-  name: '电影呼吸推轨',
+  name: '呼吸推轨',
   tags: ['editorial', 'calm', 'emotional'],
   vibes: ['xxt'],
   vibeExclusive: true,
@@ -581,7 +581,7 @@ J.register('cam', 'xxt_dive_down', {
    中心瞬间爆发出贯穿全屏的变形宽银幕水平激光耀斑，过曝切镜
    ============================================================ */
 J.register('trans', 'xxt_anamorphic_flare', {
-  name: '宽银幕耀斑转场',
+  name: '耀斑转场',
   tags: ['graphic', 'glitch', 'pop'],
   vibes: ['xxt'],
   vibeExclusive: true,
@@ -622,7 +622,7 @@ J.register('trans', 'xxt_anamorphic_flare', {
    16. DECOR: xxt_lightcone — 时空光锥 (已保留)
    ============================================================ */
 J.register('decor', 'xxt_lightcone', {
-  name: '时空光锥',
+  name: '光锥',
   tags: ['graphic', 'editorial'],
   vibes: ['xxt'],
   vibeExclusive: true,

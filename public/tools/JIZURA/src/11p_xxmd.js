@@ -106,7 +106,7 @@ function drawNavCross(ctx, x, y, size, color, alpha) {
    如沉静矗立于深海长夜的黑曜石巨碑，严谨中轴对称与极高留白率，字距舒展，凝练静穆
    ============================================================ */
 J.register('layout', 'xxmd_solemn_monolith', {
-  name: '肃穆碑刻排版',
+  name: '碑刻排版',
   tags: ['editorial', 'calm', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -170,7 +170,7 @@ J.register('layout', 'xxmd_solemn_monolith', {
    辽阔全景构图，文字在平缓深沉的正弦潮汐涌浪线上沉静沉浮，上下双轨精密海况测绘
    ============================================================ */
 J.register('layout', 'xxmd_vast_tide', {
-  name: '辽阔潮涌排版',
+  name: '潮涌排版',
   tags: ['editorial', 'calm', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -251,7 +251,7 @@ J.register('layout', 'xxmd_vast_tide', {
    庄重坚毅的阶梯式破浪前行，从容克制的踉跄倾角，坚实连贯的前进航迹导轨
    ============================================================ */
 J.register('layout', 'xxmd_stumble_forward', {
-  name: '步履蹒跚排版',
+  name: '蹒跚排版',
   tags: ['editorial', 'calm', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -327,7 +327,7 @@ J.register('layout', 'xxmd_stumble_forward', {
    天地分割的双重地平线静穆构图：晓光高扬之上与暗潮涌动之下
    ============================================================ */
 J.register('layout', 'xxmd_dawn_horizon', {
-  name: '向晓地平线排版',
+  name: '地平线排版',
   tags: ['editorial', 'calm', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -408,7 +408,7 @@ J.register('layout', 'xxmd_dawn_horizon', {
    天球星座坐标排版，幽远长夜中的孤星信标与赤经赤纬测度网
    ============================================================ */
 J.register('layout', 'xxmd_dim_starlight', {
-  name: '幽暗星芒排版',
+  name: '星芒排版',
   tags: ['editorial', 'calm', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -462,7 +462,7 @@ J.register('layout', 'xxmd_dim_starlight', {
    同心天文子午圆环与 360° 方位刻度，静穆散发的极远晨曦微晕
    ============================================================ */
 J.register('decor', 'xxmd_quiet_sanctuary', {
-  name: '静穆光轮',
+  name: '光轮',
   tags: ['calm', 'editorial', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -593,7 +593,7 @@ J.register('decor', 'xxmd_dim_starlit_sky', {
    地平线处升腾的向晓渐变极光微芒，将黑夜撕开一道晨曦拂晓
    ============================================================ */
 J.register('decor', 'xxmd_dawn_aurora', {
-  name: '昧旦微芒',
+  name: '微芒',
   tags: ['calm', 'editorial', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -647,7 +647,7 @@ J.register('decor', 'xxmd_dawn_aurora', {
    横贯全屏的深层暗洋层流线束与浮游微粒
    ============================================================ */
 J.register('decor', 'xxmd_chaos_currents', {
-  name: '辽阔暗涌',
+  name: '暗涌',
   tags: ['calm', 'editorial', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -693,7 +693,7 @@ J.register('decor', 'xxmd_chaos_currents', {
    刚劲清澈的航行十字定位仪与四角水平卡尺，决意前行的坚定指引
    ============================================================ */
 J.register('decor', 'xxmd_no_tears_resolve', {
-  name: '决意罗盘',
+  name: '罗盘',
   tags: ['editorial', 'calm', 'graphic'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -793,7 +793,7 @@ J.register('enter', 'xxmd_submerge_rise', {
    庄严拂晓晨曦自左向右掠过，光芒舒展，点亮每个字符
    ============================================================ */
 J.register('enter', 'xxmd_dawn_break', {
-  name: '晓光破晓',
+  name: '破晓',
   tags: ['editorial', 'calm', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -939,7 +939,7 @@ J.register('bg', 'xxmd_abyssal_dawn', {
    低角度航海巡航推轨运镜，带海浪节奏的有机俯仰与推进
    ============================================================ */
 J.register('cam', 'xxmd_cinematic_tide_drift', {
-  name: '破浪巡航运镜',
+  name: '巡航运镜',
   tags: ['editorial', 'calm', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,
@@ -966,7 +966,7 @@ J.register('cam', 'xxmd_cinematic_tide_drift', {
    一道拂晓潮浪横卷过屏幕，前后镜头随浪潮更迭交接
    ============================================================ */
 J.register('trans', 'xxmd_tidal_wipe', {
-  name: '潮汐推浪转场',
+  name: '推浪转场',
   tags: ['calm', 'editorial', 'emotional'],
   vibes: ['xxmd', 'zzjm'],
   vibeExclusive: true,

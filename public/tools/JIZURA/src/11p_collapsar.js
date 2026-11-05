@@ -33,7 +33,7 @@ function drawStarFlare(ctx, x, y, r, fill, stroke, lw, alpha) {
    对冲双向旋转吸积盘、高能呼吸日冕与深黑事件视界核心
    ============================================================ */
 J.register('decor', 'collapsar_singularity', {
-  name: '奇点事件视界',
+  name: '事件视界',
   tags: ['graphic', 'calm', 'emotional'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -138,7 +138,7 @@ J.register('decor', 'collapsar_singularity', {
    内凹四角贝塞尔星芒、双层旋转星环与星座折线导轨
    ============================================================ */
 J.register('decor', 'collapsar_diffraction_flare', {
-  name: '坍缩衍射星芒',
+  name: '衍射星芒',
   tags: ['graphic', 'pop', 'glitch'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -214,7 +214,7 @@ J.register('decor', 'collapsar_diffraction_flare', {
    源自 Background.tsx：三次缓动向心引力吸附与视界湮灭消亡
    ============================================================ */
 J.register('decor', 'collapsar_gravity_dust', {
-  name: '引力星尘坍缩流',
+  name: '星尘流',
   tags: ['emotional', 'calm', 'graphic'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -278,7 +278,7 @@ J.register('decor', 'collapsar_gravity_dust', {
    源自 Contact.tsx：四角动态直角标尺、扫描线与引力场数据流
    ============================================================ */
 J.register('decor', 'collapsar_tech_bracket', {
-  name: '引力测绘标尺',
+  name: '测绘标尺',
   tags: ['editorial', 'graphic', 'glitch'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -359,7 +359,7 @@ J.register('decor', 'collapsar_tech_bracket', {
    广义相对论时空弯曲几何网格，光线在中心奇点周围发生透镜引力偏折
    ============================================================ */
 J.register('decor', 'collapsar_lensing_grid', {
-  name: '时空弯曲网格',
+  name: '弯曲网格',
   tags: ['graphic', 'editorial'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -446,7 +446,7 @@ J.register('decor', 'collapsar_lensing_grid', {
    黑洞磁极垂直喷射的相对论等离子体光柱、磁场螺旋与脉冲激波
    ============================================================ */
 J.register('decor', 'collapsar_polar_jets', {
-  name: '极轴相对论喷流',
+  name: '相对论喷流',
   tags: ['graphic', 'pop', 'glitch'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -521,7 +521,7 @@ J.register('decor', 'collapsar_polar_jets', {
    源自 GameSystem.tsx 核心共鸣：四极引力辐射波纹、椭圆频散与引变应变标尺
    ============================================================ */
 J.register('decor', 'collapsar_gravitational_waves', {
-  name: '引力波共振涟漪',
+  name: '共振涟漪',
   tags: ['calm', 'emotional', 'graphic'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -584,7 +584,7 @@ J.register('decor', 'collapsar_gravitational_waves', {
    相对论多普勒频移高光轨道，左侧蓝移增亮、右侧红移暗化与高速光子流
    ============================================================ */
 J.register('decor', 'collapsar_accretion_stream', {
-  name: '吸积多普勒光流',
+  name: '多普勒光流',
   tags: ['graphic', 'pop', 'glitch'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -641,7 +641,7 @@ J.register('decor', 'collapsar_accretion_stream', {
    黑洞视界面引力虚空中轴线、中心微型奇异点与上下双向遥测数据流
    ============================================================ */
 J.register('decor', 'collapsar_horizon_division', {
-  name: '视界居中分隔标尺',
+  name: '居中分隔尺',
   tags: ['editorial', 'calm', 'graphic'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -702,7 +702,7 @@ J.register('decor', 'collapsar_horizon_division', {
    相对论多普勒与引力频移产生的微蓝移前缘与深红频散阴影
    ============================================================ */
 J.register('treat', 'collapsar_doppler_redshift', {
-  name: '引力红移色散',
+  name: '红移色散',
   tags: ['graphic', 'glitch', 'editorial'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -730,7 +730,7 @@ J.register('treat', 'collapsar_doppler_redshift', {
    字符由大尺度向心引力弹射吸入，伴随角速度加速收缩就位
    ============================================================ */
 J.register('enter', 'collapsar_singularity_collapse', {
-  name: '奇点坍缩',
+  name: '坍缩入场',
   tags: ['glitch', 'graphic', 'pop'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -759,7 +759,7 @@ J.register('enter', 'collapsar_singularity_collapse', {
    引力失衡爆发，字形沿径向高速喷散光子化消失
    ============================================================ */
 J.register('exit', 'collapsar_supernova_burst', {
-  name: '超新星退场',
+  name: '超新星',
   tags: ['glitch', 'graphic'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -786,7 +786,7 @@ J.register('exit', 'collapsar_supernova_burst', {
    全屏深空背景：引力透镜弯曲星图、微波背景辐射噪点与中心视界暗区
    ============================================================ */
 J.register('bg', 'collapsar_deep_singularity', {
-  name: '深空引力视界',
+  name: '深空视界',
   tags: ['calm', 'emotional', 'graphic'],
   vibes: ['collapsar'],
   vibeExclusive: true,
@@ -852,7 +852,7 @@ const getAudioPulse = (env) => {
    时空应变振幅随音频瞬态啁啾震荡，重拍触发铃宕指数衰减
    ============================================================ */
 J.register('decor', 'collapsar_audio_ringdown', {
-  name: '黑洞铃宕波形',
+  name: '铃宕波形',
   tags: ['graphic', 'glitch', 'editorial'],
   vibes: ['collapsar', 'audio_vis'],
   vibeExclusive: true,
@@ -954,7 +954,7 @@ J.register('decor', 'collapsar_audio_ringdown', {
    相对论吸积盘 64 段多普勒频移环谱：近端强多普勒增亮蓝移、远端红移暗化
    ============================================================ */
 J.register('decor', 'collapsar_audio_accretion_disc', {
-  name: '吸积多普勒环谱',
+  name: '多普勒环谱',
   tags: ['graphic', 'pop', 'glitch'],
   vibes: ['collapsar', 'audio_vis'],
   vibeExclusive: true,
@@ -1047,7 +1047,7 @@ J.register('decor', 'collapsar_audio_accretion_disc', {
    相对论极轴喷流示波：音量与重音驱动等离子喷流伸缩与激波钻石暴闪
    ============================================================ */
 J.register('decor', 'collapsar_audio_polar_jet', {
-  name: '极轴脉冲等离子柱',
+  name: '等离子柱',
   tags: ['graphic', 'pop', 'glitch'],
   vibes: ['collapsar', 'audio_vis'],
   vibeExclusive: true,
@@ -1139,7 +1139,7 @@ J.register('decor', 'collapsar_audio_polar_jet', {
    强引力潮汐撕裂面条化：重音瞬间字形沿径向剧烈拉长，伴随引力红移
    ============================================================ */
 J.register('hold', 'collapsar_audio_spaghettification', {
-  name: '潮汐面条化',
+  name: '面条化',
   tags: ['glitch', 'pop', 'graphic'],
   vibes: ['collapsar', 'audio_vis'],
   vibeExclusive: true,
@@ -1178,7 +1178,7 @@ J.register('hold', 'collapsar_audio_spaghettification', {
    全屏深空背景：引力视界爱因斯坦环与引力透镜随音频能量潮汐起伏
    ============================================================ */
 J.register('bg', 'collapsar_audio_horizon_tide', {
-  name: '视界声潮深渊',
+  name: '声潮深渊',
   tags: ['calm', 'emotional', 'graphic'],
   vibes: ['collapsar', 'audio_vis'],
   vibeExclusive: true,

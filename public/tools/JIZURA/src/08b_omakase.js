@@ -75,7 +75,7 @@ J.omakase = (project, rnd = Math.random, themeId = null) => {
   let pool = (moodStyles.length && rnd() < 0.72 ? moodStyles : J.STYLE_ORDER.filter(okStyle)).filter(k => k !== project.style);
   if (T) { const ts = J.STYLE_ORDER.filter(k => okStyle(k) && themePart(J.STYLES[k]) && k !== project.style); if (ts.length && rnd() < 0.8) pool = ts; }
   if (!pool.length) pool = J.STYLE_ORDER.filter(k => k !== project.style && okStyle(k));
-  if (!pool.length) pool = J.STYLE_ORDER.filter(k => k !== project.style);
+  if (!pool.length) pool = J.STYLE_ORDER.filter(k => k !== project.style && J.partVisible(project, 'style', k));
   const style = pick(pool);
   const fx = Object.assign({}, project.fx);
   for (const k of Object.keys(M.fx)) fx[k] = range(M.fx[k]);

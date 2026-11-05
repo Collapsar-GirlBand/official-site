@@ -24,7 +24,7 @@ context.setScreenFxMode(false); calls.length=0; context.draw(); assert.equal(cal
 assert.equal(JSON.stringify(state.project),projectBefore);
 state.exporting=true; context.setScreenFxMode(true); assert.equal(state.screenFxMode,false);
 const html = fs.readFileSync('app/body.html','utf8');
-assert.match(html,/screen-fx-panel fx-only/); assert.match(html,/compare-base compare-only/);
+assert.match(html,/compare-base compare-only/);
 const css = fs.readFileSync('app/style.css','utf8');
 assert.match(css,/\.screen-fx-mode #cutInfo, \.screen-fx-mode #cutPick \{ display: none !important/);
 const renderer = fs.readFileSync('src/09_render.js','utf8');

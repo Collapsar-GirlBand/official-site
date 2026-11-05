@@ -109,7 +109,9 @@
       dandelion: '蒲公英', fireflies: '萤火虫', memphis: '孟菲斯', zigzagRibbon: '锯齿缎带', polkaPatch: '圆点',
       stripeCircle: '条纹圆', decoCorners: '装饰角', halfCircles: '半圆堆叠', loopArrows: '循环箭头', starburst: '星芒',
       tally: '画正字', cursorClick: '光标', windowChrome: '窗口', progressBar: '进度条', toggleSwitch: '切换开关',
-      notifBell: '通知', likeCounter: '按赞数', mediaControls: '播放按钮', volumeBars: '音量', musicNotes: '音符'
+      notifBell: '通知', likeCounter: '按赞数', mediaControls: '播放按钮', volumeBars: '音量', musicNotes: '音符',
+      grow_flora: '植物生长（青花繁花）', grow_geometric: '几何生长（折面藤蔓）', grow_cyber: '电路生长（赛博回路）',
+      grow_tendril: '卷须生长（螺旋花序）', grow_hyphae: '菌丝生长（微观菌网）', grow_physarum: '粘菌生长（原生网络）'
     },
     treat: {
       none: '无', outline: '空心字', outlineFill: '描边', doubleOutline: '双层描边', extrude: '立体字',

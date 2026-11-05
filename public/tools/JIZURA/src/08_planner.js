@@ -12,7 +12,7 @@ J.SAMPLE_LYRICS = `夜明けの色を/覚えてる
 J.defaultProject = () => ({
   version: 1,
   timingOrder: 2,                 // lyric lines keep their written order around LRC-tagged lines (v0.10)
-  vibeLibrary: {}, vibeGeneration: { id: 'all', includeGeneral: false },
+  vibeLibrary: {}, vibeGeneration: { id: 'all', includeGeneral: false, hideOriginal: false },
   themeId: null,                  // おまかせのテーマ (J.THEMES key) — only おまかせ reads it
   title: '', artist: '',
   lyrics: J.SAMPLE_LYRICS,
@@ -301,6 +301,7 @@ J.plan = (project, audio) => {
   for (const g of J.GROUP_KEYS) { en[g] = {}; const src = (project.enabled || {})[g] || {}; for (const k of J.order(g)) en[g][k] = src[k] !== false && (!J.randomOk || J.randomOk(project, g, k)); }
   // 中央を空ける (キャラクター用): every cut is laid out in a side band — left / right on wide frames, top / bottom on tall
   // ones — alternating line by line; the centre keeps only the full-frame background and screen effects
+  en.hideOriginal = !!project.vibeGeneration?.hideOriginal;
   const zones = project.centerFree ? J.sideZones(W, H, project.centerDir) : null;
   // the lyric of every cut is split in two: the first half in band 0 (left / top), the second in band 1 (right / bottom)
   const zoneOf = () => (zones ? Object.assign({}, zones[0]) : null);
@@ -340,7 +341,7 @@ J.plan = (project, audio) => {
   const allowTitleCard = (project.titleCard !== false) && !(project.deletedCards && project.deletedCards.title);
   if (allowTitleCard && title && firstStart >= 1.1) {
     const rng = J.rng(J.h(project.seed, 999));
-    plan.cuts.push(makeCut({ text: title, note: artist, lineText: title, line: -1, start: 0.1, end: firstStart, layout: 'title', enter: rng.pick(['blur', 'type', 'wipe', 'assemble']), exit: rng.pick(['blur', 'drift', 'wipe']), hold: 'still', params: J.LAYOUTS.title.plan(rng, {}, st), decor: [], scheme: 0, seed: J.h(project.seed, 999, 1) }));
+    plan.cuts.push(makeCut({ text: title, note: artist, lineText: title, line: -1, start: 0.1, end: firstStart, layout: 'title', cam: project.vibeGeneration?.hideOriginal ? 'sourceStatic' : 'push', enter: project.vibeGeneration?.hideOriginal ? 'cut' : rng.pick(['blur', 'type', 'wipe', 'assemble']), exit: project.vibeGeneration?.hideOriginal ? 'cut' : rng.pick(['blur', 'drift', 'wipe']), hold: 'still', params: J.LAYOUTS.title.plan(rng, {}, st), decor: [], scheme: 0, seed: J.h(project.seed, 999, 1) }));
   }
 
   // 統一感: sections, repeated lines, キメ lines and the per-section palettes (see makeUnify below)
@@ -362,11 +363,11 @@ J.plan = (project, audio) => {
           text: '', lineText: '', line: li,
           start: s, end: e,
           layout: 'interlude',
-          enter: 'blur', exit: 'blur', hold: 'still',
+          enter: project.vibeGeneration?.hideOriginal ? 'cut' : 'blur', exit: project.vibeGeneration?.hideOriginal ? 'cut' : 'blur', hold: 'still',
           inDur: 0.2, outDur: 0.2,
           params: { variant: 'quiet', showTitle: false, titleText: '' },
           decor: [], scheme: bridgeScheme, seed: J.h(lineSeed, 405),
-          utext: '', fx: 'none', bg: bridgeBg, bgP: bridgeBgP, cam: 'drift',
+          utext: '', fx: 'none', bg: bridgeBg, bgP: bridgeBgP, cam: project.vibeGeneration?.hideOriginal ? 'sourceStatic' : 'drift',
           isDeletedCard: true
         }));
         return;
@@ -398,10 +399,11 @@ J.plan = (project, audio) => {
 
       // decor
       let decor = [];
+      const decorIdOf = d => (typeof d === 'string' ? d.trim() : (d && d.id ? d.id : ''));
       if (LS && Array.isArray(LS.decor)) {
-        decor = LS.decor.filter(d => J.DECOR[d.id]);
+        decor = LS.decor.filter(d => J.DECOR[decorIdOf(d)]);
       } else if (Array.isArray(ov.decor)) {
-        decor = ov.decor.filter(id => J.DECOR[id]).map(id => decorParams(rng, id));
+        decor = ov.decor.filter(d => J.DECOR[decorIdOf(d)]).map(d => decorParams(rng, d));
       } else {
         decor = pickDecor(rng, st, en, Object.assign({}, fx, { decor: Math.max(0.6, fx.decor) }), 'interlude', history);
       }
@@ -413,9 +415,18 @@ J.plan = (project, audio) => {
             ? tech.decor
             : (typeof tech.decor === 'string' && tech.decor.includes(',') ? tech.decor.split(',') : [tech.decor]);
           decor = decorList
-            .map(id => typeof id === 'string' ? id.trim() : id)
-            .filter(id => id && id !== 'none' && J.DECOR[id])
-            .map((id, idx) => decorParams(J.rng(J.h(lineSeed, 0, 92 + idx * 7)), id));
+            .map(d => typeof d === 'string' ? d.trim() : d)
+            .filter(d => {
+              const id = decorIdOf(d);
+              return id && id !== 'none' && J.DECOR[id];
+            })
+            .map((d, idx) => {
+              const res = decorParams(J.rng(J.h(lineSeed, 0, 92 + idx * 7)), d);
+              if (tech.decorParams && typeof tech.decorParams === 'object') {
+                Object.assign(res, tech.decorParams);
+              }
+              return res;
+            });
         }
       }
 
@@ -528,7 +539,7 @@ J.plan = (project, audio) => {
               if (!chosenFx) chosenFx = pick;
             }
           }
-          if (!chosenFx) chosenFx = 'chroma';
+          if (!chosenFx) chosenFx = project.vibeGeneration?.hideOriginal ? 'none' : 'chroma';
         }
       }
       if (tech.fx !== undefined) {
@@ -660,7 +671,8 @@ J.plan = (project, audio) => {
       if ((ov.scheme == null || ov.scheme === '') && vibeSchemes.length && !vibeSchemes.includes(sch)) sch = rng.pick(vibeSchemes);
       let LD = J.LAYOUTS[layout];
       let params = LD.plan(rng, { text: txt, n: nn, W: LW, H: LH, dur }, cutSt);
-      let decor = Array.isArray(ov.decor) ? ov.decor.filter(id => J.DECOR[id]).map(id => decorParams(rng, id)) : pickDecor(rng, st, en, fx, layout, history);
+      const decorIdOf = d => (typeof d === 'string' ? d.trim() : (d && d.id ? d.id : ''));
+      let decor = Array.isArray(ov.decor) ? ov.decor.filter(d => J.DECOR[decorIdOf(d)]).map(d => decorParams(rng, d)) : pickDecor(rng, st, en, fx, layout, history);
       let treat = ov.treat && J.TREAT[ov.treat] ? ov.treat : pickTreat(rng, st, en, fx, LD, emph, history);
       if (UU) { decor = UU.decor(li, decor, { layout, kime, rng }); treat = UU.treat(li, treat, { kime, rng, LD }); }
       let treatP = J.TREAT[treat].plan ? J.TREAT[treat].plan(rng, st) : {};
@@ -687,7 +699,7 @@ J.plan = (project, audio) => {
         if (LS.font && J.FONTS[LS.font]) cutFont = LS.font;
         if (!J.ENTER[enter]) enter = 'blur'; if (!J.EXIT[exit]) exit = 'blur'; if (!J.HOLD[hold]) hold = 'still';
         if (!J.TREAT[treat]) { treat = 'none'; treatP = {}; } if (!J.CAMERA[cam]) { cam = 'push'; camP = {}; }
-        decor = (decor || []).filter(d => J.DECOR[d.id]);
+        decor = (decor || []).filter(d => J.DECOR[decorIdOf(d)]);
         weightGrow = !!LS.weightGrow; sch = LS.scheme | 0; cutSeed = LS.seed; LD = J.LAYOUTS[layout];
         bg = LS.bg && J.BG[LS.bg] ? LS.bg : 'none'; if (bg !== 'none') { lineBg = bg; lineBgP = LS.bgP || {}; }
         inDur = LS.inDur; outDur = LS.outDur;
@@ -731,9 +743,18 @@ J.plan = (project, audio) => {
             ? tech.decor
             : (typeof tech.decor === 'string' && tech.decor.includes(',') ? tech.decor.split(',') : [tech.decor]);
           decor = decorList
-            .map(id => typeof id === 'string' ? id.trim() : id)
-            .filter(id => id && id !== 'none' && J.DECOR[id])
-            .map((id, idx) => decorParams(J.rng(J.h(lineSeed, k, 92 + idx * 7)), id));
+            .map(d => typeof d === 'string' ? d.trim() : d)
+            .filter(d => {
+              const id = decorIdOf(d);
+              return id && id !== 'none' && J.DECOR[id];
+            })
+            .map((d, idx) => {
+              const res = decorParams(J.rng(J.h(lineSeed, k, 92 + idx * 7)), d);
+              if (tech.decorParams && typeof tech.decorParams === 'object') {
+                Object.assign(res, tech.decorParams);
+              }
+              return res;
+            });
         }
       }
       if (tech.treat && J.TREAT[tech.treat]) {
@@ -880,7 +901,7 @@ J.plan = (project, audio) => {
           addEvent(cs - (D2.pre ? D2.pre * F : 0), tech.fx, (D2.amp || 1) * (0.7 + 0.5 * g + (emph ? 0.3 : 0)), d);
         }
       }
-      if (!chosenFx) chosenFx = (LS && LS.fx) || 'chroma';
+      if (!chosenFx) chosenFx = (LS && LS.fx) || (project.vibeGeneration?.hideOriginal ? 'none' : 'chroma');
       cut.fx = chosenFx;
       // 文字整列: at most one screen effect per cut besides the colour split (the キメ line keeps its accents)
       if (plan.typeset && !cut.kime && !LS) {
@@ -912,14 +933,15 @@ J.plan = (project, audio) => {
             text: title || '', lineText: '', line: li,
             start: visEnd, end: nextStart,
             layout: 'interlude',
-            enter: 'blur', exit: 'blur', hold: 'still',
+            enter: project.vibeGeneration?.hideOriginal ? 'cut' : 'blur', exit: project.vibeGeneration?.hideOriginal ? 'cut' : 'blur', hold: 'still',
             inDur: 0.3, outDur: 0.3,
             params: J.LAYOUTS.interlude.plan(r2),
             decor: pickDecor(r2, st, en, Object.assign({}, fx, { decor: 1 }), 'interlude'),
             scheme: schemeIdx,
             seed: J.h(lineSeed, 405),
             utext: '',
-            fx: 'chroma'
+            fx: project.vibeGeneration?.hideOriginal ? 'none' : 'chroma',
+            cam: project.vibeGeneration?.hideOriginal ? 'sourceStatic' : 'push'
           }));
         } else if (project.interludeFillMode === 'extend' && lastCut && lastCut.line === li) {
           lastCut.end = nextStart;
@@ -933,7 +955,7 @@ J.plan = (project, audio) => {
             text: '', lineText: '', line: li,
             start: visEnd, end: nextStart,
             layout: 'interlude',
-            enter: 'blur', exit: 'blur', hold: 'still',
+            enter: project.vibeGeneration?.hideOriginal ? 'cut' : 'blur', exit: project.vibeGeneration?.hideOriginal ? 'cut' : 'blur', hold: 'still',
             inDur: 0.2, outDur: 0.2,
             params: { variant: 'quiet', showTitle: false, titleText: '' },
             decor: [],
@@ -943,7 +965,7 @@ J.plan = (project, audio) => {
             fx: 'none',
             bg: bridgeBg,
             bgP: bridgeBgP,
-            cam: 'drift',
+            cam: project.vibeGeneration?.hideOriginal ? 'sourceStatic' : 'drift',
             isDeletedCard: true
           }));
         }
@@ -1308,7 +1330,34 @@ function pickHold(rng, en, fx, history) {
   return cands.length ? rng.wpick(cands) : 'still';
 }
 function decorParams(rng, k) {
-  return { id: k, seed: rng.int(1, 1e9), n: rng.int(1, 3) + (k === 'shapes' ? 3 : 0) + (k === 'sparks' ? 4 : 0), right: rng.chance(0.5), low: rng.chance(0.5), accent: rng.chance(0.4), corner: rng.chance(0.5), big: rng.chance(0.4), mode: rng.pick(['count', 'index']), from: rng.int(0, 20), to: rng.int(30, 999), v: rng.int(0, 5), r: rng() };
+  const key = (typeof k === 'object' && k && k.id) ? k.id : String(k || '');
+  const def = J.DECOR[key] || {};
+  const base = {
+    id: key,
+    seed: (typeof k === 'object' && k && k.seed != null) ? k.seed : rng.int(1, 1e9),
+    n: rng.int(1, 3) + (key === 'shapes' ? 3 : 0) + (key === 'sparks' ? 4 : 0),
+    right: rng.chance(0.5),
+    low: rng.chance(0.5),
+    accent: rng.chance(0.4),
+    corner: rng.chance(0.5),
+    big: rng.chance(0.4),
+    mode: rng.pick(['count', 'index']),
+    from: rng.int(0, 20),
+    to: rng.int(30, 999),
+    v: rng.int(0, 5),
+    r: rng()
+  };
+  if (def.params && typeof def.params === 'object') {
+    Object.assign(base, def.params);
+  }
+  if (def.plan && typeof def.plan === 'function') {
+    try { Object.assign(base, def.plan(rng, k)); } catch (e) { console.warn(e); }
+  }
+  if (typeof k === 'object' && k) {
+    Object.assign(base, k);
+    base.id = key;
+  }
+  return base;
 }
 function pickDecor(rng, st, en, fx, layout, history = []) {
   const count = Math.round(fx.decor * 2.8 * rng.range(0.45, 1.15));
@@ -1348,7 +1397,7 @@ function pickCam(rng, st, en, fx, LD, emph, history) {
     if (LD.cam === false && k !== 'push') w *= 0.05;
     return [k, w];
   });
-  return cands.length ? rng.wpick(cands) : 'push';
+  return cands.length ? rng.wpick(cands) : (en.hideOriginal ? 'sourceStatic' : 'push');
 }
 function pickTrans(rng, st, en, fx, emph, history) {
   if (!J.TRANS_ORDER.length) return null;

@@ -42,7 +42,9 @@ const ICON = {
   range: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3v10M13 3v10"/><path d="M5.5 8h5M8.5 5.5L11 8l-2.5 2.5"/></svg>',
 };
 
-const S = { project: null, plan: null, audio: null, renderer: new J.Renderer(), playing: false, t: 0, t0: 0, loop: 'all', loopHold: null, need: true, exporting: null, tap: null, slow: false, lineEls: [], curLine: -2, selectedEvent: null };
+let savedAutoPreviewCut = true;
+try { savedAutoPreviewCut = localStorage.getItem('jizura.autoPreviewCut.v1') !== 'false'; } catch (_) {}
+const S = { project: null, plan: null, audio: null, renderer: new J.Renderer(), playing: false, t: 0, t0: 0, loop: 'all', loopHold: null, need: true, exporting: null, tap: null, slow: false, lineEls: [], curLine: -2, selectedEvent: null, autoPreviewCut: savedAutoPreviewCut, cutPreviewRange: null, audioWarnedOnce: false };
 const LOOP_CYCLE = ['all', 'line', 'cut', false];
 const LOOP_COPY = {
   all:  { ja: 'ループ', en: 'Loop', titleJa: '全体を繰り返し', titleEn: 'Loop the whole piece' },
@@ -79,6 +81,7 @@ function refreshLoopHold(t) {
   S.loopHold = (S.loop === 'line' || S.loop === 'cut') ? loopRange(t != null ? t : S.t) : null;
 }
 function activeLoopRange() {
+  if (S.cutPreviewRange) return S.cutPreviewRange;
   if (S.fxLoop && S.selectedEvent) return { start: Math.max(0, S.selectedEvent.t - 0.3), end: Math.min(S.plan.duration, S.selectedEvent.t + S.selectedEvent.dur + 0.4) };
   if ((S.loop === 'line' || S.loop === 'cut') && S.loopHold) return S.loopHold;
   return loopRange(S.t);
@@ -147,7 +150,7 @@ function mergeProject(p, notices) {
   for (const g of Object.keys(en)) en[g] = Object.assign(en[g], ((p && p.enabled) || {})[g] || {});
   o.enabled = en;
   o.vibeLibrary = p && p.vibeLibrary && typeof p.vibeLibrary === 'object' ? JSON.parse(JSON.stringify(p.vibeLibrary)) : {};
-  o.vibeGeneration = Object.assign({ id: 'all', includeGeneral: false }, p && p.vibeGeneration || {});
+  o.vibeGeneration = Object.assign({ id: 'all', includeGeneral: false, hideOriginal: false }, p && p.vibeGeneration || {});
   o.overrides = (p && p.overrides) || {};
   o.eventMode = (p && p.eventMode === 'manual') ? 'manual' : 'auto';
   o.events = Array.isArray(p && p.events) ? p.events.filter(e => e && typeof e.t === 'number').map(e => ({
@@ -209,10 +212,12 @@ function migrateOrder(o, p) {
     o.exportRange = idx.length ? { from: Math.min(...idx), to: Math.max(...idx) } : null;
   }
 }
-const SET_UI = { horror: { name: 'ホラー', badge: 'ホ' }, typo: { name: '文字PV系', badge: '文' }, kinetic: { name: 'キネティック', badge: 'キ' } };
+const SET_UI = { horror: { name: 'ホラー', badge: 'ホ' }, typo: { name: '文字PV系', badge: '文' }, kinetic: { name: 'キネティック', badge: 'キ' }, grow: { name: '生长', badge: '生长' } };
 function setBadges(d) {
-  return (d && d.extra ? '<span class="set-badge ex" title="最初の公開版のあとに追加">追加</span>' : '') + (d && d.wa ? '<span class="set-badge" title="和風の演出">和</span>' : '')
-    + (d && d.set && SET_UI[d.set] ? `<span class="set-badge set-${d.set}" title="${SET_UI[d.set].name}">${SET_UI[d.set].badge}</span>` : '');
+  const source = J.sourceOfDefinition(d);
+  return `<span class="set-badge" title="部件分组（不代表原创归属）">${J.PART_SOURCE_LABELS[source]}</span>` + (d && d.wa ? '<span class="set-badge" title="和風の演出">和</span>' : '')
+    + (d && (d.set && SET_UI[d.set] ? `<span class="set-badge set-${d.set}" title="${SET_UI[d.set].name}">${SET_UI[d.set].badge}</span>` : (d.grow || (d.tags && d.tags.includes('生长')) ? '<span class="set-badge set-grow" title="生长">生长</span>' : '')))
+    + (d && (d.cl || d.pack === 'decorC' || (d.tags && d.tags.includes('cl'))) ? '<span class="set-badge set-cl" title="Claude / 顶级审美">CL</span>' : '');
 }
 function loadLocal() { try { const s = localStorage.getItem(LS_KEY); if (s) return mergeProject(JSON.parse(s)); } catch (e) {} return mergeProject(null); }
 let saveTimer = 0;
@@ -443,8 +448,23 @@ function tick(now) {
     let t = Math.max(0, S.audio ? AP.time() : (now - S.t0) / 1000 * playRate());
     const range = activeLoopRange();
     if (t >= range.end - 1e-3) {
-      if ((S.fxLoop || S.loop) && !S.tap) { seek(range.start); t = range.start; }
-      else { pause(); t = Math.min(t, S.plan.duration - 1e-3); if (S.tap) stopTap(); }
+      if (S.cutPreviewRange) {
+        if (S.loop === 'cut') {
+          seek(range.start);
+          t = range.start;
+        } else {
+          S.cutPreviewRange = null;
+          pause();
+          t = Math.min(t, S.plan.duration - 1e-3);
+        }
+      } else if ((S.fxLoop || S.loop) && !S.tap) {
+        seek(range.start);
+        t = range.start;
+      } else {
+        pause();
+        t = Math.min(t, S.plan.duration - 1e-3);
+        if (S.tap) stopTap();
+      }
     }
     S.t = t; S.need = true;
     followTlPlayhead();
@@ -458,12 +478,13 @@ function updateTimeUI() {
 }
 // タップ同期の速さ (0.5× / 0.75×): only while tapping — the song's own time is what gets stored
 const playRate = () => (S.tap && S.tap.rate > 0 ? S.tap.rate : 1);
-function play() {
+function play(opts = {}) {
   refreshLoopHold();
   if (S.audio) AP.play(S.audio.buffer, S.t, playRate());
   else {
     S.t0 = performance.now() - S.t * 1000 / playRate();
-    if (S.project && S.project.audioName) {
+    if (S.project && S.project.audioName && !opts.silentAudioWarn && !S.audioWarnedOnce) {
+      S.audioWarnedOnce = true;
       const l = (document.documentElement.lang || '').toLowerCase();
       const msg = l.startsWith('zh-hant') ? `⚠️ 尚未載入音訊【${S.project.audioName}】，目前為無聲預覽`
         : l.startsWith('zh') ? `⚠️ 尚未载入音频【${S.project.audioName}】，当前为无声预览`
@@ -476,6 +497,7 @@ function play() {
 }
 function pause() {
   S.fxLoop = false;
+  S.cutPreviewRange = null;
   if ($('evPreview')) $('evPreview').setAttribute('aria-pressed', 'false');
   S.playing = false; AP.stop();
   $('btnPlay').textContent = '▶'; $('btnPlay').setAttribute('aria-label', '再生'); S.need = true;
@@ -490,7 +512,15 @@ function seek(t) {
 
 /* ---------------- timeline ---------------- */
 // zoomable view: [TL.off, TL.off + D / TL.z] seconds; line starts are draggable handles in the top band
-const TL = { z: 1, off: 0, hover: -1, drag: -1, dragEvent: null, hoverEvent: null };
+const TL = { z: 1, off: 0, hover: -1, drag: -1, dragEvent: null, hoverEvent: null, fxScrollY: 0 };
+let userTlHeight = null;
+try {
+  const saved = localStorage.getItem('jizura.timelineHeight.v1');
+  if (saved) {
+    const val = parseInt(saved, 10);
+    if (val >= 60 && val <= 650) userTlHeight = val;
+  }
+} catch (_) {}
 function tlView() {
   const D = Math.max(0.001, S.plan.duration), vd = D / TL.z;
   TL.off = J.clamp(TL.off, 0, Math.max(0, D - vd));
@@ -511,7 +541,17 @@ function followTlPlayhead() {
 function drawTimeline() {
   const c = $('timeline'), dpr = Math.min(2, window.devicePixelRatio || 1);
   const fxRects = S.screenFxMode ? fxTimelineRects(c.clientWidth) : [];
-  c.style.height = S.screenFxMode ? (76 + Math.max(1, ...fxRects.map(r => r.lane + 1)) * 26) + 'px' : '';
+  if (S.screenFxMode) {
+    if (userTlHeight != null) {
+      c.style.height = userTlHeight + 'px';
+    } else {
+      const maxLane = fxRects.length ? Math.max(...fxRects.map(r => r.lane + 1)) : 1;
+      const needed = 76 + maxLane * 26;
+      c.style.height = Math.min(145, Math.max(102, needed)) + 'px';
+    }
+  } else {
+    c.style.height = '';
+  }
   const w = Math.max(10, Math.round(c.clientWidth * dpr)), h = Math.max(10, Math.round(c.clientHeight * dpr));
   if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
   let { D, vd, off } = tlView();
@@ -550,8 +590,13 @@ function drawTimeline() {
 
   if (S.screenFxMode) {
     x.font = `${10 * dpr}px sans-serif`; x.fillStyle = '#8e8a94';
-    x.fillText('画面动效 · 拖动移动 / 右边缘调时长', 6 * dpr, 61 * dpr);
+    x.fillText('画面动效 · 拖动移动 / 右边缘调整时长', 6 * dpr, 61 * dpr);
+    x.save();
+    x.beginPath();
+    x.rect(0, 64 * dpr, w, Math.max(0, h - 64 * dpr));
+    x.clip();
     for (const r of fxRects) {
+      if ((r.y + 22) * dpr < 64 * dpr || r.y * dpr > h) continue;
       const selected = S.selectedEvent && S.selectedEvent.id === r.ev.id;
       x.fillStyle = r.ev.disabled ? '#303039' : selected ? '#b98016' : r.ev.manual ? '#235a58' : '#393453';
       x.fillRect(r.x * dpr, r.y * dpr, r.w * dpr, 22 * dpr);
@@ -562,6 +607,13 @@ function drawTimeline() {
       x.fillText((r.ev.disabled ? '○ ' : '') + fxName(r.ev.type), (r.x + 4) * dpr, (r.y + 15) * dpr);
       x.restore(); x.fillStyle = selected ? '#f5a50c' : '#8e8a94';
       x.fillRect((r.x + r.w - 3) * dpr, (r.y + 5) * dpr, 2 * dpr, 12 * dpr);
+    }
+    x.restore();
+    const maxLaneY = fxRects.length ? Math.max(...fxRects.map(r => r.y + 22)) * dpr : 0;
+    if (maxLaneY > h - 4 * dpr) {
+      x.fillStyle = 'rgba(245,165,12,0.85)';
+      x.font = `${9 * dpr}px sans-serif`;
+      x.fillText('▼ 拖动下方手柄展开更多动效轨', w - 165 * dpr, h - 6 * dpr);
     }
   }
 
@@ -595,7 +647,7 @@ function tlTime(ev) {
   const r = $('timeline').getBoundingClientRect(), { vd, off } = tlView();
   return off + J.clamp((ev.clientX - r.left) / r.width, 0, 1) * vd;
 }
-function timelineSeek(ev) { if (S.fxLoop) pause(); seek(tlTime(ev)); }
+function timelineSeek(ev) { if (S.fxLoop) pause(); S.cutPreviewRange = null; seek(tlTime(ev)); }
 /* the line whose start handle is under the pointer (top band, <= 20px) */
 function tlHandleAt(ev) {
   const c = $('timeline'), r = c.getBoundingClientRect(), { vd, off } = tlView();
@@ -632,7 +684,10 @@ function updateEventInspector(ev) {
   $('evReset').disabled = !(S.project.eventOverrides || {})[ev.id];
   $('evDisable').textContent = ev.disabled ? '启用' : '禁用';
   const typeSel = $('evInspType');
-  if (typeSel) typeSel.value = ev.type || 'glitch';
+  if (typeSel) {
+    for (const option of typeSel.options || []) option.hidden = option.disabled = option.value !== ev.type && !J.partVisible(S.project, 'fx', option.value);
+    typeSel.value = ev.type || 'glitch';
+  }
   const badge = $('evInspBadge');
   if (badge) {
     let icon = '⚡', label = 'Glitch 故障';
@@ -748,7 +803,7 @@ function renderFxLibrary() {
   const query = $('fxSearch').value.trim().toLowerCase(), category = $('fxCategory').value;
   const categoryOf = k => /glitch|slice|block|chroma|mosaic|noise|rgb|scan/i.test(k) ? 'glitch' : /flash|shake|zoom|impact|pulse/i.test(k) ? 'impact' : 'light';
   for (const type of J.FXE_ORDER) {
-    if (!J.FXE[type] || category !== 'all' && categoryOf(type) !== category || query && !(fxName(type) + ' ' + type).toLowerCase().includes(query)) continue;
+    if (!J.partVisible(S.project, 'fx', type) || !J.FXE[type] || category !== 'all' && categoryOf(type) !== category || query && !(fxName(type) + ' ' + type).toLowerCase().includes(query)) continue;
     const card = document.createElement('button'); card.type = 'button'; card.className = 'fx-card'; card.draggable = true;
     card.title = '预览 ' + fxName(type) + '；点击添加到播放头';
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 144;
@@ -772,7 +827,7 @@ function renderFxLibrary() {
     card.addEventListener('click', () => addManualTimelineEvent(type));
     card.addEventListener('dragstart', e => { stop(); e.dataTransfer.setData('application/x-jizura-fx', type); e.dataTransfer.effectAllowed = 'copy'; });
   }
-  if (!grid.childElementCount) grid.textContent = '没有匹配的动效，试试其他分类或关键词。';
+  if (!grid.childElementCount) grid.textContent = S.project.vibeGeneration?.hideOriginal ? '已有动效已隐藏，当前没有匹配的后加动效。可点击顶部按钮恢复显示。' : '没有匹配的动效，试试其他分类或关键词。';
 }
 
 function bakeAutoEvents() {
@@ -852,12 +907,17 @@ function setScreenFxMode(on) {
   $('btnFxBypass').textContent = '旁路动效';
   $('btnShotMode').classList.toggle('accent', !on);
   $('btnScreenFxMode').classList.toggle('accent', on);
-  closeCutPick(); selectFxEvent(null);
+  selectFxEvent(null);
   if (on) {
+    closeCutPick();
     const pane = document.querySelector('[data-pane="fx"]');
-    $('fxGlobalControls').appendChild(pane); pane.hidden = false;
-    $('fxSnap').checked = !!S.project.timing.snap;
+    if (pane) { $('fxGlobalControls').appendChild(pane); pane.hidden = false; }
+    const fxSnap = $('fxSnap'); if (fxSnap) fxSnap.checked = !!S.project.timing.snap;
     renderFxLibrary();
+  } else {
+    const cut = typeof J !== 'undefined' && J.cutAt ? (J.cutAt(S.plan, S.t) || (S.plan && S.plan.cuts && S.plan.cuts[0])) : null;
+    if (cut && typeof selectShot === 'function') selectShot(cut);
+    else closeCutPick();
   }
   syncFxModeUI(); sizeViewport(); drawTimeline(); S.need = true;
 }
@@ -883,7 +943,7 @@ let listTouched = 0;
 function followLine(li) {
   if (!S.playing || li < 0 || !fixedLayout()) return;
   if (performance.now() - listTouched < 2500) return;                       // the user is scrolling the list
-  const el = S.lineEls[li], col = el && el.closest('.col-left');
+  const el = S.lineEls[li], col = el && (el.closest('.col-right') || el.closest('.col-left'));
   if (!el || !col || col.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
   const tp = $('tapPanel'), pad = tp && !tp.hidden ? tp.offsetHeight + 12 : 8;   // 固定表示中のタップboxの下に隠れないように
   const r = el.getBoundingClientRect(), c = col.getBoundingClientRect();
@@ -891,7 +951,7 @@ function followLine(li) {
   col.scrollTo({ top: col.scrollTop + (r.top - c.top) - Math.max(c.height * 0.3, pad + 24), behavior: 'smooth' });
 }
 function bindFollow() {
-  const col = document.querySelector('.col-left'); if (!col) return;
+  const col = document.querySelector('.col-right') || document.querySelector('.col-left'); if (!col) return;
   const touch = () => { listTouched = performance.now(); };
   col.addEventListener('wheel', touch, { passive: true }); col.addEventListener('touchmove', touch, { passive: true }); col.addEventListener('pointerdown', touch);
 }
@@ -911,10 +971,63 @@ function editingCut() {
   if (cutPick.g) return S.plan.cuts.find(c => cutPick.k < 0 ? c.index === cutPick.index : c.line === cutPick.line && lyricCutK(c) === cutPick.k) || null;
   return J.cutAt(S.plan, S.t);
 }
+let cutPreviewTimer = 0;
+function previewCutWithLeadIn(cut, options = {}) {
+  if (S.exporting || S.tap) return;
+  if (!S.autoPreviewCut && !options.force) return;
+
+  const target = cut || editingCut() || (S.plan && J.cutAt(S.plan, S.t));
+  if (!target) return;
+
+  clearTimeout(cutPreviewTimer);
+  cutPreviewTimer = setTimeout(() => {
+    if (!S.plan || !S.plan.cuts || !S.plan.cuts.length) return;
+
+    const cuts = S.plan.cuts;
+    let cur = cuts.find(c => c.index === target.index);
+    if (!cur && target.line >= 0) {
+      const k = lyricCutK(target);
+      cur = cuts.find(c => c.line === target.line && lyricCutK(c) === k);
+    }
+    if (!cur) cur = target;
+
+    const idx = cuts.findIndex(c => c.index === cur.index);
+    const prevCut = idx > 0 ? cuts[idx - 1] : null;
+
+    // 稍微提前一点开始以展示和上一个镜头的衔接
+    let leadIn = 0.65;
+    if (prevCut) {
+      const prevDur = Math.max(0, cur.start - prevCut.start);
+      leadIn = Math.min(0.8, Math.max(0.25, prevDur * 0.55));
+      leadIn = Math.min(leadIn, Math.max(0.08, prevDur - 0.05));
+    } else {
+      leadIn = Math.min(0.35, cur.start);
+    }
+
+    const startTime = Math.max(0, cur.start - leadIn);
+
+    // 播放到当前片段结束（稍微留出微小尾余展示退场衔接）
+    const nextCut = idx >= 0 && idx < cuts.length - 1 ? cuts[idx + 1] : null;
+    const tailExtra = nextCut ? Math.min(0.12, (nextCut.end - cur.end) * 0.25) : 0;
+    const endTime = Math.min(S.plan.duration, cur.end + tailExtra);
+
+    S.cutPreviewRange = {
+      start: startTime,
+      end: endTime,
+      cutIndex: cur.index
+    };
+
+    seek(startTime);
+    if (!S.playing) {
+      play({ silentAudioWarn: true });
+    }
+  }, options.immediate ? 0 : 80);
+}
 function selectShot(cut) {
   if (!cut || S.exporting || S.tap) return;
   const k = lyricCutK(cut), previousGroup = cutPick.g;
   if (S.screenFxMode) setScreenFxMode(false);
+  S.cutPreviewRange = null;
   pause(); seek(cut.start + Math.min(cut.dur * 0.5, Math.max(0.08, cut.inDur || 0.2)));
   const source = document.querySelector('.lyrics-source'); if (source) source.open = false;
   if (k < 0 && !['title', 'interlude'].includes(cut.layout)) { closeCutPick(); return; }
@@ -923,7 +1036,9 @@ function selectShot(cut) {
   toggleCutPick(group, cut, k);
 }
 function renderShotCategories(cut) {
-  const nav = $('shotCategories'); nav.replaceChildren();
+  const nav = $('shotCategories');
+  if (!nav) return;
+  if (nav.replaceChildren) nav.replaceChildren(); else nav.innerHTML = '';
   const restricted = cut.layout === 'interlude' || cut.layout === 'title';
   for (const [g] of CHIP_GROUPS) {
     const button = document.createElement('button'); button.type = 'button'; button.role = 'tab';
@@ -988,17 +1103,22 @@ function cutDecorIds(cut) {
   if (!cut) return [];
   const k = lyricCutK(cut);
   const slot = (cut.line >= 0 && k >= 0) ? cutTechSlot(cut.line, k) : {};
+  const decorIdOf = d => (typeof d === 'string' ? d.trim() : (d && d.id ? d.id : ''));
   if (slot.decor !== undefined) {
     if (!slot.decor || slot.decor === 'none') return [];
-    if (Array.isArray(slot.decor)) return slot.decor.filter(id => id && id !== 'none' && J.DECOR[id]);
+    if (Array.isArray(slot.decor)) return slot.decor.map(decorIdOf).filter(id => id && id !== 'none' && J.DECOR[id]);
     if (typeof slot.decor === 'string') {
       if (slot.decor.includes(',')) return slot.decor.split(',').map(s => s.trim()).filter(id => id && J.DECOR[id]);
       if (J.DECOR[slot.decor]) return [slot.decor];
     }
+    if (typeof slot.decor === 'object' && slot.decor) {
+      const id = decorIdOf(slot.decor);
+      if (id && J.DECOR[id]) return [id];
+    }
     return [];
   }
   if (cut.decor && Array.isArray(cut.decor)) {
-    return cut.decor.map(d => d && d.id).filter(id => id && J.DECOR[id]);
+    return cut.decor.map(decorIdOf).filter(id => id && J.DECOR[id]);
   }
   return [];
 }
@@ -1067,7 +1187,7 @@ function pickEnabledTech(g, opts) {
     if (en[key] === false) return false;
     return !J.randomOk || J.randomOk(S.project, g, key);
   });
-  if (!keys.length) keys = J.order(g).filter(key => tbl[key] && !tbl[key].special && en[key] !== false);
+  if (!keys.length) keys = J.order(g).filter(key => tbl[key] && !tbl[key].special && en[key] !== false && J.partVisible(S.project, g, key));
   if (g === 'layout' && opts.n != null) {
     const fit = keys.filter(key => !J.LAYOUTS[key].fits || J.LAYOUTS[key].fits(opts.n));
     if (fit.length) keys = fit;
@@ -1105,8 +1225,8 @@ function rerollCurrentCut(kind) {
     closeCutPick();
     replan();
     commit();
-    seek(t0);
     toast(kind === 'omakase' ? 'このカットをおまかせ' : 'このカットをシャッフル');
+    previewCutWithLeadIn(cut);
   } finally {
     ED.batching = false;
   }
@@ -1225,8 +1345,8 @@ function pasteCutStyleToCurrent(skipLayout = false) {
     applyStyleToCutSlot(cut.line, k, copiedCutTech, { skipLayout });
     replan();
     commit();
-    seek(cut.start + Math.min(cut.dur * 0.5, cut.inDur + 0.05));
     toast('このカットにパラメータを貼り付けました');
+    previewCutWithLeadIn(cut);
   } finally {
     ED.batching = false;
   }
@@ -1250,6 +1370,7 @@ function applyCutStyleToLine(includeLayout = false) {
     replan();
     commit();
     toast('この行の全カットにスタイルを適用しました');
+    previewCutWithLeadIn(cut);
   } finally {
     ED.batching = false;
   }
@@ -1272,6 +1393,7 @@ function applyCutStyleToAll(includeLayout = false) {
     replan();
     commit();
     toast(includeLayout ? '全カットに完全なパラメータ（構図含む）を統一しました' : '全カットのスタイル（配色・動效・質感・背景等）を統一しました');
+    previewCutWithLeadIn(cut);
   } finally {
     ED.batching = false;
   }
@@ -1296,6 +1418,7 @@ function applyCutStyleToRange(includeLayout = false) {
     replan();
     commit();
     toast(`範囲内（${R.from + 1}〜${R.to + 1}行目）のカットにスタイルを適用しました`);
+    previewCutWithLeadIn(cut);
   } finally {
     ED.batching = false;
   }
@@ -1337,6 +1460,7 @@ function clearCurrentCutTech() {
     replan();
     commit();
     toast('このカットの固定を解除し、自動に戻しました');
+    previewCutWithLeadIn(cut);
   } finally {
     ED.batching = false;
   }
@@ -1365,10 +1489,10 @@ function rollCutSlot(lineIdx, k) {
     replan();
     commit();
     const updated = S.plan.cuts.filter(c => c.line === lineIdx && J.LAYOUTS[c.layout] && !J.LAYOUTS[c.layout].special)[k];
-    if (updated) seek(updated.start + Math.min(updated.dur * 0.5, updated.inDur + 0.05));
     const l = (document.documentElement.lang || '').toLowerCase();
     const isZh = l.startsWith('zh');
     toast(isZh ? `已单独随机第 ${lineIdx + 1} 行第 ${k + 1} 个镜头` : `${lineIdx + 1}行目 カット${k + 1} を再抽選しました`);
+    previewCutWithLeadIn(updated);
   } finally {
     ED.batching = false;
   }
@@ -1410,10 +1534,10 @@ function nudgeCurrentCutTime(delta = 0.05) {
   }
   replan();
   commit();
-  seek(Math.max(0, newT) + 0.001);
   const sign = delta > 0 ? '+' : '';
   const cutLabel = k > 0 ? (isZh ? `第 ${li + 1} 行 镜头 ${k + 1}` : `${li + 1}行目 カット${k + 1}`) : (isZh ? `第 ${li + 1} 行首镜头` : `${li + 1}行目の開始時刻`);
   toast(isZh ? `微调 ${cutLabel} 打轴：${newT.toFixed(2)}s (${sign}${delta.toFixed(2)}s)` : `${cutLabel} を微調整：${newT.toFixed(2)}秒 (${sign}${delta.toFixed(2)}秒)`);
+  previewCutWithLeadIn(cut);
 }
 
 function buildCutActionButtons(cut, k) {
@@ -1431,8 +1555,12 @@ function buildCutActionButtons(cut, k) {
   } else if (isInter) {
     cardDeleteBtn = `<button type="button" class="ghost small cut-action-btn danger btn-del-card" id="btnDeleteCard" title="${isZh ? '一键删除间奏卡（无缝平滑衔接）' : '間奏カットを削除'}">🗑️ ${isZh ? '删除卡片' : 'カード削除'}</button>`;
   }
+  const autoPreviewActive = !!S.autoPreviewCut;
   return `
     ${cardDeleteBtn}
+    <span class="cut-actions-sep"></span>
+    <button type="button" class="ghost small cut-action-btn cut-preview-btn" id="btnCutPreview" ${isCutValid ? '' : 'disabled'} title="${isZh ? '播放此片段预览（带上一镜头衔接）' : (isEn ? 'Preview this cut with transition' : '前カット接続付きでこのカットをプレビュー')}">▶ ${isZh ? '衔接预览' : (isEn ? 'Preview' : 'プレビュー')}</button>
+    <button type="button" class="ghost small cut-action-btn cut-autopreview-btn ${autoPreviewActive ? 'is-active' : ''}" id="btnCutAutoPreview" aria-pressed="${autoPreviewActive}" title="${isZh ? '改动镜头参数时自动播放衔接预览（点击切换开/关）' : (isEn ? 'Auto play preview with transition when modified (toggle on/off)' : '編集時に前カットからの接続プレビューを自動再生（ON/OFF切替）')}">${autoPreviewActive ? '⚡ ' : ''}${isZh ? '改动即播' : (isEn ? 'Auto Preview' : '自動プレビュー')}</button>
     <span class="cut-actions-sep"></span>
     <button type="button" class="ghost small cut-action-btn" id="btnNudgeBack" ${isCutValid ? '' : 'disabled'} title="${isZh ? '微调打轴：提前 0.05s (快捷键 [ )' : '打鍵微調整：0.05秒戻す (ショートカット [ )'}">◀ -0.05s</button>
     <button type="button" class="ghost small cut-action-btn" id="btnNudgeFwd" ${isCutValid ? '' : 'disabled'} title="${isZh ? '微调打轴：推后 0.05s (快捷键 ] )' : '打鍵微調整：0.05秒進める (ショートカット ] )'}">+0.05s ▶</button>
@@ -1454,6 +1582,34 @@ function buildCutActionButtons(cut, k) {
 }
 
 function bindCutActions(el) {
+  const btnCutPreview = el.querySelector('#btnCutPreview');
+  if (btnCutPreview) {
+    btnCutPreview.addEventListener('click', () => {
+      previewCutWithLeadIn(null, { force: true, immediate: true });
+    });
+  }
+
+  const btnCutAutoPreview = el.querySelector('#btnCutAutoPreview');
+  if (btnCutAutoPreview) {
+    btnCutAutoPreview.addEventListener('click', () => {
+      S.autoPreviewCut = !S.autoPreviewCut;
+      try { localStorage.setItem('jizura.autoPreviewCut.v1', String(S.autoPreviewCut)); } catch (_) {}
+      btnCutAutoPreview.setAttribute('aria-pressed', String(S.autoPreviewCut));
+      btnCutAutoPreview.classList.toggle('is-active', S.autoPreviewCut);
+      const l = (document.documentElement.lang || '').toLowerCase();
+      const isZh = l.startsWith('zh');
+      const isEn = l.startsWith('en');
+      btnCutAutoPreview.textContent = (S.autoPreviewCut ? '⚡ ' : '') + (isZh ? '改动即播' : (isEn ? 'Auto Preview' : '自動プレビュー'));
+      toast(S.autoPreviewCut 
+        ? (isZh ? '已开启镜头改动自动预览' : (isEn ? 'Auto preview enabled' : '自動プレビューを有効にしました'))
+        : (isZh ? '已关闭镜头改动自动预览' : (isEn ? 'Auto preview disabled' : '自動プレビューを無効にしました'))
+      );
+      if (S.autoPreviewCut) {
+        previewCutWithLeadIn(null, { force: true, immediate: true });
+      }
+    });
+  }
+
   const btnDeleteCard = el.querySelector('#btnDeleteCard');
   if (btnDeleteCard) {
     btnDeleteCard.addEventListener('click', () => {
@@ -1469,6 +1625,7 @@ function bindCutActions(el) {
         replan();
         flushSave();
         toast(isZh ? '已删除标题卡（消除片头卡片）' : 'タイトルカードを削除しました');
+        previewCutWithLeadIn();
       } else if (currentCut.layout === 'interlude') {
         if (!S.project.deletedCards.gaps) S.project.deletedCards.gaps = {};
         if (currentCut.line >= 0) {
@@ -1481,6 +1638,7 @@ function bindCutActions(el) {
         replan();
         flushSave();
         toast(isZh ? '已删除间奏卡（无缝平滑衔接）' : '間奏カットを削除しました');
+        previewCutWithLeadIn();
       }
     });
   }
@@ -1572,10 +1730,8 @@ function renderShotVibes() {
   const activeCustomName = J.VIBES[shotVibe]?.custom ? J.VIBES[shotVibe].name : (J.VIBES[currentManageVibe]?.name || '星宿叹');
   const isCustom = !!J.VIBES[shotVibe]?.custom;
   host.innerHTML = `<div class="shot-vibe-tabs" role="tablist" aria-label="部件风格"></div>
-    <div class="shot-vibe-tools">
-      <label><span id="shotVibeSubsetLabel">${activeCustomName}</span> <select id="shotVibeSubset" aria-label="收录类型"><option value="all">全部收录</option><option value="exclusive">专属部件</option><option value="companion">通用搭配</option></select></label>
-      <button type="button" id="shotVibeManage" class="ghost small" aria-pressed="${shotVibeManage}">${shotVibeManage ? '完成收录' : '管理' + (isCustom ? activeCustomName : (J.VIBES[currentManageVibe]?.name || '星宿叹')) + '收录'}</button>
-      <label id="shotVibeRoleWrap">点击部件 <select id="shotVibeRole"><option value="companion">收录为通用搭配</option><option value="exclusive">收录为专属</option><option value="">移出${J.VIBES[currentManageVibe]?.name || '收录'}</option></select></label>
+    <div class="shot-vibe-tools"${isCustom ? '' : ' hidden'}>
+      <label><span id="shotVibeSubsetLabel">${activeCustomName}</span> <select id="shotVibeSubset" aria-label="收录类型"><option value="all">全部部件</option><option value="exclusive">专属部件</option><option value="companion">通用搭配</option></select></label>
     </div>
     <div class="shot-vibe-generation"><label>自动生成范围 <select id="shotVibeGeneration" aria-label="自动生成风格范围"><option value="all">全部风格（原有范围）</option><option value="general">仅通用部件</option></select></label>
       <label><input type="checkbox" id="shotVibeGeneral"> 同时允许通用部件</label></div>
@@ -1593,19 +1749,12 @@ function renderShotVibes() {
       buttons[next].click(); $('shotVibeControls').querySelector('[aria-selected="true"]').focus();
     }); tabs.appendChild(b);
   }
-  const subset = $('shotVibeSubset'); subset.value = shotVibeSubset; subset.parentElement.hidden = !isCustom;
-  subset.addEventListener('change', () => { shotVibeSubset = subset.value; fillCutPick(); });
-  $('shotVibeRoleWrap').hidden = !shotVibeManage;
-  $('shotVibeRole').value = shotVibeRole;
-  $('shotVibeRole').addEventListener('change', () => { shotVibeRole = $('shotVibeRole').value; });
-  $('shotVibeManage').addEventListener('click', () => {
-    shotVibeManage = !shotVibeManage;
-    if (shotVibeManage) {
-      if (J.VIBES[shotVibe]?.custom && typeof managedVibe !== 'undefined') managedVibe = shotVibe;
-      shotVibe = 'all'; shotVibeSubset = 'all';
-    }
-    fillCutPick();
-  });
+  const subset = $('shotVibeSubset');
+  if (subset) {
+    subset.value = shotVibeSubset;
+    if (subset.parentElement) subset.parentElement.hidden = !isCustom;
+    subset.addEventListener('change', () => { shotVibeSubset = subset.value; fillCutPick(); });
+  }
   const select = $('shotVibeGeneration');
   for (const [id, v] of Object.entries(J.VIBES)) { const o = document.createElement('option'); o.value = id; o.textContent = v.name; select.appendChild(o); }
   const settings = S.project.vibeGeneration || { id: 'all' };
@@ -1615,55 +1764,40 @@ function renderShotVibes() {
   const changeGeneration = () => {
     if (S.exporting || S.tap) return;
     pushEdit(); remember();
-    S.project.vibeGeneration = { id: select.value, includeGeneral: $('shotVibeGeneral').checked };
+    S.project.vibeGeneration = Object.assign({}, S.project.vibeGeneration, { id: select.value, includeGeneral: $('shotVibeGeneral').checked });
     replan(); commit(); flushSave();
   };
   select.addEventListener('change', changeGeneration); $('shotVibeGeneral').addEventListener('change', changeGeneration);
-  const manageTargetName = J.VIBES[currentManageVibe]?.name || '星宿叹';
-  $('shotVibeNote').textContent = shotVibeManage ? `收录模式：点击部件只修改${manageTargetName}的分类，不替换镜头。专属部件将从本项目的通用分类中隐藏。` :
-    '风格选项卡仅筛选浏览；自动生成范围单独保存。空类别沿用通用候选，原有手法开关、锁定与手动指定继续生效。';
+  $('shotVibeNote').textContent = S.project.vibeGeneration?.hideOriginal ? '已隐藏隔离清单中的已有部件；保留 CL、原先保留的部件及此后新增部件。字体、配色与基础清空操作保留；已有手动指定和锁定镜头保留。' : '风格选项卡仅筛选浏览；自动生成范围单独保存。空类别沿用通用候选，原有手法开关、锁定与手动指定继续生效。';
 }
 function editShotVibePart(g, key, vibe) {
   if (!shotVibeManage) return false;
   if (S.exporting || S.tap) return true;
   const targetVibe = vibe || (typeof managedVibe !== 'undefined' && managedVibe && J.VIBES[managedVibe]?.custom ? managedVibe : 'xxt');
-  const role = $('shotVibeRole').value;
+  const role = $('shotVibeRole')?.value || shotVibeRole;
   pushEdit(); remember(); J.setVibePart(S.project, targetVibe, g, key, role);
   replan(); commit(); flushSave();
   // Replanning rebuilds the toolbar; preserve the user's chosen operation.
-  $('shotVibeRole').value = role;
+  if ($('shotVibeRole')) $('shotVibeRole').value = role;
   return true;
 }
 function finishShotVibeGrid() {
   const grid = $('cutPickGrid');
   const currentManageVibe = (typeof managedVibe !== 'undefined' && managedVibe && J.VIBES[managedVibe]?.custom) ? managedVibe : 'xxt';
-  grid.querySelectorAll('[data-vibe-key]').forEach(b => {
-    if (shotVibeManage) {
+  if (shotVibeManage) {
+    grid.querySelectorAll('[data-vibe-key]').forEach(b => {
       const role = J.vibeRole(S.project, currentManageVibe, cutPick.g, b.dataset.vibeKey);
       if (!role) return;
       const badge = document.createElement('span'); badge.className = 'shot-vibe-badge';
-      badge.textContent = `${J.VIBES[currentManageVibe]?.name || '收录'} · ` + (role === 'exclusive' ? '专属' : '搭配'); b.appendChild(badge);
-    } else if (J.VIBES[shotVibe]?.custom) {
-      const role = J.vibeRole(S.project, shotVibe, cutPick.g, b.dataset.vibeKey);
-      if (!role) return;
-      const badge = document.createElement('span'); badge.className = 'shot-vibe-badge';
-      badge.textContent = `${J.VIBES[shotVibe].name} · ` + (role === 'exclusive' ? '专属' : '搭配'); b.appendChild(badge);
-    } else {
-      for (const [vid, vdef] of Object.entries(J.VIBES)) {
-        if (!vdef.custom) continue;
-        const role = J.vibeRole(S.project, vid, cutPick.g, b.dataset.vibeKey);
-        if (!role) continue;
-        const badge = document.createElement('span'); badge.className = 'shot-vibe-badge';
-        badge.textContent = `${vdef.name} · ` + (role === 'exclusive' ? '专属' : '搭配'); b.appendChild(badge);
-      }
-    }
-  });
+      badge.textContent = role === 'exclusive' ? '专属' : '搭配'; b.appendChild(badge);
+    });
+  }
   if (grid.querySelector('[data-vibe-key]')) return;
   const empty = document.createElement('div'); empty.className = 'cut-pick-empty';
   if (J.VIBES[shotVibe]?.custom) {
-    empty.textContent = `${J.VIBES[shotVibe].name}在此类别还没有收录部件。点击“管理${J.VIBES[shotVibe].name}收录”，从现有部件中挑选。`;
+    empty.textContent = `${J.VIBES[shotVibe].name}在此类别暂无专属部件，可切换“全部”查看。`;
   } else {
-    empty.textContent = '当前风格下没有匹配的部件，可切换“全部”查看。';
+    empty.textContent = S.project.vibeGeneration?.hideOriginal ? '已有部件已隐藏，当前类别没有匹配的后加部件。可点击顶部按钮恢复显示。' : '当前风格下没有匹配的部件，可切换“全部”查看。';
   }
   grid.appendChild(empty);
 }
@@ -1675,7 +1809,7 @@ function fillCutPick() {
   const cut = editingCut();
   if (!cut) { closeCutPick(); return; }
   renderShotVibes();
-  $('cutPickAuto').disabled = cutPick.k < 0 || shotVibeManage;
+
   if (cutPick.k < 0) {
     $('cutPickTitle').textContent = '生成卡片'; $('cutPickSearchWrap').hidden = true;
     grid.textContent = '此卡片由全片设置生成，可使用上方操作删除或复制。'; return;
@@ -1759,7 +1893,7 @@ function fillCutPick() {
         pushEdit(); remember();
         setCutScheme(cutPick.line, cutPick.k, idx);
         replan(); commit();
-        if (cut) seek(cut.start + Math.min(cut.dur * 0.5, cut.inDur + 0.05));
+        previewCutWithLeadIn(cut);
       });
       grid.appendChild(b);
     });
@@ -1780,7 +1914,7 @@ function fillCutPick() {
         pushEdit(); remember();
         setCutFont(cutPick.line, cutPick.k, '');
         replan(); commit();
-        if (cut) seek(cut.start + Math.min(cut.dur * 0.5, cut.inDur + 0.05));
+        previewCutWithLeadIn(cut);
       });
       grid.appendChild(autoBtn);
     }
@@ -1830,11 +1964,257 @@ function fillCutPick() {
         pushEdit(); remember();
         setCutFont(cutPick.line, cutPick.k, fKey);
         replan(); commit();
-        if (cut) seek(cut.start + Math.min(cut.dur * 0.5, cut.inDur + 0.05));
+        previewCutWithLeadIn(cut);
       });
       grid.appendChild(b);
     });
     finishShotVibeGrid(); return;
+  }
+  if (g === 'decor' && !q && !shotVibeManage) {
+    const hasActiveGrow = activeDecorIds.some(id => J.DECOR[id] && J.DECOR[id].grow);
+    if (hasActiveGrow) {
+      const slot = cutTechSlot(cutPick.line, cutPick.k);
+      const dp = slot.decorParams || {};
+      const curDensity = dp.density != null ? dp.density : 1.0;
+      const curAvoid = dp.avoidText !== false;
+      const curPreset = dp.preset || 'default';
+
+      const bar = document.createElement('div');
+      bar.className = 'growth-tuning-bar';
+      bar.style.cssText = 'grid-column: 1 / -1; background: rgba(30, 42, 60, 0.45); border: 1px solid rgba(100, 180, 255, 0.25); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; font-size: 12px;';
+
+      const l = (document.documentElement.lang || '').toLowerCase();
+      const isZh = l.startsWith('zh');
+      const isEn = l === 'en';
+
+      const titleTxt = isZh ? '🌱 生长预设与微调' : (isEn ? '🌱 Growth Presets & Tuning' : '🌱 生長プリセットと微調整');
+      const densityTxt = isZh ? '密度' : (isEn ? 'Density' : '密度');
+      const avoidTxt = isZh ? '避让文字' : (isEn ? 'Avoid Text' : 'テキスト回避');
+
+      const firstGrowKey = activeDecorIds.find(id => J.DECOR[id] && J.DECOR[id].grow);
+      let presetList = [];
+      if (firstGrowKey === 'grow_hyphae') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准菌丝' : (isEn ? 'Standard' : '標準菌糸'), params: { density: 1.0, wildness: 1.0 } },
+          { id: 'dense', label: isZh ? '密生丛林' : (isEn ? 'Dense Cluster' : '密生叢生'), params: { density: 1.6, wildness: 1.2 } },
+          { id: 'sparse', label: isZh ? '稀疏细根' : (isEn ? 'Sparse Strand' : '希薄単索'), params: { density: 0.5, wildness: 0.7 } },
+          { id: 'spores', label: isZh ? '孢子爆发' : (isEn ? 'Spore Burst' : '胞子爆発'), params: { density: 1.4, wildness: 1.3, radScale: 0.88 } },
+          { id: 'fine', label: isZh ? '极细末梢' : (isEn ? 'Fine Filaments' : '極細毛細'), params: { density: 1.4, radScale: 0.95 } },
+          { id: 'corner_bl', label: isZh ? '左下根系' : (isEn ? 'Bottom-Left' : '左下根系'), params: { anchor: 'bottom-left' } },
+          { id: 'corner_br', label: isZh ? '右下根系' : (isEn ? 'Bottom-Right' : '右下根系'), params: { anchor: 'bottom-right' } },
+          { id: 'center', label: isZh ? '中央辐射' : (isEn ? 'Center' : '中央放射'), params: { anchor: 'center' } }
+        ];
+      } else if (firstGrowKey === 'grow_lightning') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准电弧' : (isEn ? 'Standard Arc' : '標準電弧'), params: { density: 1.0, wildness: 1.4 } },
+          { id: 'overcharge', label: isZh ? '强力过载' : (isEn ? 'Overcharge' : '強力過負荷'), params: { density: 1.7, wildness: 1.8, speed: 0.60 } },
+          { id: 'spark', label: isZh ? '微弱静电' : (isEn ? 'Static Spark' : '微弱火花'), params: { density: 0.5, wildness: 0.9, speed: 0.85 } },
+          { id: 'skyfall', label: isZh ? '天顶落雷' : (isEn ? 'Skyfall' : '天頂落雷'), params: { anchor: 'top-center' } },
+          { id: 'ground', label: isZh ? '地表击穿' : (isEn ? 'Ground Arc' : '地表放電'), params: { anchor: 'bottom-center' } },
+          { id: 'corner_bl', label: isZh ? '角隅轰击' : (isEn ? 'Corner Arc' : '角隅放電'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'grow_coral') {
+        presetList = [
+          { id: 'default', label: isZh ? '浅海珊瑚' : (isEn ? 'Reef Polyps' : '浅海珊瑚'), params: { density: 1.0 } },
+          { id: 'anemone', label: isZh ? '丛生海葵' : (isEn ? 'Dense Anemone' : '叢生海葵'), params: { density: 1.5, baseRadiusRatio: 0.042 } },
+          { id: 'solitary', label: isZh ? '孤生水螅' : (isEn ? 'Solitary Hydra' : '孤生水螅'), params: { density: 0.6 } },
+          { id: 'corner_bl', label: isZh ? '左下礁岩' : (isEn ? 'Bottom-Left Reef' : '左下礁石'), params: { anchor: 'bottom-left' } },
+          { id: 'corner_br', label: isZh ? '右下礁岩' : (isEn ? 'Bottom-Right Reef' : '右下礁石'), params: { anchor: 'bottom-right' } },
+          { id: 'center', label: isZh ? '中央辐射' : (isEn ? 'Center Bloom' : '中央放射'), params: { anchor: 'center' } }
+        ];
+      } else if (firstGrowKey === 'grow_neural') {
+        presetList = [
+          { id: 'default', label: isZh ? '大脑皮层' : (isEn ? 'Cerebral Cortex' : '大脳皮質'), params: { density: 1.0 } },
+          { id: 'cortex', label: isZh ? '密集突触' : (isEn ? 'Dense Synapses' : '密集シナプス'), params: { density: 1.6 } },
+          { id: 'sparse_axon', label: isZh ? '稀疏轴突' : (isEn ? 'Sparse Axon' : '希薄軸索'), params: { density: 0.5 } },
+          { id: 'center_soma', label: isZh ? '神经中枢' : (isEn ? 'Soma Hub' : '神経中枢'), params: { anchor: 'center' } },
+          { id: 'corner_bl', label: isZh ? '神经投射' : (isEn ? 'Projection' : '神経投射'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'grow_flora') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准青花' : (isEn ? 'Standard' : '標準青花'), params: { density: 1.0 } },
+          { id: 'bloom', label: isZh ? '繁花盛放' : (isEn ? 'Full Bloom' : '満開万花'), params: { density: 1.5, flowerRatio: 2.2, motifScale: 1.3, branches: 8 } },
+          { id: 'withered', label: isZh ? '枯木荆棘' : (isEn ? 'Withered' : '枯木荊棘'), params: { leaves: false, flowerRatio: 0, ampRatio: 1.6 } },
+          { id: 'ivy', label: isZh ? '常青藤蔓' : (isEn ? 'Ivy Vine' : '常春蔦葛'), params: { leafRatio: 1.8, leafScale: 1.25, flowerRatio: 0.3 } },
+          { id: 'single_stem', label: isZh ? '孤芳折枝' : (isEn ? 'Single Stem' : '孤高折枝'), params: { branches: 0, heroOnly: true, flowerRatio: 1.0, motifScale: 1.4 } },
+          { id: 'canopy', label: isZh ? '林冠垂萝' : (isEn ? 'Canopy' : '垂下樹冠'), params: { anchor: 'top-right' } },
+          { id: 'corner_bl', label: isZh ? '左下生出' : (isEn ? 'Bottom-Left' : '左下生長'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'grow_geometric') {
+        presetList = [
+          { id: 'default', label: isZh ? '折面几何' : (isEn ? 'Geometric' : '折面幾何'), params: { density: 1.0 } },
+          { id: 'crystal', label: isZh ? '晶棱折面' : (isEn ? 'Crystal Facet' : '晶稜折面'), params: { density: 1.5, leafScale: 1.3 } },
+          { id: 'origami', label: isZh ? '千纸折痕' : (isEn ? 'Origami' : '折紙折目'), params: { density: 1.0, leafScale: 1.6, branches: 4 } },
+          { id: 'minimal_poly', label: isZh ? '极简棱角' : (isEn ? 'Minimal Poly' : '極小多角'), params: { density: 0.6, branches: 2, leafRatio: 0.5 } },
+          { id: 'corner_bl', label: isZh ? '左下生出' : (isEn ? 'Bottom-Left' : '左下生長'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'grow_cyber') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准回路' : (isEn ? 'Circuit Bus' : '標準回路'), params: { density: 1.0 } },
+          { id: 'pcb_dense', label: isZh ? '高密主板' : (isEn ? 'Dense PCB' : '高密度基板'), params: { density: 1.6 } },
+          { id: 'bus_wide', label: isZh ? '高速总线' : (isEn ? 'Wide Bus' : '広域幹線'), params: { density: 0.8, ampRatio: 0.6 } },
+          { id: 'server', label: isZh ? '矩阵机柜' : (isEn ? 'Server Rack' : '局内配線'), params: { anchor: 'bottom-center' } },
+          { id: 'corner_bl', label: isZh ? '左下引出' : (isEn ? 'Bottom-Left' : '左下端子'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'grow_frost') {
+        presetList = [
+          { id: 'default', label: isZh ? '冰霜结晶' : (isEn ? 'Frost Crystal' : '氷霜結晶'), params: { density: 1.0 } },
+          { id: 'ice_fern', label: isZh ? '窗花羽霜' : (isEn ? 'Frost Fern' : '窓華羽霜'), params: { density: 1.5, branches: 7, leafRatio: 1.6 } },
+          { id: 'snowflake', label: isZh ? '六角星簇' : (isEn ? 'Snowflake Star' : '六角星芒'), params: { flowerRatio: 2.0, motifScale: 1.4 } },
+          { id: 'rime', label: isZh ? '雾凇针晶' : (isEn ? 'Rime Needles' : '霧氷針晶'), params: { density: 1.6, leafScale: 0.75, flowerRatio: 0.2 } },
+          { id: 'center', label: isZh ? '中央辐射' : (isEn ? 'Radial Freeze' : '中央放冷'), params: { anchor: 'center' } },
+          { id: 'corner_bl', label: isZh ? '角隅凝结' : (isEn ? 'Corner Frost' : '角隅結氷'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'grow_tendril') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准卷须' : (isEn ? 'Tendril' : '標準巻髭'), params: { turns: 1.4, density: 1.0, style: 'default' } },
+          { id: 'fern', label: isZh ? '蕨类蜷曲' : (isEn ? 'Fern Frond' : '羊歯展開'), params: { turns: 2.2, density: 1.4, style: 'fern' } },
+          { id: 'ivy_curl', label: isZh ? '常春藤须' : (isEn ? 'Ivy Spring' : '蔦蔓巻鬚'), params: { turns: 1.8, density: 1.2, style: 'ivy' } },
+          { id: 'golden', label: isZh ? '黄金螺旋' : (isEn ? 'Golden Ratio' : '黄金螺旋'), params: { turns: 2.5, density: 1.0, style: 'golden' } },
+          { id: 'wild', label: isZh ? '野性缠绕' : (isEn ? 'Wild Bramble' : '野性交差'), params: { turns: 2.2, density: 1.6, double: true, style: 'wild' } },
+          { id: 'corner_bl', label: isZh ? '左下卷出' : (isEn ? 'Bottom-Left' : '左下旋回'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'grow_physarum') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准粘菌' : (isEn ? 'Slime Mold' : '標準粘菌'), params: { density: 1.0 } },
+          { id: 'angio', label: isZh ? '血管新生' : (isEn ? 'Angiogenesis' : '血管新生'), params: { density: 1.5, agents: 450, themeStyle: 'angio', decay: 0.95 } },
+          { id: 'maze', label: isZh ? '迷宫漫游' : (isEn ? 'Maze Runner' : '迷路探索'), params: { density: 1.2, sensorDist: 5.5, turnAngle: 36, steps: 110 } },
+          { id: 'biolum', label: isZh ? '荧光脉动' : (isEn ? 'Biolum Pulse' : '蛍光脈動'), params: { density: 1.4, agents: 380, themeStyle: 'biolum' } },
+          { id: 'dense', label: isZh ? '密集原浆' : (isEn ? 'Dense Protoplasm' : '密集原形質'), params: { density: 1.6, agents: 500 } },
+          { id: 'sparse', label: isZh ? '稀疏探触' : (isEn ? 'Sparse Strand' : '希薄探索'), params: { density: 0.5, agents: 180 } }
+        ];
+      } else if (firstGrowKey === 'fracture_burst') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准冲击' : (isEn ? 'Standard Shock' : '標準衝撃'), params: { density: 1.0 } },
+          { id: 'supernova', label: isZh ? '爆裂冲击' : (isEn ? 'Supernova Burst' : '破裂衝撃'), params: { density: 1.8, speed: 0.60 } },
+          { id: 'micro', label: isZh ? '微型破损' : (isEn ? 'Micro Impact' : '微細破片'), params: { density: 0.5 } },
+          { id: 'corner_bl', label: isZh ? '角隅爆轰' : (isEn ? 'Corner Blast' : '角隅爆砕'), params: { anchor: 'bottom-left' } },
+          { id: 'fast', label: isZh ? '急速破裂' : (isEn ? 'Fast Shock' : '急速破断'), params: { speed: 0.55 } },
+          { id: 'slow', label: isZh ? '缓慢延伸' : (isEn ? 'Slow Creep' : '緩慢進展'), params: { speed: 1.0 } }
+        ];
+      } else if (firstGrowKey === 'fracture_crevasse') {
+        presetList = [
+          { id: 'default', label: isZh ? '断层地堑' : (isEn ? 'Fault Crevasse' : '断層地塹'), params: { density: 1.0 } },
+          { id: 'chasm', label: isZh ? '深渊裂谷' : (isEn ? 'Abyssal Chasm' : '深淵地裂'), params: { density: 1.6 } },
+          { id: 'shear', label: isZh ? '剪切错动' : (isEn ? 'Tectonic Shear' : '剪断変形'), params: { density: 0.8 } },
+          { id: 'diagonal', label: isZh ? '对角撕裂' : (isEn ? 'Diagonal Rift' : '対角引裂'), params: { anchor: 'top-left' } },
+          { id: 'corner_bl', label: isZh ? '左下起断' : (isEn ? 'Bottom-Left Rift' : '左下起断'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'fracture_craquelure') {
+        presetList = [
+          { id: 'default', label: isZh ? '贯入开片' : (isEn ? 'Craquelure' : '貫入開片'), params: { density: 1.0 } },
+          { id: 'kintsugi', label: isZh ? '金缮修复' : (isEn ? 'Kintsugi Gold' : '金継ぎ修復'), params: { density: 1.2, gold: true } },
+          { id: 'ice_crack', label: isZh ? '宋瓷冰裂' : (isEn ? 'Ice Crackle' : '青磁氷裂'), params: { density: 0.7 } },
+          { id: 'fish_roe', label: isZh ? '鱼子细纹' : (isEn ? 'Fish-Roe Net' : '魚子微細'), params: { density: 1.8 } },
+          { id: 'corner_bl', label: isZh ? '角隅碎纹' : (isEn ? 'Corner Crackle' : '角隅微裂'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'fracture_glass') {
+        presetList = [
+          { id: 'default', label: isZh ? '蛛网破裂' : (isEn ? 'Spiderweb Shatter' : '蜘蛛網破断'), params: { density: 1.0 } },
+          { id: 'bullet_impact', label: isZh ? '弹着碎裂' : (isEn ? 'Ballistic Impact' : '弾着粉砕'), params: { density: 1.8, rings: 5, speed: 0.60 } },
+          { id: 'stress_crack', label: isZh ? '张力暗裂' : (isEn ? 'Stress Arc Rings' : '応力環裂'), params: { density: 0.6, rings: 2 } },
+          { id: 'corner_strike', label: isZh ? '边缘受击' : (isEn ? 'Corner Strike' : '端部衝撃'), params: { anchor: 'bottom-left' } },
+          { id: 'center', label: isZh ? '中央击穿' : (isEn ? 'Center Breach' : '中央貫通'), params: { anchor: 'center' } }
+        ];
+      } else if (firstGrowKey === 'grow_fidenza') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准流场' : (isEn ? 'Fidenza Flow' : '標準流場'), params: { density: 1.0 } },
+          { id: 'turbulent', label: isZh ? '湍流漩涡' : (isEn ? 'Turbulent Vortex' : '乱流渦巻'), params: { density: 1.5 } },
+          { id: 'laminar', label: isZh ? '平缓层流' : (isEn ? 'Laminar Stream' : '層流風洞'), params: { density: 0.8 } },
+          { id: 'macro_bold', label: isZh ? '巨构宽幅' : (isEn ? 'Monumental Ribbons' : '巨構帯状'), params: { density: 0.9 } },
+          { id: 'pop_palette', label: isZh ? '波普狂想' : (isEn ? 'Pop Vivid' : '鮮烈色彩'), params: { density: 1.2 } },
+          { id: 'center', label: isZh ? '画面中央' : (isEn ? 'Center Focus' : '中央収束'), params: { anchor: 'center' } }
+        ];
+      } else if (firstGrowKey === 'grow_fidenza_line') {
+        presetList = [
+          { id: 'default', label: isZh ? '标准细线' : (isEn ? 'Minimal Lines' : '標準細線'), params: { density: 1.0 } },
+          { id: 'hairline', label: isZh ? '三千银丝' : (isEn ? 'Dense Hairlines' : '千筋銀糸'), params: { density: 1.8 } },
+          { id: 'contour', label: isZh ? '等高线律' : (isEn ? 'Contour Rhythm' : '等高線律'), params: { density: 1.2 } },
+          { id: 'neon', label: isZh ? '霓虹导线' : (isEn ? 'Neon Glow Trace' : '発光線条'), params: { density: 1.0 } },
+          { id: 'corner_bl', label: isZh ? '角隅流出' : (isEn ? 'Corner Cascade' : '角隅放射'), params: { anchor: 'bottom-left' } }
+        ];
+      } else if (firstGrowKey === 'grow_aurora') {
+        presetList = [
+          { id: 'default', label: isZh ? '极光飘带' : (isEn ? 'Aurora Ribbons' : '極光帯流'), params: { density: 1.0 } },
+          { id: 'green_curtain', label: isZh ? '翡翠帷幔' : (isEn ? 'Emerald Curtain' : '翡翠天幕'), params: { density: 1.4 } },
+          { id: 'violet_storm', label: isZh ? '紫极风暴' : (isEn ? 'Violet Tempest' : '紫極嵐雲'), params: { density: 1.6, anchor: 'top-center' } },
+          { id: 'serene', label: isZh ? '空灵静流' : (isEn ? 'Serene Glow' : '幽玄静流'), params: { density: 0.6 } },
+          { id: 'center', label: isZh ? '浩瀚天顶' : (isEn ? 'Zenith Aurora' : '天頂光芒'), params: { anchor: 'center' } },
+          { id: 'corner_bl', label: isZh ? '地平起浪' : (isEn ? 'Horizon Wave' : '地平隆起'), params: { anchor: 'bottom-left' } }
+        ];
+      } else {
+        presetList = [
+          { id: 'default', label: isZh ? '标准' : (isEn ? 'Default' : '標準'), params: { density: 1.0, anchor: 'auto' } },
+          { id: 'dense', label: isZh ? '茂密' : (isEn ? 'Dense' : '高密度'), params: { density: 1.6 } },
+          { id: 'sparse', label: isZh ? '稀疏' : (isEn ? 'Sparse' : '低密度'), params: { density: 0.5 } },
+          { id: 'corner_bl', label: isZh ? '左下角' : (isEn ? 'Bottom-Left' : '左下'), params: { anchor: 'bottom-left' } },
+          { id: 'corner_br', label: isZh ? '右下角' : (isEn ? 'Bottom-Right' : '右下'), params: { anchor: 'bottom-right' } },
+          { id: 'center', label: isZh ? '居中' : (isEn ? 'Center' : '中央'), params: { anchor: 'center' } }
+        ];
+      }
+
+      bar.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <strong style="color:#7ee787;font-size:12px;">${titleTxt}</strong>
+          <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
+            <input type="checkbox" id="gtAvoidText" ${curAvoid ? 'checked' : ''}>
+            <span>${avoidTxt}</span>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span class="muted">${isZh ? '预设:' : (isEn ? 'Preset:' : 'プリセット:')}</span>
+          <div class="growth-preset-chips" style="display:inline-flex;gap:4px;flex-wrap:wrap;"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="min-width:60px;">${densityTxt}: <b id="gtDensityVal" class="mono">${curDensity.toFixed(1)}x</b></span>
+          <input type="range" id="gtDensitySlider" min="0.3" max="2.0" step="0.1" value="${curDensity}" style="flex:1;accent-color:#7ee787;">
+        </div>
+      `;
+
+      const chipBox = bar.querySelector('.growth-preset-chips');
+      presetList.forEach(p => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ghost small' + (curPreset === p.id ? ' is-on' : '');
+        btn.style.cssText = 'padding:2px 8px;font-size:11px;border-radius:4px;';
+        btn.textContent = p.label;
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const nextParams = Object.assign({}, slot.decorParams || {}, p.params, { preset: p.id });
+          setCutTech(cutPick.line, cutPick.k, 'decorParams', nextParams);
+          replan(); commit();
+          const st = grid.scrollTop;
+          fillCutPick();
+          grid.scrollTop = st;
+          previewCutWithLeadIn();
+        });
+        chipBox.appendChild(btn);
+      });
+
+      const slider = bar.querySelector('#gtDensitySlider');
+      const valLabel = bar.querySelector('#gtDensityVal');
+      slider.addEventListener('input', () => {
+        const d = parseFloat(slider.value);
+        valLabel.textContent = d.toFixed(1) + 'x';
+      });
+      slider.addEventListener('change', () => {
+        const d = parseFloat(slider.value);
+        const nextParams = Object.assign({}, slot.decorParams || {}, { density: d, preset: 'custom' });
+        setCutTech(cutPick.line, cutPick.k, 'decorParams', nextParams);
+        replan(); commit();
+        previewCutWithLeadIn();
+      });
+
+      const avoidCb = bar.querySelector('#gtAvoidText');
+      avoidCb.addEventListener('change', () => {
+        const nextParams = Object.assign({}, slot.decorParams || {}, { avoidText: avoidCb.checked });
+        setCutTech(cutPick.line, cutPick.k, 'decorParams', nextParams);
+        replan(); commit();
+        previewCutWithLeadIn();
+      });
+
+      grid.appendChild(bar);
+    }
   }
   if (!q && !shotVibeManage && (g === 'decor' || g === 'trans' || g === 'fx')) {
     const none = document.createElement('button');
@@ -1853,6 +2233,7 @@ function fillCutPick() {
         fillCutPick();
         grid.scrollTop = st;
       }
+      previewCutWithLeadIn();
     });
     grid.appendChild(none);
   }
@@ -1886,6 +2267,7 @@ function fillCutPick() {
           setCutTech(cutPick.line, cutPick.k, m.group, m.key);
           replan(); commit();
           toggleCutPick(m.group, cut, cutPick.k);
+          previewCutWithLeadIn(cut);
         });
         row.appendChild(btn);
       });
@@ -1928,9 +2310,11 @@ function fillCutPick() {
         const st = grid.scrollTop;
         fillCutPick();
         grid.scrollTop = st;
+        previewCutWithLeadIn();
       } else {
         setCutTech(cutPick.line, cutPick.k, g, key);
         replan(); commit();
+        previewCutWithLeadIn();
       }
     });
     grid.appendChild(b);
@@ -1964,59 +2348,174 @@ function renderLines() {
     }
   }
   const ov = S.project.overrides, R = exportRangeLines();
+  const lyricRows = S.project.lyrics.replace(/\r/g, '').split('\n');
   S.plan.lines.forEach((ln, i) => {
     const o = ov[i] || {};
     const li = document.createElement('li'); li.className = 'ln' + (ln.interlude ? ' is-inter' : '') + (R && i >= R.from && i <= R.to ? ' in-range' : '');
-    const manual = S.project.timing.lineTimes && S.project.timing.lineTimes[i] != null;
-    const label = ln.interlude ? `〔間奏${ln.secs ? ' ' + ln.secs + '秒' : ''}〕` : ln.text;
-    li.innerHTML = `<span class="no">${String(i + 1).padStart(2, '0')}</span>
-      <input class="time cut-time mono" type="number" step="0.01" min="0" value="${ln.start.toFixed(2)}" title="開始（秒）${manual ? '・手動' : '・自動'}" aria-label="${i + 1}行目の開始秒" style="${manual ? 'border-color:var(--cyan)' : ''}">
-      <span class="txt" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
-      <div class="meta"><span class="cuts"></span>
+    
+    // 开头的主句：不省略 / 等语法特殊符号，方便直接修改，且修改联动编辑歌词的模块
+    const row = (ln.src != null && lyricRows[ln.src] != null) ? lyricRows[ln.src] : '';
+    const pre = (row.match(LRC_PREFIX) || [''])[0];
+    const rawBody = row ? row.slice(pre.length).trim() : (ln.interlude ? (ln.secs ? `[间奏 ${ln.secs}]` : '[间奏]') : (ln.text || ''));
+
+    li.innerHTML = `<div class="ln-header">
+      <span class="no">${String(i + 1).padStart(2, '0')}</span>
+      <input class="ln-text-input mono" type="text" value="${escapeHtml(rawBody)}" title="直接修改整句歌词与/镜头分句（实时联动歌词模块）" aria-label="${i + 1}行目の歌詞" spellcheck="false">
+    </div>
+    <div class="meta">
+      <div class="cuts shot-list"></div>
       <span class="tools">
-        
         <button class="icon ghost tapfrom" title="この行からタップで同期し直す" aria-label="${i + 1}行目からタップ">${ICON.tap}</button>
         <button class="icon ghost rng" title="書き出す範囲にする（Shift+クリックで範囲を広げる）" aria-pressed="${R && i >= R.from && i <= R.to ? 'true' : 'false'}" aria-label="${i + 1}行目を書き出す範囲に">${ICON.range}</button>
         <button class="icon ghost dice" title="この行を再抽選">${ICON.dice}</button>
         <button class="icon ghost lock" title="この行の構成をロック" aria-pressed="${o.lock ? 'true' : 'false'}">${ICON.lock}</button>
-      </span></div>`;
-    const q = sel => li.querySelector(sel);
-    q('.time').addEventListener('wheel', e => {
-      e.preventDefault();
-      const step = e.shiftKey ? 0.1 : 0.05;
-      const cur = parseFloat(q('.time').value) || ln.start;
-      const next = Math.max(0, +(cur + (e.deltaY < 0 ? step : -step)).toFixed(2));
-      q('.time').value = next.toFixed(2);
-      q('.time').dispatchEvent(new Event('change'));
-    }, { passive: false });
-    q('.time').addEventListener('keydown', e => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      </span>
+    </div>`;
+
+    const txtInput = li.querySelector('.ln-text-input');
+    let lineComposing = false;
+    txtInput.addEventListener('compositionstart', () => { lineComposing = true; });
+    txtInput.addEventListener('compositionend', () => { lineComposing = false; });
+    const saveLineEdit = () => {
+      if (lineComposing) return;
+      const v = txtInput.value.trim();
+      if (!v || v === rawBody) return;
+      pushEdit();
+      const rows = S.project.lyrics.replace(/\r/g, '').split('\n');
+      if (ln.src != null && ln.src < rows.length) {
+        rows[ln.src] = pre + v;
+      } else {
+        rows.push(pre + v);
+      }
+      S.project.lyrics = rows.join('\n');
+      $('lyrics').value = S.project.lyrics;
+      replan();
+      flushSave();
+      toast(`已更新第 ${i + 1} 行歌词并重新规划`);
+    };
+    txtInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !lineComposing && !e.isComposing) {
         e.preventDefault();
-        const step = e.shiftKey ? 0.1 : 0.05;
-        const cur = parseFloat(q('.time').value) || ln.start;
-        const next = Math.max(0, +(cur + (e.key === 'ArrowUp' ? step : -step)).toFixed(2));
-        q('.time').value = next.toFixed(2);
-        q('.time').dispatchEvent(new Event('change'));
+        saveLineEdit();
+        txtInput.blur();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        txtInput.value = rawBody;
+        txtInput.blur();
       }
     });
-    q('.time').addEventListener('change', e => {
-      const v = parseFloat(e.target.value);
-      pushEdit();
-      if (!S.project.timing.lineTimes) S.project.timing.lineTimes = {};
-      if (isFinite(v)) {
-        // keep the order: a typed time stays between the fixed times (typed or LRC) of the lines around it
-        const lt = S.project.timing.lineTimes, L = S.plan.lines;
-        const fix = j => (lt[j] != null && isFinite(+lt[j])) ? +lt[j] : (L[j] && L[j].lrc != null ? L[j].lrc : null);
-        let lo = 0, hi = Infinity;
-        for (let j = i - 1; j >= 0; j--) { const f = fix(j); if (f != null) { lo = f + 0.05; break; } }
-        for (let j = i + 1; j < L.length; j++) { const f = fix(j); if (f != null) { hi = f - 0.05; break; } }
-        let w = Math.max(0, v);
-        if (hi >= lo && (w < lo || w > hi)) { w = J.clamp(w, lo, hi); toast(`前後の行と順番が入れ替わらないよう ${w.toFixed(2)} 秒にしました`); }
-        lt[i] = +w.toFixed(3);
-      } else delete S.project.timing.lineTimes[i];
-      replan();
+    txtInput.addEventListener('blur', saveLineEdit);
+    txtInput.addEventListener('click', e => e.stopPropagation());
+
+    const cutsEl = li.querySelector('.cuts');
+    const lineCuts = S.plan.cuts.filter(c => c.line === i && lyricCutK(c) >= 0);
+    const cutsToRender = lineCuts.length ? lineCuts : (ln.interlude ? [{
+      index: S.plan.cuts.findIndex(c => c.line === i),
+      line: i,
+      start: ln.start,
+      text: ln.secs ? `间奏 ${ln.secs}秒` : '间奏',
+      layout: 'interlude'
+    }] : [{
+      index: S.plan.cuts.findIndex(c => c.line === i),
+      line: i,
+      start: ln.start,
+      text: rawBody,
+      layout: 'center'
+    }]);
+
+    cutsToRender.forEach(c => {
+      const k = lyricCutK(c);
+      const isManualCut = k > 0
+        ? (S.project.overrides[i]?.cutTime && S.project.overrides[i].cutTime[k] != null)
+        : (S.project.timing.lineTimes && S.project.timing.lineTimes[i] != null);
+
+      const shotButton = document.createElement('div');
+      shotButton.className = 'shot-button';
+      shotButton.dataset.cutIndex = c.index;
+      shotButton.setAttribute('aria-pressed', String(!!cutPick.g && cutPick.line === i && (k < 0 || cutPick.k === k)));
+
+      // 去掉镜头1镜头2，把对轴的时间改到那个位置
+      const timeInp = document.createElement('input');
+      timeInp.type = 'number';
+      timeInp.className = 'cut-time mono';
+      timeInp.step = '0.01';
+      timeInp.min = '0';
+      timeInp.value = c.start.toFixed(2);
+      timeInp.title = `对轴时间: ${c.start.toFixed(2)}s (滚轮或上下键微调 ±0.05s)`;
+      if (isManualCut) timeInp.style.borderColor = 'var(--cyan)';
+
+      const updateTime = (val) => {
+        if (!isFinite(val)) return;
+        pushEdit();
+        if (k <= 0) {
+          if (!S.project.timing.lineTimes) S.project.timing.lineTimes = {};
+          const lt = S.project.timing.lineTimes, L = S.plan.lines;
+          const fix = j => (lt[j] != null && isFinite(+lt[j])) ? +lt[j] : (L[j] && L[j].lrc != null ? L[j].lrc : null);
+          let lo = 0, hi = Infinity;
+          for (let j = i - 1; j >= 0; j--) { const f = fix(j); if (f != null) { lo = f + 0.05; break; } }
+          for (let j = i + 1; j < L.length; j++) { const f = fix(j); if (f != null) { hi = f - 0.05; break; } }
+          let w = Math.max(0, val);
+          if (hi >= lo && (w < lo || w > hi)) {
+            w = J.clamp(w, lo, hi);
+            toast(`前后的行和顺序不会颠倒，已调整为 ${w.toFixed(2)} 秒`);
+          }
+          lt[i] = +w.toFixed(3);
+        } else {
+          const minT = ln.start + 0.05 * k;
+          const maxT = Math.max(minT, ln.visEnd - 0.05);
+          const clampedT = J.clamp(val, minT, maxT);
+          const ct = Object.assign({}, (S.project.overrides[i] || {}).cutTime || {});
+          ct[k] = +Math.max(0, clampedT - ln.start).toFixed(3);
+          setOv(i, { cutTime: ct });
+        }
+        replan();
+        flushSave();
+      };
+
+      timeInp.addEventListener('wheel', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const step = e.shiftKey ? 0.1 : 0.05;
+        const cur = parseFloat(timeInp.value) || c.start;
+        const next = Math.max(0, +(cur + (e.deltaY < 0 ? step : -step)).toFixed(2));
+        timeInp.value = next.toFixed(2);
+        updateTime(next);
+      }, { passive: false });
+
+      timeInp.addEventListener('keydown', e => {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          e.stopPropagation();
+          const step = e.shiftKey ? 0.1 : 0.05;
+          const cur = parseFloat(timeInp.value) || c.start;
+          const next = Math.max(0, +(cur + (e.key === 'ArrowUp' ? step : -step)).toFixed(2));
+          timeInp.value = next.toFixed(2);
+          updateTime(next);
+        }
+      });
+
+      timeInp.addEventListener('change', e => {
+        e.stopPropagation();
+        updateTime(parseFloat(e.target.value));
+      });
+      timeInp.addEventListener('click', e => e.stopPropagation());
+
+      // 后面跟着的内容不要写布局的名字，而是只有那一短句
+      const phrase = document.createElement('span');
+      phrase.className = 'cut-phrase';
+      const phraseText = c.text || (ln.interlude ? (ln.secs ? `间奏 ${ln.secs}秒` : '间奏') : '');
+      phrase.textContent = phraseText;
+      phrase.title = `${c.start.toFixed(2)}s · ${phraseText}`;
+
+      shotButton.append(timeInp, phrase);
+      shotButton.addEventListener('click', () => {
+        const fullCut = (c.index >= 0 && S.plan.cuts[c.index]) ? S.plan.cuts[c.index] : c;
+        selectShot(fullCut);
+      });
+      cutsEl.appendChild(shotButton);
     });
-    q('.txt').addEventListener('dblclick', () => editLine(li, ln));
+
+    const q = sel => li.querySelector(sel);
     q('.tapfrom').addEventListener('click', () => startTap(i));
     q('.rng').addEventListener('click', e => setExportRange(i, e.shiftKey));
     if (q('.dice')) q('.dice').addEventListener('click', () => {
@@ -2032,17 +2531,6 @@ function renderLines() {
       if (cur.lock) setOv(i, { lock: false, lockedSeed: undefined, lockedCuts: undefined, savedCuts: undefined });
       else setOv(i, { lock: true, lockedSeed: ln.seed, lockedCuts: J.lineSnapshot(S.plan, i) || undefined, savedCuts: undefined });
       replan(); commit();
-    });
-    const cutsEl = q('.cuts'); cutsEl.classList.add('shot-list');
-    q('.time').classList.add('pro-only'); q('.tools').prepend(q('.time'));
-    S.plan.cuts.filter(c => c.line === i && lyricCutK(c) >= 0).forEach(c => {
-      const button = document.createElement('button'); button.type = 'button'; button.className = 'shot-button';
-      button.dataset.cutIndex = c.index;
-      button.setAttribute('aria-pressed', String(!!cutPick.g && cutPick.line === i && cutPick.k === lyricCutK(c)));
-      const number = document.createElement('b'); number.textContent = '镜头 ' + String(c.index + 1).padStart(2, '0');
-      const name = document.createElement('span'); name.textContent = groupName('layout', c.layout);
-      button.append(number, name); button.title = c.start.toFixed(2) + 's · ' + (c.text || '间奏') + ' · ' + name.textContent;
-      button.addEventListener('click', () => selectShot(c)); cutsEl.appendChild(button);
     });
 
     // Select from the whole card; embedded controls keep their own actions.
@@ -2373,6 +2861,7 @@ function drawStyleGrid() {
   }
   [...g.children].forEach(b => {
     const k = b.dataset.k;
+    b.hidden = !J.partVisible(S.project, 'style', k);
     const st = (k === 'custom' && S.project.customStyle) ? S.project.customStyle : J.STYLES[k];
     const sc = (st && st.schemes && st.schemes[0]) || { bg: '#08080A', fg: '#FFFFFF', sub: '#A8A8B4', ghostA: '#FF3366', ghostB: '#00E5FF', accent: '#FF3366' };
     const cv = b.querySelector('canvas'), x = cv.getContext('2d');
@@ -2570,6 +3059,8 @@ function renderCustomStyle() {
       selPreset.appendChild(opt);
     });
   }
+
+  if (selPreset) for (const option of selPreset.options) option.hidden = option.disabled = !!J.STYLES[option.value] && !J.partVisible(S.project, 'style', option.value);
 
   document.querySelectorAll('.cust-tab-btn').forEach(btn => {
     const t = btn.dataset.custTab;
@@ -3450,7 +3941,7 @@ function rerollPart(part) {
   let msg = '';
   if (part === 'style') {
     let pool = J.STYLE_ORDER.filter(k => k !== P.style && J.randomOk(P, 'style', k));
-    if (!pool.length) pool = J.STYLE_ORDER.filter(k => k !== P.style);
+    if (!pool.length) pool = J.STYLE_ORDER.filter(k => k !== P.style && J.partVisible(P, 'style', k));
     P.style = pool[Math.floor(Math.random() * pool.length)];
     P.colors.enabled = false;
     msg = `スタイル：${J.STYLES[P.style].name}`;
@@ -3551,7 +4042,7 @@ function renderFx() {
 /* ---------------- technique tab ---------------- */
 const GROUPS = [['layout', 'レイアウト'], ['enter', '登場'], ['hold', '保持'], ['exit', '退場'], ['decor', '装飾'], ['treat', '文字の加工'], ['bg', '背景'], ['cam', 'カメラ'], ['fx', '画面効果'], ['trans', 'カット間のつなぎ']];
 const openGroups = new Set();
-function techItems(g) { return J.order(g).filter(k => J.registry(g)[k] && !J.registry(g)[k].special); }
+function techItems(g) { return J.order(g).filter(k => J.registry(g)[k] && !J.registry(g)[k].special && J.partVisible(S.project, g, k)); }
 
 const previewR = new J.Renderer();
 const previewPlans = new Map();
@@ -3915,7 +4406,23 @@ function updateTap() {
 }
 
 /* ---------------- sync all inputs from project ---------------- */
+function syncPartSourceUI() {
+  const button = $('btnHideOriginal');
+  if (!button) return;
+  const hidden = !!S.project.vibeGeneration?.hideOriginal;
+  button.textContent = hidden ? '恢复显示原有部件' : '一键隐藏原有部件';
+  button.setAttribute('aria-pressed', String(hidden));
+}
+function toggleOriginalParts() {
+  if (S.exporting || S.tap) return;
+  pushEdit(); remember();
+  S.project.vibeGeneration = Object.assign({}, S.project.vibeGeneration, { hideOriginal: !S.project.vibeGeneration?.hideOriginal });
+  syncPartSourceUI(); renderTech(); drawStyleGrid(); renderCustomStyle(); renderFxLibrary();
+  if (!$('cutPick').hidden) fillCutPick();
+  replan(); commit(); flushSave();
+}
 function syncUI() {
+  syncPartSourceUI();
   $('songTitle').value = S.project.title || ''; $('songArtist').value = S.project.artist || '';
   $('lyrics').value = S.project.lyrics;
   $('snap').checked = !!S.project.timing.snap;
@@ -4051,7 +4558,129 @@ async function handleDroppedFiles(fileList) {
 }
 
 /* ---------------- wiring ---------------- */
+function bindTimelineResizer() {
+  const resizer = $('tlResizer'), tl = $('timeline');
+  if (!resizer || !tl) return;
+  let startY = 0, startH = 0, dragging = false;
+
+  const onPointerDown = e => {
+    if (e.button !== 0) return;
+    dragging = true;
+    startY = e.clientY;
+    startH = tl.clientHeight;
+    resizer.classList.add('is-dragging');
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+    if (resizer.setPointerCapture) {
+      try { resizer.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    e.preventDefault();
+  };
+
+  const onPointerMove = e => {
+    if (!dragging) return;
+    const dy = e.clientY - startY;
+    const minH = 76;
+    const maxH = Math.max(220, Math.min(650, Math.round(window.innerHeight * 0.65)));
+    const newH = Math.round(J.clamp(startH + dy, minH, maxH));
+    userTlHeight = newH;
+    try { localStorage.setItem('jizura.timelineHeight.v1', String(newH)); } catch (_) {}
+    tl.style.height = newH + 'px';
+    drawTimeline();
+  };
+
+  const onPointerUp = e => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('is-dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    if (resizer.releasePointerCapture) {
+      try { resizer.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+  };
+
+  const onDblClick = () => {
+    userTlHeight = null;
+    try { localStorage.removeItem('jizura.timelineHeight.v1'); } catch (_) {}
+    drawTimeline();
+    toast('时间轴高度已恢复默认');
+  };
+
+  resizer.addEventListener('pointerdown', onPointerDown);
+  resizer.addEventListener('pointermove', onPointerMove);
+  resizer.addEventListener('pointerup', onPointerUp);
+  resizer.addEventListener('pointercancel', onPointerUp);
+  resizer.addEventListener('dblclick', onDblClick);
+}
+
+function bindRightColResizer() {
+  const resizer = $('colResizerRight'), col = document.querySelector('.col-right');
+  if (!resizer || !col) return;
+  let startX = 0, startW = 0, dragging = false;
+
+  try {
+    const saved = localStorage.getItem('jizura.lyricsWidth.v1');
+    if (saved) {
+      const w = parseInt(saved, 10);
+      if (w >= 160 && w <= 600) {
+        document.documentElement.style.setProperty('--right-col-w', w + 'px');
+      }
+    }
+  } catch (_) {}
+
+  const onPointerDown = e => {
+    if (e.button !== 0) return;
+    dragging = true;
+    startX = e.clientX;
+    startW = col.clientWidth;
+    resizer.classList.add('is-dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    if (resizer.setPointerCapture) {
+      try { resizer.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    e.preventDefault();
+  };
+
+  const onPointerMove = e => {
+    if (!dragging) return;
+    const dx = startX - e.clientX;
+    const minW = 180;
+    const maxW = Math.max(300, Math.min(550, Math.round(window.innerWidth * 0.5)));
+    const newW = Math.round(J.clamp(startW + dx, minW, maxW));
+    document.documentElement.style.setProperty('--right-col-w', newW + 'px');
+    try { localStorage.setItem('jizura.lyricsWidth.v1', String(newW)); } catch (_) {}
+    sizeViewport();
+  };
+
+  const onPointerUp = e => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('is-dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    if (resizer.releasePointerCapture) {
+      try { resizer.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+  };
+
+  const onDblClick = () => {
+    document.documentElement.style.removeProperty('--right-col-w');
+    try { localStorage.removeItem('jizura.lyricsWidth.v1'); } catch (_) {}
+    sizeViewport();
+    toast('歌词栏宽度已恢复默认');
+  };
+
+  resizer.addEventListener('pointerdown', onPointerDown);
+  resizer.addEventListener('pointermove', onPointerMove);
+  resizer.addEventListener('pointerup', onPointerUp);
+  resizer.addEventListener('pointercancel', onPointerUp);
+  resizer.addEventListener('dblclick', onDblClick);
+}
+
 function bind() {
+  $('btnHideOriginal').addEventListener('click', toggleOriginalParts);
   $('lyrics').addEventListener('focus', prepareEdit);
   $('lyrics').addEventListener('input', e => { S.project.lyrics = e.target.value; replanSoon(260); });
   $('lyrics').addEventListener('blur', () => { flushSave(); updateEditBtns(); });
@@ -4209,14 +4838,16 @@ function bind() {
   $('tapCount').addEventListener('change', () => { saveTapOpts(); $('tapBtn').focus(); });
   $('tapStop').addEventListener('click', () => { pause(); stopTap(); });
   $('btnPlay').addEventListener('click', () => (S.playing ? pause() : play()));
-  const cutPickAuto = $('cutPickAuto'), cutPickClose = $('cutPickClose');
+  const cutPickClose = $('cutPickClose'), cutPickPreviewBtn = $('cutPickPreviewBtn');
+  if (cutPickPreviewBtn) {
+    const l = (document.documentElement.lang || '').toLowerCase();
+    cutPickPreviewBtn.textContent = l.startsWith('zh') ? '▶ 预览' : (l.startsWith('en') ? '▶ Preview' : '▶ プレビュー');
+    cutPickPreviewBtn.title = l.startsWith('zh') ? '播放此片段预览（展示和上一镜头衔接）' : (l.startsWith('en') ? 'Preview this cut with transition' : '前カット接続付きでこのカットをプレビュー');
+    cutPickPreviewBtn.addEventListener('click', () => {
+      previewCutWithLeadIn(null, { force: true, immediate: true });
+    });
+  }
   if (cutPickClose) cutPickClose.addEventListener('click', () => { closeCutPick(); updateCutInfo(); });
-  if (cutPickAuto) cutPickAuto.addEventListener('click', () => {
-    if (!cutPick.g) return;
-    pushEdit(); remember();
-    setCutTech(cutPick.line, cutPick.k, cutPick.g, '');
-    replan(); commit();
-  });
   const cutPickFilter = $('cutPickFilter'), cutPickFilterClear = $('cutPickFilterClear');
   if (cutPickFilter) {
     cutPickFilter.addEventListener('input', () => fillCutPick());
@@ -4247,7 +4878,7 @@ function bind() {
     });
   }
   const sc = $('scrub');
-  sc.addEventListener('input', () => { if (S.fxLoop) pause(); S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
+  sc.addEventListener('input', () => { if (S.fxLoop) pause(); S.cutPreviewRange = null; S.scrubbing = true; seek(sc.value / 10000 * S.plan.duration); });
   sc.addEventListener('change', () => { S.scrubbing = false; });
   const tl = $('timeline');
   let drag = false, raf = 0, shotClick = null;
@@ -4312,7 +4943,7 @@ function bind() {
       if (changed) finishFxEdit();
       drawTimeline();
     }
-    if (TL.drag >= 0) { TL.drag = -1; flushSave(); renderLines(); drawTimeline(); }
+    if (TL.drag >= 0) { TL.drag = -1; flushSave(); renderLines(); drawTimeline(); previewCutWithLeadIn(); }
     drag = false;
     const selected = shotClick; shotClick = null;
     if (selected) selectShot(J.cutAt(S.plan, selected.t));
@@ -4329,12 +4960,11 @@ function bind() {
     if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) { TL.off += (e.shiftKey ? e.deltaY : e.deltaX) / tl.clientWidth * vd; tlView(); drawTimeline(); }
     else tlZoom(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0025)), tlTime(e));
   }, { passive: false });
-  $('tlIn').addEventListener('click', () => tlZoom(1.6));
-  $('tlOut').addEventListener('click', () => tlZoom(1 / 1.6));
-  $('tlFit').addEventListener('click', () => { TL.z = 1; TL.off = 0; drawTimeline(); });
-  $('btnUndoEdit').addEventListener('click', () => edGo(-1));
-  const btnRedo = $('btnRedoEdit');
-  if (btnRedo) btnRedo.addEventListener('click', () => edGo(1));
+  const tlIn = $('tlIn'); if (tlIn) tlIn.addEventListener('click', () => tlZoom(1.6));
+  const tlOut = $('tlOut'); if (tlOut) tlOut.addEventListener('click', () => tlZoom(1 / 1.6));
+  const tlFit = $('tlFit'); if (tlFit) tlFit.addEventListener('click', () => { TL.z = 1; TL.off = 0; drawTimeline(); });
+  const btnUndo = $('btnUndoEdit'); if (btnUndo) btnUndo.addEventListener('click', () => edGo(-1));
+  const btnRedo = $('btnRedoEdit'); if (btnRedo) btnRedo.addEventListener('click', () => edGo(1));
   $('tapBack').addEventListener('click', tapBack);
   bindRangeUI();
 
@@ -4353,7 +4983,8 @@ function bind() {
     S.fxBypass = !S.fxBypass; $('btnFxBypass').setAttribute('aria-pressed', String(S.fxBypass));
     $('btnFxBypass').textContent = S.fxBypass ? '动效已旁路 · 点击恢复' : '旁路动效'; S.need = true;
   });
-  $('fxSnap').addEventListener('change', e => {
+  const fxSnapEl = $('fxSnap');
+  if (fxSnapEl) fxSnapEl.addEventListener('change', e => {
     pushEdit(); S.project.timing.snap = e.target.checked; $('snap').checked = e.target.checked; replan(); flushSave();
   });
   tl.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('application/x-jizura-fx') && S.screenFxMode) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
@@ -4544,8 +5175,8 @@ function bind() {
       return;
     }
     if (e.code === 'Space') { e.preventDefault(); S.playing ? pause() : play(); }
-    else if (e.code === 'ArrowRight') seek(S.t + (e.shiftKey ? 1 : 1 / S.plan.fps));
-    else if (e.code === 'ArrowLeft') seek(S.t - (e.shiftKey ? 1 : 1 / S.plan.fps));
+    else if (e.code === 'ArrowRight') { S.cutPreviewRange = null; seek(S.t + (e.shiftKey ? 1 : 1 / S.plan.fps)); }
+    else if (e.code === 'ArrowLeft') { S.cutPreviewRange = null; seek(S.t - (e.shiftKey ? 1 : 1 / S.plan.fps)); }
     else if (e.code === 'KeyR' && !e.metaKey && !e.ctrlKey && !e.altKey && !S.exporting) { e.preventDefault(); omakase(); }
     else if (e.altKey && e.code === 'KeyC') { e.preventDefault(); copyCurrentCutStyle(); }
     else if (e.altKey && e.code === 'KeyV') { e.preventDefault(); pasteCutStyleToCurrent(false); }
@@ -4689,6 +5320,8 @@ function boot() {
   S.project = loadLocal();
   ED.undo = loadUndoHistory();
   ED.redo = [];
+  bindTimelineResizer();
+  bindRightColResizer();
   bind(); initVolume(); syncUI(); syncLoopBtn(); replan();
   checkAndRestoreAssets();
   updateEditBtns();
@@ -4696,11 +5329,14 @@ function boot() {
   bindTour();
   // open on a representative frame (end of the first cut's entrance)
   const c0 = S.plan.cuts.find(c => c.line >= 0);
-  if (c0) seek(c0.start + Math.min(c0.dur * 0.6, c0.inDur + 0.25));
+  if (c0) {
+    seek(c0.start + Math.min(c0.dur * 0.6, c0.inDur + 0.25));
+    selectShot(c0);
+  }
   requestAnimationFrame(tick);
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 J.ui = S;
 // hooks for hosts that embed the app (the After Effects CEP panel)
-J.uiApi = { toast, replan, syncUI, pause, seek, flushSave, loadAudioFile, restartPreview, exportRange, exportRangeLines, edGo, pushEdit, copyCurrentCutStyle, pasteCutStyleToCurrent, applyCutStyleToLine, applyCutStyleToAll, applyCutStyleToRange, clearCurrentCutTech, rollCutSlot, nudgeCurrentCutTime, addManualTimelineEvent, deleteSelectedEvent, nudgeSelectedEventTime, bakeAutoEvents, clearAllEvents, toggleFxEventMode, handleDroppedFiles, importProjectFile };
+J.uiApi = { toast, replan, syncUI, pause, seek, flushSave, loadAudioFile, restartPreview, exportRange, exportRangeLines, edGo, pushEdit, copyCurrentCutStyle, pasteCutStyleToCurrent, applyCutStyleToLine, applyCutStyleToAll, applyCutStyleToRange, clearCurrentCutTech, rollCutSlot, nudgeCurrentCutTime, previewCutWithLeadIn, setAutoPreviewCut: v => { S.autoPreviewCut = !!v; try { localStorage.setItem('jizura.autoPreviewCut.v1', String(S.autoPreviewCut)); } catch (_) {} }, addManualTimelineEvent, deleteSelectedEvent, nudgeSelectedEventTime, bakeAutoEvents, clearAllEvents, toggleFxEventMode, handleDroppedFiles, importProjectFile };
 })();

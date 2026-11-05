@@ -36,10 +36,12 @@ test('style tabs only browse, keep their selection across categories, and genera
   assert.ok(collapsarTab, '坍缩星 tab should exist');
   collapsarTab.events.click();
   assert.equal(el('shotVibeControls').querySelector('.shot-vibe-tabs').children.find(b => b.textContent === '坍缩星').attrs['aria-selected'], 'true');
+  box.S.project.vibeGeneration.hideOriginal = true;
   el('shotVibeGeneration').value = 'collapsar'; el('shotVibeGeneral').checked = true;
   el('shotVibeGeneration').events.change();
   assert.equal(box.S.project.vibeGeneration.id, 'collapsar');
   assert.equal(box.S.project.vibeGeneration.includeGeneral, true); assert.equal(saves, 1);
+  assert.equal(box.S.project.vibeGeneration.hideOriginal, true);
 });
 
 test('old projects and empty collections keep composition, while bespoke collections select exclusive parts', () => {

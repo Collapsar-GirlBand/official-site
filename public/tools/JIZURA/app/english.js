@@ -118,7 +118,12 @@
       indexTabs: 'Index tabs', moonPhases: 'Moon phases',
       dandelion: 'Dandelion seeds', tally: 'Tally marks',
       windowChrome: 'Window frame', notifBell: 'Notification bell',
-      likeCounter: 'Like counter', mediaControls: 'Playback controls'
+      likeCounter: 'Like counter', mediaControls: 'Playback controls',
+      grow_flora: 'Botanical Growth (Flora)', grow_geometric: 'Geometric Growth (Faceted)',
+      grow_cyber: 'Cyber Circuit Growth', grow_tendril: 'Spiral Tendril Growth',
+      grow_hyphae: 'Mycelium Growth (Hyphae)', grow_physarum: 'Slime Mold Growth (Physarum)',
+      fracture_burst: 'Shock Fracture Burst', fracture_crevasse: 'Fault Crevasse Rift',
+      fracture_craquelure: 'Celadon Craquelure'
     },
     treat: {
       none: 'None', outline: 'Hollow letters', outlineFill: 'Outlined text',

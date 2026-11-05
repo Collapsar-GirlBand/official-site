@@ -17,6 +17,7 @@
   --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
   --brand: "Zen Old Mincho", "Noto Serif JP", "Yu Mincho", serif;
   --r: 4px;
+  --right-col-w: 240px;
 }
 html, body { height: 100%; }
 [hidden] { display: none !important; }
@@ -210,6 +211,11 @@ button.play { width: 40px; height: 34px; padding: 0; font-size: 14px; }
 .cut-actions-sep { display: inline-block; width: 1px; height: 14px; background: var(--line2); margin: 0 4px; vertical-align: middle; }
 .cut-action-btn { font-size: 11px; padding: 2px 8px; height: 22px; line-height: 18px; cursor: pointer; border-radius: var(--r); }
 .cut-action-btn:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+.cut-action-btn.is-active,
+.cut-action-btn[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); background: rgba(0, 229, 255, 0.12); }
+.cut-preview-btn { color: var(--cyan); font-weight: 500; }
+.cut-preview-btn:hover:not(:disabled) { background: rgba(0, 229, 255, 0.16); border-color: var(--cyan); }
+#cutPickPreviewBtn { color: var(--cyan); }
 .cut-action-btn.danger { color: #f87171; border-color: rgba(248, 113, 113, 0.4); }
 .cut-action-btn.danger:hover:not(:disabled) { border-color: #f87171; background: rgba(248, 113, 113, 0.15); color: #fca5a5; }
 .cut-sync-menu-wrap { position: relative; display: inline-block; }
@@ -672,10 +678,14 @@ dialog.terms a { color: var(--cyan); word-break: break-all; }
 .pick-sets label.check { margin-bottom: 6px; }
 .easy-hero .pick-sets { margin-top: 14px; }
 .set-badge { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid var(--amber); border-radius: 3px; color: var(--amber); font-size: 10px; line-height: 15px; vertical-align: 1px; }
-.set-badge.ex { border-color: var(--cyan, #4cc9d9); color: var(--cyan, #4cc9d9); }
+.set-badge.ex { display: none !important; }
 .set-badge.set-horror { border-color: #c0544a; color: #e0786e; }
 .set-badge.set-typo { border-color: #9aa3ad; color: #c5ccd3; }
 .set-badge.set-kinetic { border-color: #7fbf6a; color: #9fd98a; }
+.set-badge.set-grow { border-color: #10b981; color: #34d399; background: rgba(16, 185, 129, 0.16); font-weight: 700; }
+html[data-ui-theme=light] .set-badge.set-grow { border-color: #059669; color: #047857; background: rgba(16, 185, 129, 0.12); }
+.set-badge.set-cl { border-color: #d97757; color: #fca587; background: rgba(217, 119, 87, 0.18); font-weight: 700; letter-spacing: 0.04em; }
+html[data-ui-theme=light] .set-badge.set-cl { border-color: #c25e3e; color: #a44324; background: rgba(217, 119, 87, 0.12); }
 .checks label.set-off { opacity: 0.45; }
 .checks label.set-off .set-badge { border-color: var(--muted); color: var(--muted); }
 .stile { position: relative; }
@@ -916,12 +926,52 @@ button.small.primary { padding: 4px 12px; }
 .screen-fx-panel input[type=number] { width: 90px; }
 
 #app:not(.screen-fx-mode) [data-tab="fx"], #app:not(.screen-fx-mode) [data-pane="fx"] { display: none !important; }
-#app:not(.screen-fx-mode) .work { grid-template-columns: minmax(270px, 330px) minmax(0, 1fr); }
-#app:not(.screen-fx-mode) .col-left { grid-column: 1; grid-row: 1; }
+#app:not(.screen-fx-mode) .work { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) 6px var(--right-col-w, 240px); }
+#app:not(.screen-fx-mode) .col-left { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; overflow: hidden; }
 #app:not(.screen-fx-mode) .col-stage { grid-column: 2; grid-row: 1; order: 0; }
-#app:not(.screen-fx-mode) .col-right,
+#app:not(.screen-fx-mode) .col-resizer-right { grid-column: 3; grid-row: 1; display: flex; }
+#app:not(.screen-fx-mode) .col-right { grid-column: 4; grid-row: 1; display: block; overflow-y: auto; }
 #app:not(.screen-fx-mode) .tl-bar,
 #app:not(.screen-fx-mode) #timeline { display: none !important; }
+
+#app.screen-fx-mode .work { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) 6px var(--right-col-w, 280px); }
+#app.screen-fx-mode .col-left { grid-column: 1; grid-row: 1; }
+#app.screen-fx-mode .col-stage { grid-column: 2; grid-row: 1; }
+#app.screen-fx-mode .col-resizer-right { grid-column: 3; grid-row: 1; display: flex; }
+#app.screen-fx-mode .col-right { grid-column: 4; grid-row: 1; display: block; overflow-y: auto; }
+
+.shot-only { display: block; }
+#app.screen-fx-mode .shot-only { display: none !important; }
+#app.screen-fx-mode #shotEditor { display: none !important; }
+
+.col-resizer-right {
+  width: 6px;
+  margin: 0 -3px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 5;
+  touch-action: none;
+  user-select: none;
+}
+.col-resizer-handle {
+  display: block;
+  width: 2px;
+  height: 36px;
+  border-radius: 1px;
+  background: var(--line2);
+  pointer-events: none;
+  transition: width 0.15s ease, background 0.15s ease, height 0.15s ease;
+}
+.col-resizer-right:hover .col-resizer-handle,
+.col-resizer-right.is-dragging .col-resizer-handle {
+  width: 3px;
+  height: 52px;
+  background: var(--cyan);
+}
+
 .merged-settings { border-top: 1px solid var(--line2); }
 .merged-settings > summary { cursor: pointer; padding: 14px 16px; color: var(--text); font-size: 12px; }
 .merged-settings[open] > summary { border-bottom: 1px solid var(--line); }
@@ -930,10 +980,12 @@ button.small.primary { padding: 4px 12px; }
 .merged-settings .tabpane { padding-inline: 12px; }
 @media (max-width: 700px) {
   #app:not(.screen-fx-mode) .work { display: flex; flex-direction: column; }
-  #app:not(.screen-fx-mode) .col-stage { order: -2; }
-  #app:not(.screen-fx-mode) .col-left { order: 0; }
+  #app:not(.screen-fx-mode) .col-stage { order: 0; }
+  #app:not(.screen-fx-mode) .col-left { order: 1; }
+  #app:not(.screen-fx-mode) .col-resizer-right { display: none; }
+  #app:not(.screen-fx-mode) .col-right { order: 2; }
 }
-.shot-editor { grid-column: 1 / -1; grid-row: 2; display: flex; flex-direction: column; height: clamp(320px, 45vh, 470px); min-width: 0; min-height: 0; border-top: 1px solid var(--line2); background: var(--panel); }
+.shot-editor { display: flex; flex-direction: column; height: 100%; min-height: 0; border: 0; background: var(--panel); }
 .shot-vibe-controls { flex-shrink: 0; margin-bottom: 8px; font-size: 11px; }
 .shot-vibe-tabs { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 5px; }
 .shot-vibe-tabs button { flex-shrink: 0; padding: 4px 10px; font-size: 12px; }
@@ -944,51 +996,49 @@ button.small.primary { padding: 4px 12px; }
 .shot-vibe-note { margin: 5px 0 0; line-height: 1.4; }
 .shot-vibe-badge { display: block; padding: 3px 6px; font-size: 10px; color: var(--cyan); }
 .shot-editor[hidden], .screen-fx-mode .shot-editor { display: none !important; }
-.shot-editor-heading { display: flex; align-items: center; gap: 12px; padding: 9px 14px; min-width: 0; flex-shrink: 0; border-bottom: 1px solid var(--line); }
-#shotEditorTitle { flex: 0 1 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.shot-editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; min-width: 0; flex-shrink: 0; border-bottom: 1px solid var(--line); }
+#shotEditorTitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
 .shot-editor-heading > .muted { font-size: 11px; white-space: nowrap; }
-.shot-editor-heading .cutinfo { margin-left: auto; min-width: 0; flex-wrap: nowrap; overflow: visible; font-size: 11px; }
+.shot-editor-heading .cutinfo { margin-left: auto; min-width: 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 11px; }
 #app.shot-editing .transport .themeSel, #app.shot-editing #btnOmakase { display: none; }
-.shot-editor-body { display: grid; grid-template-columns: 144px minmax(0, 1fr); flex: 1; min-height: 0; }
-.shot-categories { display: flex; flex-direction: column; gap: 4px; padding: 8px; overflow-y: auto; border-right: 1px solid var(--line); }
-.shot-categories button { display: block; width: 100%; height: 34px; min-height: 34px; flex-shrink: 0; text-align: left; padding: 7px 14px; font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-color: transparent; background: transparent; }
-.shot-categories button[aria-selected=true] { background: var(--raised2); color: var(--cyan); border-color: var(--cyan); }
-#shotEditor .cut-pick { display: flex; flex-direction: column; padding: 10px 14px; border: 0; border-radius: 0; max-height: none; min-height: 0; overflow: hidden; }
-#shotEditor .cut-pick-h { position: static; flex-shrink: 0; min-height: 28px; margin-bottom: 8px; }
-#shotEditor #cutPickGrid { overflow-y: auto; min-height: 0; align-content: start; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); grid-auto-rows: minmax(110px, max-content); }
+.shot-editor-body { display: grid; grid-template-columns: 74px minmax(0, 1fr); flex: 1; min-height: 0; overflow: hidden; }
+.shot-categories { display: flex; flex-direction: column; gap: 3px; padding: 6px 4px; overflow-y: auto; border-right: 1px solid var(--line); background: var(--raised); }
+.shot-categories button { display: block; width: 100%; height: 32px; min-height: 32px; flex-shrink: 0; text-align: center; padding: 4px 6px; font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: var(--r); border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s ease; }
+.shot-categories button:hover { background: var(--raised2); color: var(--text); }
+.shot-categories button[aria-selected=true] { background: var(--raised2); color: var(--cyan); border-color: var(--cyan); font-weight: 600; }
+#shotEditor .cut-pick { display: flex; flex-direction: column; padding: 8px 10px; border: 0; border-radius: 0; max-height: none; min-height: 0; overflow: hidden; }
+#shotEditor .cut-pick-h { position: static; flex-shrink: 0; min-height: 28px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#shotEditor #cutPickGrid { overflow-y: auto; min-height: 0; align-content: start; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); grid-auto-rows: minmax(105px, max-content); gap: 6px; padding-right: 2px; }
 #shotEditor .tcard canvas { flex-shrink: 0; }
+.lyrics-panel { display: flex; flex-direction: column; height: 100%; }
 .lyrics-source { display: block; }
 .lyrics-source summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .lyrics-source[open] .lyrics-heading { margin-block: 10px; }
-.ln .cuts.shot-list { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr); flex-basis: auto; }
-.ln .shot-button { display: flex; align-items: center; gap: 9px; padding: 7px 8px; min-width: 0; width: 100%; font-size: 11px; text-align: left; }
-.shot-button b { flex-shrink: 0; font-weight: 500; color: var(--muted); }
-.shot-button span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.shot-button.playing { box-shadow: inset 2px 0 var(--amber); }
-.shot-button[aria-pressed=true] { background: var(--raised2); border-color: var(--cyan); }
-.ln .meta { flex-direction: column; align-items: stretch; }
-.ln .tools { justify-content: flex-start; margin-left: 0; }
-.ln .tools .time { max-width: 72px; font-size: 11px; }
-@media (min-width: 1181px) and (min-height: 620px) {
-  #app.shot-editing .work { grid-template-rows: minmax(0, 1fr) clamp(320px, 45vh, 470px); }
-  #app.shot-editing .col-left, #app.shot-editing .col-stage, #app.shot-editing .col-right { grid-row: 1; }
-  #app.shot-editing .viewport { min-height: 140px; }
-}
-@media (max-width: 1180px) {
-  .shot-editor { grid-row: auto; }
-}
+.ln { display: flex; flex-direction: column; gap: 6px; padding: 8px 8px; border-bottom: 1px solid var(--line); }
+.ln-header { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; }
+.ln-header .no { font: 500 11px var(--mono); color: var(--faint); flex-shrink: 0; width: 18px; text-align: right; }
+.ln-text-input { flex: 1; min-width: 0; box-sizing: border-box; background: transparent; border: 1px solid transparent; border-radius: var(--r); padding: 3px 6px; color: var(--text); font-family: inherit; font-size: 12px; font-weight: 500; line-height: 1.4; transition: border-color 0.15s ease, background 0.15s ease; }
+.ln-text-input:hover { background: var(--raised); border-color: var(--line2); }
+.ln-text-input:focus { background: var(--raised); border-color: var(--cyan); outline: none; box-shadow: 0 0 0 1px var(--cyan); }
+.ln .meta { display: flex; flex-direction: column; gap: 6px; width: 100%; padding-left: 24px; box-sizing: border-box; }
+.ln .cuts.shot-list { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.ln .shot-button { display: flex; align-items: center; gap: 6px; padding: 4px 6px; min-width: 0; width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: var(--r); background: var(--raised); cursor: pointer; transition: all 0.15s ease; }
+.ln .shot-button:hover { border-color: var(--amber); }
+.ln .shot-button[aria-pressed=true] { background: var(--raised2); border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.ln .shot-button.playing { box-shadow: inset 3px 0 var(--amber); border-color: var(--amber); }
+.ln .shot-button .cut-time { width: 54px; flex-shrink: 0; padding: 2px 3px; font-size: 11px; font-family: var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; color: var(--text); text-align: center; }
+.ln .shot-button .cut-time:hover, .ln .shot-button .cut-time:focus { border-color: var(--cyan); outline: none; }
+.ln .shot-button .cut-phrase { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: var(--text); }
+.ln .tools { display: flex; align-items: center; gap: 4px; justify-content: flex-start; margin-left: 0; }
 @media (max-width: 700px) {
-  .shot-editor { order: -1; height: min(580px, 75vh); }
-  #app.shot-editing.is-mobile .col-stage { position: relative; top: auto; }
-  .shot-editor-heading { gap: 8px; padding: 8px; }
+  .shot-editor { height: min(450px, 60vh); }
+  .shot-editor-heading { gap: 6px; padding: 6px; }
   .shot-editor-heading > .muted, .shot-editor-heading .cutinfo { display: none; }
-  .shot-editor-heading > button { margin-left: auto; }
-  .shot-editor-body { grid-template-columns: 96px minmax(0, 1fr); }
-  .shot-categories { padding: 5px; }
-  .shot-categories button { padding-inline: 10px; }
-  #shotEditor .cut-pick { padding: 8px; }
-  #shotEditor #cutPickGrid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
-  #shotEditor .cut-pick-h .muted { display: none; }
+  .shot-editor-body { grid-template-columns: 60px minmax(0, 1fr); }
+  .shot-categories { padding: 4px 2px; }
+  .shot-categories button { padding-inline: 4px; font-size: 10px; }
+  #shotEditor .cut-pick { padding: 6px; }
+  #shotEditor #cutPickGrid { grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); }
   #app.is-mobile .ln .meta { display: flex; }
 }
 .screen-fx-mode .col-left > :not(.fx-library), .screen-fx-mode .col-right > :not(.fx-inspector-shell) { display: none !important; }
@@ -1012,7 +1062,37 @@ button.small.primary { padding: 4px 12px; }
 #fxGlobalSettings { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 20px; }
 #fxGlobalSettings summary, .screen-fx-panel summary { cursor: pointer; font-size: 12px; color: var(--muted); padding-block: 8px; }
 #app.screen-fx-mode #fxGlobalControls .tabpane { display: block !important; padding: 12px 0; }
-#app.screen-fx-mode #timeline { display: block; flex-shrink: 0; min-height: 102px; }
+.tl-resizer {
+  display: none;
+  height: 8px;
+  margin: -4px 0 0;
+  cursor: ns-resize;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 4;
+  touch-action: none;
+  user-select: none;
+}
+.tl-resizer-handle {
+  display: block;
+  width: 40px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line2);
+  pointer-events: none;
+  transition: width 0.15s ease, background 0.15s ease, height 0.15s ease;
+}
+.tl-resizer:hover .tl-resizer-handle,
+.tl-resizer.is-dragging .tl-resizer-handle {
+  width: 56px;
+  height: 4px;
+  background: var(--cyan);
+}
+.screen-fx-mode .tl-resizer {
+  display: flex !important;
+}
+#app.screen-fx-mode #timeline { display: block; flex-shrink: 0; min-height: 80px; max-height: 70vh; }
 #app.screen-fx-mode .transport .themeSel, #app.screen-fx-mode #btnOmakase { display: none; }
 #app.screen-fx-mode .col-stage { overflow-y: auto; }
 #app.screen-fx-mode .viewport { flex-shrink: 0; }

@@ -109,7 +109,9 @@
       dandelion: '蒲公英', fireflies: '螢火蟲', memphis: '孟菲斯', zigzagRibbon: '鋸齒緞帶', polkaPatch: '圓點',
       stripeCircle: '條紋圓', decoCorners: '裝飾角', halfCircles: '半圓堆疊', loopArrows: '循環箭頭', starburst: '星芒',
       tally: '畫正字', cursorClick: '游標', windowChrome: '視窗', progressBar: '進度條', toggleSwitch: '切換開關',
-      notifBell: '通知', likeCounter: '按讚數', mediaControls: '播放按鈕', volumeBars: '音量', musicNotes: '音符'
+      notifBell: '通知', likeCounter: '按讚數', mediaControls: '播放按鈕', volumeBars: '音量', musicNotes: '音符',
+      grow_flora: '植物生長（青花繁花）', grow_geometric: '幾何生長（折面藤蔓）', grow_cyber: '電路生長（賽博回路）',
+      grow_tendril: '卷鬚生長（螺旋花序）', grow_hyphae: '菌絲生長（微觀菌網）', grow_physarum: '粘菌生長（原生網絡）'
     },
     treat: {
       none: '無', outline: '空心字', outlineFill: '描邊', doubleOutline: '雙層描邊', extrude: '立體字',

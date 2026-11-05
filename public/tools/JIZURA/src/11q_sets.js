@@ -29,7 +29,7 @@ J.WA = {
   treat: ['monoGrid'],
   style: ['sakura', 'sumi'],
 };
-J.SETS = { horror: { on: false }, typo: { on: true }, kinetic: { on: true } };   // on = default (UI labels live in 12_ui.js)
+J.SETS = { horror: { on: false }, typo: { on: true }, kinetic: { on: true }, grow: { on: true } };   // on = default (UI labels live in 12_ui.js)
 J.SET_ORDER = Object.keys(J.SETS);
 /* is this part set switched on in the project? (old projects without the flag get the default) */
 J.setOn = (project, set) => { const v = project && project[set]; return typeof v === 'boolean' ? v : !!(J.SETS[set] && J.SETS[set].on); };
